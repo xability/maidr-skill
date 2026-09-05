@@ -1,0 +1,59 @@
+{
+  "skill_name": "maidr",
+  "evals": [
+    {
+      "id": 1,
+      "name": "python-bar-chart-from-csv",
+      "prompt": "I have monthly_sales.csv with columns month and revenue (12 rows, Jan-Dec 2025). Make me a bar chart of revenue by month with matplotlib and save it as an HTML file I can send to my team. Python is installed.",
+      "expected_output": "A Python script that imports maidr, draws the bar chart with a title and labelled axes (with currency formatting), and calls maidr.save_html(fig, 'monthly_sales.html'); the resulting HTML contains a maidr attribute with a bar layer of 12 points, and the agent explains the keyboard controls.",
+      "files": ["monthly_sales.csv"],
+      "assertions": [
+        "The final deliverable is an HTML file, not only a PNG",
+        "The Python code imports maidr and calls maidr.save_html or maidr.show (not an invented API)",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors",
+        "The chart has a title, an x-axis label and a y-axis label",
+        "The response tells the user how to navigate the chart (Tab, arrow keys, B/T/S)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "standalone-html-line-chart-no-python",
+      "prompt": "Create a single self-contained HTML page showing average global temperature anomaly from 1990 to 2020 as a line chart (use these values: 1990 0.45, 1995 0.47, 2000 0.42, 2005 0.68, 2010 0.72, 2015 0.90, 2020 1.02 degrees C). I cannot run Python or Node here; it must be plain HTML I can open in a browser.",
+      "expected_output": "An HTML file with an SVG line chart and a maidr attribute holding a line layer with nested data (one series of 7 points), axes labels as objects, a selectors entry pointing at the path, and maidr.js loaded from jsDelivr with a cdnjs fallback.",
+      "files": [],
+      "assertions": [
+        "maidr.js is loaded from jsDelivr or cdnjs, pinned to a version",
+        "The SVG carries a maidr attribute whose JSON parses",
+        "The layer type is 'line' and data is nested (array of arrays) with 7 points",
+        "axes.x and axes.y are objects with label fields",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "r-ggplot2-existing-script",
+      "prompt": "Here is my R script analysis.R that ends with a ggplot2 scatter of mtcars wt vs mpg coloured by cyl. Can you make the plot accessible for a blind colleague? We use R Markdown for the report too.",
+      "expected_output": "The script gains library(maidr) and show(p)/save_html(p, ...) with labelled axes and title; the answer explains adding maidr_on() in the R Markdown setup chunk and that HTML output is required; no Python is introduced.",
+      "files": ["analysis.R"],
+      "assertions": [
+        "Uses the maidr R package (install.packages('maidr'), library(maidr)) rather than switching to Python",
+        "Calls show() or save_html() from the maidr package with the ggplot object",
+        "Mentions maidr_on() for R Markdown / Quarto and that output must be HTML",
+        "Does not invent functions such as maidr::render() or maidr::accessible()"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "existing-d3-chart-in-web-app",
+      "prompt": "Our dashboard (index.html + app.js) draws a D3 v7 bar chart of tickets per weekday into <svg id=\"tickets\"> with rect.bar elements. Make it screen-reader accessible without changing how it looks.",
+      "expected_output": "The page loads maidr.js and the D3 adapter from jsDelivr and calls maidrD3.bindD3Bar(svgElement, { selector: 'rect.bar', title, axes, x, y }) after the bars are drawn; the visual code is unchanged.",
+      "files": ["index.html", "app.js"],
+      "assertions": [
+        "Loads maidr.js and dist/d3.js from jsDelivr (not cdnjs for the adapter)",
+        "Calls maidrD3.bindD3Bar with a selector matching the existing rect.bar marks",
+        "Does not rewrite the chart in Python or another library",
+        "Explains how to verify (Tab to the chart, arrow keys)"
+      ]
+    }
+  ]
+}
