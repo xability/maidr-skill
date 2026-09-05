@@ -143,7 +143,7 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
                     else:
                         css = os.path.join(os.path.dirname(path), "maidr-math.css")
                         if not os.path.exists(css):
-                            rep.warn(f"maidr-math.css missing beside {path}; math in AI-chat replies will render unstyled")
+                            rep.info(f"no maidr-math.css beside {path}; only affects math formatting in AI-chat replies")
                 if kind == "other-cdn":
                     rep.warn(f"maidr.js loaded from an unrecognized host ({src}); jsDelivr and cdnjs are the supported CDNs")
             m = re.search(r"/dist/(" + "|".join(re.escape(a) for a in ADAPTERS) + r")\.m?js", src)
@@ -232,6 +232,9 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
     if selectors is None:
         rep.info(f"{where}: no selectors; navigation works but nothing is highlighted visually")
         return
+    # A one-element list is the same as a single selector string (r-maidr emits this form).
+    if isinstance(selectors, list) and len(selectors) == 1 and isinstance(selectors[0], str):
+        selectors = selectors[0]
     if isinstance(selectors, str):
         if soup is None or layer_type in NESTED:
             return
