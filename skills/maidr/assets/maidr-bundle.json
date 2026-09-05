@@ -1,0 +1,16 @@
+{
+  "name": "maidr",
+  "version": "4.6.0",
+  "license": "GPL-3.0-or-later",
+  "source": "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/",
+  "registry": "https://registry.npmjs.org/maidr/4.6.0",
+  "retrieved": "2026-09-05",
+  "files": {
+    "maidr.js": { "sha256": "d790ac2be3f1635da21d5f380f1f67da9c34cda4832d390bbb38bd36f6160fbc", "bytes": 1522673 },
+    "maidr-math.css": { "sha256": "446d44f15ab6da203199838dd6a2d9554d7acfc4334950777423ff77cdc9ebe7", "bytes": 367928 }
+  },
+  "cdn": {
+    "jsdelivr": "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js",
+    "cdnjs": "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js"
+  }
+}

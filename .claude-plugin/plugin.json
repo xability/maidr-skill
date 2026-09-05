@@ -1,0 +1,10 @@
+{
+  "name": "maidr",
+  "description": "Make every chart accessible with MAIDR (Multimodal Access and Interactive Data Representation): picks py-maidr, the maidr R package, or maidr.js for the current environment and adds keyboard navigation, screen-reader text, sonification, braille, and AI descriptions to the visual chart.",
+  "version": "0.1.0",
+  "author": { "name": "xability", "url": "https://github.com/xability" },
+  "homepage": "https://maidr.ai",
+  "repository": "https://github.com/xability/maidr-skill",
+  "license": "GPL-3.0-or-later",
+  "keywords": ["accessibility", "a11y", "charts", "data-visualization", "maidr", "sonification", "braille", "screen-reader", "matplotlib", "ggplot2", "plotly"]
+}

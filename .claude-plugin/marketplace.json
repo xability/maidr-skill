@@ -1,0 +1,19 @@
+{
+  "name": "maidr-skill",
+  "owner": { "name": "xability", "url": "https://github.com/xability" },
+  "description": "Agent skills from the (x)Ability Design Lab for building accessible data visualizations with MAIDR.",
+  "plugins": [
+    {
+      "name": "maidr",
+      "source": "./",
+      "description": "Make every chart accessible with MAIDR: py-maidr, the maidr R package, or maidr.js chosen automatically for the current environment.",
+      "version": "0.1.0",
+      "author": { "name": "xability", "url": "https://github.com/xability" },
+      "homepage": "https://maidr.ai",
+      "repository": "https://github.com/xability/maidr-skill",
+      "license": "GPL-3.0-or-later",
+      "category": "accessibility",
+      "keywords": ["accessibility", "charts", "data-visualization", "maidr", "sonification", "braille"]
+    }
+  ]
+}

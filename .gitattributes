@@ -1,0 +1,3 @@
+* text=auto eol=lf
+skills/maidr/assets/maidr.js linguist-vendored -diff
+skills/maidr/assets/maidr-math.css linguist-vendored -diff
