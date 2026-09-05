@@ -1,0 +1,7 @@
+interface:
+  display_name: "maidr accessible charts"
+  short_description: "Build charts that blind and low-vision readers can explore: keyboard, text, sound, braille."
+  default_prompt: "Make this chart accessible with maidr, choosing py-maidr, the maidr R package, or maidr.js for my environment, then verify the output."
+
+policy:
+  allow_implicit_invocation: true

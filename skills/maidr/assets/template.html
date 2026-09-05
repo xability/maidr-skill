@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Revenue by quarter</title>
+    <!--
+      maidr.js loader with a fallback chain: jsDelivr -> cdnjs -> a local copy.
+      maidr initializes even when its script arrives after DOMContentLoaded, so a
+      late fallback still works. For an air-gapped page, copy assets/maidr.js and
+      assets/maidr-math.css next to this file (the local entry below finds them),
+      or paste the contents of maidr.js into an inline <script> and delete this loader.
+      Pin the version; "@latest" changes under the reader.
+    -->
+    <script>
+      (function () {
+        var sources = [
+          "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js",
+          "./maidr.js"
+        ];
+        function load(i) {
+          if (i >= sources.length) { console.error("maidr.js could not be loaded from any source"); return; }
+          var s = document.createElement("script");
+          s.src = sources[i];
+          s.onerror = function () { load(i + 1); };
+          document.head.appendChild(s);
+        }
+        load(0);
+      })();
+    </script>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; background: #fff; }
+      .bar { fill: #4682b4; }
+      .axis { stroke: #333; stroke-width: 1; }
+      .tick-label, .axis-label { font-size: 12px; fill: #333; }
+      .chart-title { font-size: 16px; font-weight: 600; fill: #111; }
+    </style>
+  </head>
+  <body>
+    <h1>Revenue by quarter</h1>
+    <p>Tab to the chart, then use the arrow keys. B = braille, T = text, S = sound, R = review, ? = AI chat.</p>
+
+    <!--
+      The MAIDR description lives in the `maidr` attribute of the <svg>:
+        * "id" in the JSON equals the SVG id.
+        * "axes" values are objects with a "label" (never bare strings).
+        * "data" is in the same order as the drawn marks.
+        * "selectors" resolves to exactly one element per data point (here 4 <rect class="bar">).
+        * "type" is a stable trace type: bar, line, point, hist, heat, box, pie, step,
+          dodged_bar, stacked_bar, stacked_normalized_bar, smooth, candlestick, violin_box, violin_kde.
+      JSON must be double-quoted, so keep the attribute in single quotes and avoid apostrophes inside.
+    -->
+    <svg xmlns="http://www.w3.org/2000/svg" id="revenue" width="480" height="300" viewBox="0 0 480 300" role="img"
+         aria-label="Bar chart of revenue by quarter"
+         maidr='{
+           "id": "revenue",
+           "title": "Revenue by quarter",
+           "subplots": [[{
+             "layers": [{
+               "id": "revenue-bars",
+               "type": "bar",
+               "axes": { "x": { "label": "Quarter" }, "y": { "label": "Revenue (USD thousands)" } },
+               "selectors": "#revenue rect.bar",
+               "data": [
+                 { "x": "Q1", "y": 120 },
+                 { "x": "Q2", "y": 200 },
+                 { "x": "Q3", "y": 150 },
+                 { "x": "Q4", "y": 280 }
+               ]
+             }]
+           }]]
+         }'>
+      <text class="chart-title" x="240" y="24" text-anchor="middle">Revenue by quarter</text>
+      <!-- axes -->
+      <line class="axis" x1="60" y1="40" x2="60" y2="260" />
+      <line class="axis" x1="60" y1="260" x2="460" y2="260" />
+      <!-- y ticks: 0, 100, 200, 300 mapped onto 260..40 (220 px for 280 units -> 0.7857 px/unit) -->
+      <text class="tick-label" x="52" y="264" text-anchor="end">0</text>
+      <text class="tick-label" x="52" y="185.4" text-anchor="end">100</text>
+      <text class="tick-label" x="52" y="106.9" text-anchor="end">200</text>
+      <text class="tick-label" x="52" y="28.3" text-anchor="end">300</text>
+      <!-- bars, in data order -->
+      <rect class="bar" x="75" y="165.7" width="70" height="94.3" />
+      <rect class="bar" x="175" y="102.9" width="70" height="157.1" />
+      <rect class="bar" x="275" y="142.1" width="70" height="117.9" />
+      <rect class="bar" x="375" y="40" width="70" height="220" />
+      <!-- x tick labels -->
+      <text class="tick-label" x="110" y="278" text-anchor="middle">Q1</text>
+      <text class="tick-label" x="210" y="278" text-anchor="middle">Q2</text>
+      <text class="tick-label" x="310" y="278" text-anchor="middle">Q3</text>
+      <text class="tick-label" x="410" y="278" text-anchor="middle">Q4</text>
+      <!-- axis labels -->
+      <text class="axis-label" x="260" y="296" text-anchor="middle">Quarter</text>
+      <text class="axis-label" x="16" y="150" text-anchor="middle" transform="rotate(-90 16 150)">Revenue (USD thousands)</text>
+    </svg>
+  </body>
+</html>
