@@ -11,7 +11,7 @@ npm package `maidr` 4.6.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: htt
 | cdnjs, pinned only | `<script src="https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js"></script>` |
 | npm | `npm install maidr`; `import 'maidr'` for the UMD side-effect build, or `import { Maidr } from 'maidr/react'` |
 | Local file | `<script src="./maidr.js"></script>` with `maidr-math.css` in the same folder (both in this skill's `assets/`) |
-| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file |
+| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file. An inline bundle has no URL to find `maidr-math.css` from; if math in AI-chat replies should be styled, set `window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr-math.css"` (or a local path) in a script before it |
 
 - No stylesheet is required; maidr styles its own UI at runtime. `maidr.css` on the CDN is an empty placeholder. `maidr-math.css` (KaTeX) is fetched from the same directory as `maidr.js` only when an AI-chat answer contains math.
 - maidr runs on `DOMContentLoaded`, or immediately if the document has already loaded, so async or late loading works. A `MutationObserver` picks up `maidr` attributes and Plotly charts added later (single-page apps, notebooks).

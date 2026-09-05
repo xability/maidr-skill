@@ -52,7 +52,9 @@ Horizontal bars: add `"orientation": "horz"` on the layer and keep `x` as the ca
 ]
 ```
 
-Optional per-point `label` names an ordinal level announced instead of the number (`y` stays numeric). `step` adds layer-level `"stepDirection": "hv" | "vh" | "mid"` (matplotlib `steps-post`, `steps-pre`, `steps-mid`). Selectors for lines typically match one `path` per series.
+Optional per-point `label` names an ordinal level announced instead of the number (`y` stays numeric). `step` adds layer-level `"stepDirection": "hv" | "vh" | "mid"` (matplotlib `steps-post`, `steps-pre`, `steps-mid`).
+
+`selectors` for a line matches one `<path>` (or `<polyline>`) per series, in series order. maidr highlights a line by walking that path's vertices, so draw each series with straight `M`/`L` segments and exactly one vertex per data point in data order; a smoothed curve (`C`, `Q`) or an over-sampled path makes the highlight drift away from the announced point. Draw markers as separate elements if you want them.
 
 ### `point` (scatter, flat array, numeric coordinates)
 

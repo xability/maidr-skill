@@ -228,18 +228,68 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
     return len(data)
 
 
-def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report) -> None:
+NUMBER = re.compile(r"-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?", re.I)
+
+
+def vertex_count(el):
+    """Vertices maidr can highlight on a line element: (count, problem). count is None when unknown."""
+    if el.name in ("polyline", "polygon"):
+        return len(NUMBER.findall(el.get("points", ""))) // 2, None
+    if el.name == "path":
+        d = el.get("d", "")
+        commands = set(re.findall(r"[A-Za-z]", d))
+        if commands & set("CcQqSsTtAa"):
+            return None, "curved"
+        if commands & set("HhVv"):
+            return None, "hv"
+        return len(NUMBER.findall(d)) // 2, None
+    return None, "not-a-path"
+
+
+def drawn(elements):
+    """Drop matches inside <defs> (markers, clip paths); they are definitions, not drawn marks."""
+    return [e for e in elements if e.find_parent("defs") is None]
+
+
+def check_line_selectors(selectors, data, where: str, soup, rep: Report) -> None:
+    """One path per series, one straight-segment vertex per point: that is what maidr walks when highlighting a line."""
+    series = [s for s in data if isinstance(s, list)] if isinstance(data, list) else []
+    try:
+        if isinstance(selectors, str):
+            matched = drawn(soup.select(selectors))
+        else:
+            matched = [m[0] for m in (drawn(soup.select(s)) for s in selectors if isinstance(s, str)) if m]
+    except Exception as exc:
+        rep.error(f"{where}: selectors are not valid CSS ({exc})")
+        return
+    if len(matched) != len(series):
+        rep.warn(f"{where}: selectors match {len(matched)} element(s) for {len(series)} series; a line needs one path (or polyline) per series, in order")
+        return
+    for i, (el, s) in enumerate(zip(matched, series)):
+        count, problem = vertex_count(el)
+        if problem == "curved":
+            rep.warn(f"{where} series[{i}]: <path> uses curve commands; maidr highlights vertices, so draw straight M/L segments with one vertex per point")
+        elif problem == "not-a-path":
+            rep.warn(f"{where} series[{i}]: selector matched <{el.name}>, expected a <path> or <polyline>")
+        elif count is not None and count != len(s):
+            rep.warn(f"{where} series[{i}]: path has {count} vertices but the series has {len(s)} points; highlighting will drift from the announced point")
+
+
+def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report, data=None) -> None:
     if selectors is None:
         rep.info(f"{where}: no selectors; navigation works but nothing is highlighted visually")
         return
     # A one-element list is the same as a single selector string (r-maidr emits this form).
     if isinstance(selectors, list) and len(selectors) == 1 and isinstance(selectors[0], str):
         selectors = selectors[0]
+    if layer_type == "line" and soup is not None and isinstance(selectors, (str, list)):
+        check_line_selectors(selectors, data, where, soup, rep)
+        return
     if isinstance(selectors, str):
         if soup is None or layer_type in NESTED:
             return
         try:
-            matched = len(soup.select(selectors))
+            matched = len(drawn(soup.select(selectors)))
         except Exception as exc:  # bad CSS
             rep.error(f"{where}: selectors '{selectors}' is not a valid CSS selector ({exc})")
             return
@@ -300,7 +350,7 @@ def check_layer(layer, where: str, soup, rep: Report) -> None:
         return
     n = check_data_shape(t, layer["data"], where, rep)
     if n:
-        check_selectors(layer.get("selectors"), n, t, where, soup, rep)
+        check_selectors(layer.get("selectors"), n, t, where, soup, rep, layer["data"])
 
 
 def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> None:

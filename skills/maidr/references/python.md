@@ -30,10 +30,11 @@ Development build: `pip install -U git+https://github.com/xability/py-maidr.git`
 | `maidr.set_use_cdn(value)`, `maidr.get_use_cdn()` | Process-wide default for `use_cdn`: `True`, `False`, or `"auto"`. |
 | `maidr.set_cdn_version("4.6.0" \| "bundled" \| "latest" \| None)` | Pin the maidr.js version used in CDN URLs. |
 | `maidr.bundle_status()` | Compare the bundled maidr.js with the published release. |
+| `maidr.read_bundled_js()`, `maidr.bundled_js_path()`, `maidr.bundled_math_css_path()` | The maidr.js source (and file paths) shipped inside the installed package, for inlining into a single file. |
 | `from maidr.widget.shiny import output_maidr, render_maidr` | `output_maidr(id, width="100%", height="auto")` in the UI; `@render_maidr` (accepts `use_cdn=`) decorates the server function that returns the plot. |
 | `from maidr.widget.streamlit import render_maidr, maidr_html` | `render_maidr(fig, height="content", width="stretch", tab_index=None, use_cdn=None)`; `maidr_html(fig)` returns the HTML string. |
 
-Nothing else exists. There is no `maidr.set_engine`, `maidr.plot`, `maidr.enable`, or `maidr.accessible`.
+That is the whole user-facing surface. There is no `maidr.set_engine`, `maidr.plot`, `maidr.enable`, or `maidr.accessible`.
 
 ## Supported plots
 
@@ -89,6 +90,8 @@ loader = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/
 html = loader.sub(lambda m: inline, html, count=1)
 path.write_text(html, encoding="utf-8")   # about 1.5 MB, no lib/ folder, no network needed
 ```
+
+The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr-math.css";</script>` to `inline`.
 
 Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 

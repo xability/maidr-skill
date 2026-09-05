@@ -32,7 +32,7 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 | Otherwise, and Python runs here (`python3 --version`, `python --version`, or `uv`) | **py-maidr** (PyPI `maidr`) | `references/python.md` |
 | No Python and no R: browser-only sandboxes, artifacts, static HTML deliverables | **maidr.js** with hand-authored JSON | `references/javascript.md`, `references/schema.md` |
 
-R is only for R work. Never move a Python or JavaScript user to R, and never move an R user to Python. When Python exists and the user wants "an HTML file" or "an artifact", py-maidr's `save_html()` is still the best route; hand-author maidr.js only when Python cannot run.
+R is only for R work. Never move a Python or JavaScript user to R, and never move an R user to Python. The user's environment and deliverable decide, not the machine you happen to run on: the probe reports your runtimes, so if the user says they have no Python, or needs one self-contained file that opens anywhere, hand-author maidr.js (or use py-maidr locally and inline the bundle as shown in `references/python.md`). When Python exists on both sides and the user wants "an HTML file", py-maidr's `save_html()` is the best route.
 
 ### How maidr.js reaches the page (every binding ends here)
 
@@ -112,14 +112,14 @@ Three ways to attach, in order of least work:
 </svg>
 ```
 
-Rules that matter: the JSON `id` equals the SVG `id`; `axes` values are objects with a `label`, never bare strings; `data` follows the drawn order; `selectors` resolves to exactly one element per data point so highlighting lands on the right mark; `type` is one of the stable names `bar`, `line`, `point`, `hist`, `heat`, `box`, `pie`, `step`, `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `smooth`, `candlestick`, `violin_box`, `violin_kde`. Per-type data shapes plus multi-panel and multi-layer layouts: `references/schema.md`. Start from `assets/template.html`.
+Rules that matter: the JSON `id` equals the SVG `id`; `axes` values are objects with a `label`, never bare strings; `data` follows the drawn order; `selectors` resolves to exactly one element per data point so highlighting lands on the right mark (for a line, one `<path>` per series drawn with straight `M`/`L` segments and one vertex per point); `type` is one of the stable names `bar`, `line`, `point`, `hist`, `heat`, `box`, `pie`, `step`, `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `smooth`, `candlestick`, `violin_box`, `violin_kde`. Per-type data shapes plus multi-panel and multi-layer layouts: `references/schema.md`. Start from `assets/template.html`.
 
 ## Verify before you hand over
 
 Accessibility that is not verified is a claim, not a feature. Do as many of these as the environment allows:
 
 1. `python scripts/check_maidr_html.py out.html` runs static checks: maidr.js is referenced from a source that will resolve, the JSON parses, ids match, trace types are known, data shapes fit the type, and selector counts match data counts. Add `--browser` to also load the page headlessly when the `playwright` Python package is installed.
-2. With a browser tool (Playwright MCP, Chrome DevTools MCP): serve the folder over `http://` (many browser tools block `file:` URLs; `python -m http.server` works), open the page, confirm there are no console errors and that maidr wrapped the chart in an `<article>` and `<figure>` whose ids start with `maidr-article-` and `maidr-figure-`, then Tab to the chart (a `div[tabindex="0"]` whose role switches from `img` to `application` on focus) and press Right Arrow. The first data point is announced in a `role="alert"` element, for example "Quarter is Q1, Revenue (USD thousands) is 120". A browser tool shared with other agents can race; if it does, `pip install playwright && playwright install chromium` and use the checker's `--browser` flag instead.
+2. With a browser tool (Playwright MCP, Chrome DevTools MCP): serve the folder over `http://` (many browser tools block `file:` URLs; `python -m http.server` works), open the page, confirm there are no console errors and that maidr wrapped the chart in an `<article>` and `<figure>` whose ids start with `maidr-article-` and `maidr-figure-`, then Tab to the chart (a `div[tabindex="0"]` whose role switches from `img` to `application` on focus) and press Right Arrow. The first data point is announced in a `role="alert"` element, for example "Quarter is Q1, Revenue (USD thousands) is 120". A browser tool shared with other agents can race, and browser extensions add console noise (compare against a blank page before blaming the chart); when in doubt, `pip install playwright && playwright install chromium` and use the checker's `--browser` flag instead.
 3. py-maidr and r-maidr print a warning when a chart type fell back to a static image. Read the console output and tell the user instead of shipping a silent image.
 
 ## What to tell the user
