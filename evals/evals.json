@@ -6,7 +6,9 @@
       "name": "python-bar-chart-from-csv",
       "prompt": "I have monthly_sales.csv with columns month and revenue (12 rows, Jan-Dec 2025). Make me a bar chart of revenue by month with matplotlib and save it as an HTML file I can send to my team. Python is installed.",
       "expected_output": "A Python script that imports maidr, draws the bar chart with a title and labelled axes (with currency formatting), and calls maidr.save_html(fig, 'monthly_sales.html'); the resulting HTML contains a maidr attribute with a bar layer of 12 points, and the agent explains the keyboard controls.",
-      "files": ["monthly_sales.csv"],
+      "files": [
+        "fixtures/monthly_sales.csv"
+      ],
       "assertions": [
         "The final deliverable is an HTML file, not only a PNG",
         "The Python code imports maidr and calls maidr.save_html or maidr.show (not an invented API)",
@@ -34,7 +36,9 @@
       "name": "r-ggplot2-existing-script",
       "prompt": "Here is my R script analysis.R that ends with a ggplot2 scatter of mtcars wt vs mpg coloured by cyl. Can you make the plot accessible for a blind colleague? We use R Markdown for the report too.",
       "expected_output": "The script gains library(maidr) and show(p)/save_html(p, ...) with labelled axes and title; the answer explains adding maidr_on() in the R Markdown setup chunk and that HTML output is required; no Python is introduced.",
-      "files": ["analysis.R"],
+      "files": [
+        "fixtures/analysis.R"
+      ],
       "assertions": [
         "Uses the maidr R package (install.packages('maidr'), library(maidr)) rather than switching to Python",
         "Calls show() or save_html() from the maidr package with the ggplot object",
@@ -47,7 +51,10 @@
       "name": "existing-d3-chart-in-web-app",
       "prompt": "Our dashboard (index.html + app.js) draws a D3 v7 bar chart of tickets per weekday into <svg id=\"tickets\"> with rect.bar elements. Make it screen-reader accessible without changing how it looks.",
       "expected_output": "The page loads maidr.js and the D3 adapter from jsDelivr and calls maidrD3.bindD3Bar(svgElement, { selector: 'rect.bar', title, axes, x, y }) after the bars are drawn; the visual code is unchanged.",
-      "files": ["index.html", "app.js"],
+      "files": [
+        "fixtures/d3-dashboard/index.html",
+        "fixtures/d3-dashboard/app.js"
+      ],
       "assertions": [
         "Loads maidr.js and dist/d3.js from jsDelivr (not cdnjs for the adapter)",
         "Calls maidrD3.bindD3Bar with a selector matching the existing rect.bar marks",

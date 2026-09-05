@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Support tickets dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      .bar { fill: #3b6ea5; }
+      .bar:hover { fill: #1f4f80; }
+      .axis text { font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Support tickets per weekday</h1>
+    <p>Last full week, all queues.</p>
+    <svg id="tickets" width="640" height="360"></svg>
+    <script src="app.js"></script>
+  </body>
+</html>
