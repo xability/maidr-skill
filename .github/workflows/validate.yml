@@ -1,0 +1,69 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Validate skill frontmatter (Agent Skills spec)
+        run: uvx --from skills-ref agentskills validate skills/maidr
+
+      - name: Manifests are valid JSON
+        run: |
+          python -m json.tool .claude-plugin/plugin.json > /dev/null
+          python -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python -m json.tool skills/maidr/assets/maidr-bundle.json > /dev/null
+          python -m json.tool evals/evals.json > /dev/null
+
+      - name: Template passes the HTML checker
+        run: python skills/maidr/scripts/check_maidr_html.py skills/maidr/assets/template.html
+
+      - name: Environment detector prints valid JSON
+        run: bash skills/maidr/scripts/detect_env.sh . | python -m json.tool > /dev/null
+
+      - name: Vendored bundle matches recorded checksums and the npm release
+        run: |
+          python - <<'EOF'
+          import hashlib, json, urllib.request
+          meta = json.load(open("skills/maidr/assets/maidr-bundle.json"))
+          ver = meta["version"]
+          for name, info in meta["files"].items():
+              local = open(f"skills/maidr/assets/{name}", "rb").read()
+              digest = hashlib.sha256(local).hexdigest()
+              assert digest == info["sha256"], f"{name}: recorded sha256 differs from file"
+              remote = urllib.request.urlopen(f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/{name}", timeout=30).read()
+              assert hashlib.sha256(remote).hexdigest() == digest, f"{name}: differs from maidr@{ver} on npm"
+          print(f"vendored maidr {ver} verified")
+          EOF
+
+      - name: Version pins are consistent
+        run: |
+          python - <<'EOF'
+          import json, re, pathlib
+          ver = json.load(open("skills/maidr/assets/maidr-bundle.json"))["version"]
+          bad = []
+          for path in list(pathlib.Path("skills/maidr").rglob("*")) + [pathlib.Path("README.md")]:
+              if path.is_dir() or path.suffix in {".css"} or path.name == "maidr.js":
+                  continue
+              text = path.read_text(encoding="utf-8", errors="ignore")
+              for m in re.finditer(r"maidr@(\d+\.\d+\.\d+)|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"", text):
+                  found = next(g for g in m.groups() if g)
+                  if found != ver:
+                      bad.append(f"{path}: {m.group(0)}")
+          if bad:
+              print("\n".join(bad)); raise SystemExit("version pins disagree with maidr-bundle.json")
+          print(f"all pins are {ver}")
+          EOF
