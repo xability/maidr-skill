@@ -111,7 +111,7 @@ There are no maidr environment variables. `RSTUDIO=1` decides Viewer versus brow
 
 ## Offline and CDN
 
-`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-4.6.0/` beside the file; ship both, or pass `use_cdn = TRUE` for a single file that loads from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
+`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build ships 4.6.0); ship both, or pass `use_cdn = TRUE` for a single file that loads the same pinned version from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
 
 ## Gotchas
 
@@ -120,6 +120,6 @@ There are no maidr environment variables. `RSTUDIO=1` decides Viewer versus brow
 3. `quantmod::chartSeries()` with volume or technical-analysis overlays falls back to a static image; pass OHLC without a Volume column or set `TA = NULL`.
 4. Violin plots are stable in ggplot2 only; base R `vioplot(y ~ g)` formula calls are not read.
 5. `matplot()` and `symbols()` can fail inside the SVG export and fall back with a warning.
-6. `library(maidr)` masks base graphics functions. Behaviour is unchanged; `maidr_off()` restores plain plotting.
+6. `library(maidr)` masks base graphics functions and `methods::show`. Behaviour is unchanged; call `methods::show(x)` for S4 objects and `maidr_off()` to restore plain plotting.
 7. ggplot2 3.x (S3) and 4.x (S7) are both supported.
 8. Knitting to PDF yields static images by design; render to HTML for accessibility.

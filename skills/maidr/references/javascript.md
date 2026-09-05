@@ -90,7 +90,7 @@ Canvas libraries (Chart.js, amCharts) get a drawn highlight overlay instead of S
 
 ## What maidr does at runtime
 
-Once initialized, maidr wraps the chart in `<article id="maidr-article-<chart id>">` containing `<figure id="maidr-figure-<chart id>">`, makes the chart focusable, and renders its text, braille, and settings UI inside that article. Pressing Tab lands on the chart; Right Arrow announces the first point through a live region. Use `document.querySelector('[id^="maidr-figure-"]')` to confirm initialization from a browser tool. If they never appear, the JSON did not parse or no attachment method matched; run `scripts/check_maidr_html.py`.
+Once initialized, maidr wraps the chart in `<article id="maidr-article-<chart id>">` containing `<figure id="maidr-figure-<chart id>">` and a focusable `div[tabindex="0"]` with `role="img"`. Focusing that div (Tab or click) switches its role to `application` and mounts the text, braille, and settings UI inside the article; Right Arrow then announces the first point in a `role="alert"` element (for example "Quarter is Q1, Revenue (USD thousands) is 120") and highlights the matching mark. Use `document.querySelector('[id^="maidr-figure-"]')` to confirm initialization from a browser tool, and `document.querySelector('[id^="maidr-article-"] [tabindex="0"]').focus()` to drive it programmatically. If they never appear, the JSON did not parse or no attachment method matched; run `scripts/check_maidr_html.py`.
 
 ## Live and streaming charts
 

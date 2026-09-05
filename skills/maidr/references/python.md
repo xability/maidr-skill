@@ -50,7 +50,7 @@ Anything else renders as a static image with the warning "Falling back to static
 ## Make the announcement good
 
 - Set a title, x label, and y label with units on every axes. They are read verbatim.
-- Format numbers: `ax.yaxis.set_major_formatter("{x:,.0f}")`, `matplotlib.ticker.PercentFormatter()`, `StrMethodFormatter("${x:,.2f}")`. maidr reads the axis formatter, so readers hear "1,200" rather than "1200.0".
+- Format numbers: `ax.yaxis.set_major_formatter("{x:,.0f}")`, `matplotlib.ticker.PercentFormatter()`, `StrMethodFormatter("${x:,.2f}")`. maidr reads the axis formatter, so readers hear "1,200" rather than "1200.0". The formatter also rounds what is announced (182,341 for 182340.50) while the JSON keeps the exact value, so match its precision to the data (`{x:,.2f}` when cents matter) or tell the user.
 - Heatmap and hexbin colour axis: `sns.heatmap(df, z_label="Score")` or `ax.hexbin(x, y, z_label="Count")`. `z_label` is a py-maidr keyword; without it the axis is called "Level".
 - Pie: `ax.set_xlabel("Region")` and `ax.set_ylabel("Share of sales")` name what slices and values mean.
 - Series names come from `label=` in plot calls (the legend), so label every series.
@@ -71,9 +71,24 @@ Anything else renders as a static image with the warning "Falling back to static
 
 | `use_cdn` | Behaviour |
 |---|---|
-| `"auto"` (default) | Emits `<script src="https://cdn.jsdelivr.net/npm/maidr@<version>/dist/maidr.js">` with an in-browser fallback to the bundled copy. One HTTPS lookup per process resolves `latest` to a concrete version (3 s timeout). Inside notebook, Shiny, and Flask iframes the fallback is not available: air-gapped deployments must use `False`. |
+| `"auto"` (default) | Emits `<script src="https://cdn.jsdelivr.net/npm/maidr@<version>/dist/maidr.js">` with an in-browser fallback to the bundled copy; `save_html()` therefore also writes `lib/maidr-<version>/` beside the file. One HTTPS lookup per process resolves `latest` to a concrete version (3 s timeout). Inside notebook, Shiny, and Flask iframes the fallback is not available: air-gapped deployments must use `False`. |
 | `False` | Bundled maidr.js only. `save_html()` copies it to `lib/maidr-<version>/` beside the file (ship the folder with the HTML); iframe renders get it inlined. |
-| `True` | CDN only, no fallback. |
+| `True` | CDN only, no fallback, no `lib/` folder: a single file that needs internet. |
+
+Single self-contained file that also works offline (when the user wants exactly one file to send): save with `use_cdn=True`, then replace py-maidr's inline loader block (the `<script>` that injects the jsDelivr URL) with the bundled source. Verified with `check_maidr_html.py chart.html --browser`.
+
+```python
+import pathlib, re
+import maidr
+
+path = pathlib.Path("chart.html")
+maidr.save_html(fig, str(path), use_cdn=True)
+html = path.read_text(encoding="utf-8")
+inline = "<script>" + maidr.read_bundled_js().replace("</script>", "<\\/script>") + "</script>"
+loader = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S)
+html = loader.sub(lambda m: inline, html, count=1)
+path.write_text(html, encoding="utf-8")   # about 1.5 MB, no lib/ folder, no network needed
+```
 
 Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 
