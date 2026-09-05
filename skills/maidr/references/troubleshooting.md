@@ -59,7 +59,7 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 
 ## Claude artifacts and other sandboxed pages
 
-Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`; local files and inline data URIs for scripts are blocked. Use a CDN URL (either host), keep the JSON inline in the attribute, and expect the AI chat to be unavailable unless the sandbox also permits the provider's API host.
+Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`; local files and inline data URIs for scripts are blocked. Use a CDN URL (either host), keep the JSON inline in the attribute, and expect the AI chat to be unavailable unless the sandbox also permits the provider's API host. This is the way to embed an explorable chart directly in a claude.ai or Claude Code conversation instead of handing over a file; py-maidr output can be embedded the same way, since its loader points at jsDelivr. Other chat products that preview HTML (for example a ChatGPT canvas) have undocumented script policies: try the cdnjs tag first and fall back to a downloadable single file if the sandbox blocks it.
 
 ## The AI chat asks for a key
 

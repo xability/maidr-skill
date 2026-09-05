@@ -19,7 +19,7 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 
 1. **Pick the binding** (next section). From the project directory run `scripts/detect_env.sh` (bash) or `scripts/detect_env.ps1` (PowerShell) for a JSON verdict, or judge from the same signals by hand.
 2. **Draw the chart exactly as asked**, then route it through the binding using the recipes below. Keep the title and axis labels with units; they are what gets announced.
-3. **Deliver something interactive**: an HTML file the user can open, or the inline render in a notebook, Quarto document, or Shiny app. A PNG alone is never the deliverable; if the user wants an image too, ship both.
+3. **Deliver something interactive**: an HTML file the user can open, the inline render in a notebook, Quarto document, or Shiny app, or, in a chat that renders HTML (claude.ai and Claude Code artifacts), an HTML artifact so the chart is explorable right in the conversation instead of as a download. A PNG alone is never the deliverable; if the user wants an image too, ship both.
 4. **Verify** (see "Verify before you hand over").
 5. **Explain how to use it** (see "What to tell the user").
 
@@ -39,7 +39,8 @@ R is only for R work. Never move a Python or JavaScript user to R, and never mov
 | Source | When to use it | Notes |
 |---|---|---|
 | jsDelivr `https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js` | Default whenever it is reachable | `maidr@latest` also works but changes under the reader; pin a version for anything that must keep working |
-| cdnjs `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js` | The sandbox or firewall allows `cdnjs.cloudflare.com` but not jsDelivr (Claude artifacts allow both; some corporate CSPs allow only cdnjs) | Version-pinned only, no `latest` alias; only the core file is mirrored, not the chart-library adapters |
+| cdnjs `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js` | The sandbox or firewall allows `cdnjs.cloudflare.com` but not jsDelivr; some corporate CSPs allow only cdnjs | Version-pinned only, no `latest` alias; only the core file is mirrored, not the chart-library adapters |
+| Either CDN inside a chat artifact (claude.ai, Claude Code) | The user is in a chat and should explore the chart in place rather than download a file | The artifact sandbox admits scripts from cdnjs and jsDelivr but no local files or other hosts; keep the JSON in the `maidr` attribute. Sonification starts after the reader clicks or tabs into the chart; the AI chat (`?`) cannot reach any provider from inside the sandbox, so mention that limitation |
 | Vendored bundle `assets/maidr.js` with `assets/maidr-math.css` beside it | No CDN is reachable, the deployment is air-gapped, or the deliverable must be one self-contained file | Copy both files next to the HTML and reference `./maidr.js`, or paste the bundle into an inline `<script>`. py-maidr (`use_cdn=False`) and r-maidr (default) already ship their own copy, so Python and R rarely need this |
 
 The network probe runs on your machine; the reader's browser may sit behind a different firewall. Hand-written pages should carry the loader chain from `assets/template.html` (jsDelivr, then cdnjs, then a local file). maidr initializes correctly even when its script arrives after `DOMContentLoaded`, so a late fallback still works.
