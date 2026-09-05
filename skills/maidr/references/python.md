@@ -97,6 +97,20 @@ Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundle
 
 py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js`, or use `use_cdn=False`.
 
+## Embedding in a chat artifact
+
+claude.ai and Claude Code render HTML artifacts in a sandbox that loads scripts only from cdnjs and jsDelivr and cannot see files, so the chart has to travel as HTML text with a CDN script. py-maidr output already fits: with `use_cdn=True` it is a single document (about 27 KB for a bar chart, 12 KB with `plt.rcParams["svg.fonttype"] = "none"`, which keeps axis text as text instead of glyph outlines) whose inline loader points at jsDelivr.
+
+```python
+import matplotlib.pyplot as plt
+import maidr
+plt.rcParams["svg.fonttype"] = "none"
+# ... draw fig ...
+maidr.save_html(fig, "chart.html", use_cdn=True)
+```
+
+Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own, such as the Claude Code Artifact tool. In claude.ai, paste the full document as an HTML artifact. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
+
 ## Gotchas
 
 1. `MPLBACKEND` set to a GUI backend (TkAgg, QtAgg, MacOSX) stops `import maidr` from taking over `plt.show()`. Call `maidr.show(fig)` explicitly.

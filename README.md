@@ -63,6 +63,7 @@ skills/maidr/
   scripts/detect_env.sh        environment probe (bash): runtimes, project signals, CDN reachability, verdict
   scripts/detect_env.ps1       the same probe for PowerShell
   scripts/check_maidr_html.py  static validator for MAIDR-enabled HTML (optional headless browser check)
+  scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
   assets/maidr.js              vendored maidr.js 4.6.0 for offline or firewalled use
   assets/maidr-math.css        stylesheet maidr.js fetches beside itself for math in AI-chat replies
