@@ -16,6 +16,15 @@ Whenever a user asks for a chart, plot, or visualization, the agent:
 2. Loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable.
 3. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
 
+## See it in a chat
+
+Two public artifacts show what the skill produces when the chart is embedded in a conversation instead of shipped as a file. Open one, press Tab (or click the chart), then use the arrow keys; **B**, **T**, **S**, and **R** toggle braille, text, sound, and review mode.
+
+- [Hand-authored SVG with MAIDR JSON](https://claude.ai/code/artifact/05de1e51-7fd4-4aa1-83e8-c1b4525e6393): the `assets/template.html` approach, maidr.js loaded from cdnjs.
+- [matplotlib chart saved by py-maidr](https://claude.ai/code/artifact/056a2136-3cef-40b2-8d00-2d89cc6c4c6c): `maidr.save_html(fig, use_cdn=True)` reshaped by `scripts/to_artifact.py`.
+
+Inside the artifact sandbox everything works except the AI chat (`?`), which cannot reach a model provider from there; sound starts after the first click or Tab into the chart.
+
 ## Install
 
 ### Any agent (recommended)
