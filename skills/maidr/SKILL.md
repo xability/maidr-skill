@@ -126,7 +126,7 @@ Accessibility that is not verified is a claim, not a feature. Do as many of thes
 
 ## What to tell the user
 
-Give the file path (and the `lib/` folder if one was written), how to open it, and this cheat sheet: Tab or click to focus the chart; Arrow keys move between data points; **B** braille, **T** text, **S** sound, **R** review mode; **L** then **T**, **X**, or **Y** announces the title or an axis label; **PageUp/PageDown** switches overlaid layers; in a multi-panel figure the arrows first move between panels, **Enter** opens one and **Escape** returns; **?** opens the AI chat, which uses the reader's own API key or a local Ollama model entered under Settings (**Ctrl+,**); nothing is sent anywhere until the reader configures it.
+Give the file path (and the `lib/` folder if one was written), how to open it, and this cheat sheet: Tab or click to focus the chart; Arrow keys move between data points; **B** braille, **T** text, **S** sound, **R** review mode; **L** then **T**, **X**, or **Y** announces the title or an axis label; **PageUp/PageDown** switches overlaid layers; in a multi-panel figure the arrows first move between panels, **Enter** opens one and **Escape** returns. Four global shortcuts (on macOS, Command replaces Ctrl): **Ctrl+/** shows or hides the keyboard shortcut help, **Ctrl+Shift+P** opens the command palette listing every available command, **?** (Shift+/) opens the AI chat, and **Ctrl+,** opens Settings. The AI chat uses the reader's own API key or a local Ollama model entered in Settings; nothing is sent anywhere until the reader configures it.
 
 ## Principles
 

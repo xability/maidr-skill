@@ -90,7 +90,14 @@ python skills/maidr/scripts/check_maidr_html.py chart.html            # static c
 python skills/maidr/scripts/check_maidr_html.py chart.html --browser  # plus a headless load (needs `pip install playwright`)
 ```
 
-Then open the file, press Tab to reach the chart, and use the arrow keys. **B** toggles braille, **T** text, **S** sound, **R** review mode, **?** the AI chat (readers supply their own API key or a local Ollama model under Ctrl+, Settings).
+Then open the file, press Tab to reach the chart, and use the arrow keys. **B** toggles braille, **T** text, **S** sound, **R** review mode. Four global shortcuts open maidr's own interfaces:
+
+| Action | Windows / Linux | macOS |
+|---|---|---|
+| Show or hide the keyboard shortcut help | Ctrl + / | Command + / |
+| Open the command palette listing every available command | Ctrl + Shift + P | Command + Shift + P |
+| Open the AI chat (requires the reader's own API key, entered in Settings, or a local Ollama server) | Shift + / (that is, **?**) | Shift + / (**?**) |
+| Open Settings | Ctrl + , | Command + , |
 
 ## Keeping the vendored maidr.js current
 
