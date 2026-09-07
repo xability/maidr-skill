@@ -34,10 +34,10 @@ fi
 import hashlib, json, os, sys, datetime
 meta_path, assets, ver = sys.argv[1:4]
 meta = json.load(open(meta_path))
+before = json.dumps(meta, sort_keys=True)
 meta["version"] = ver
 meta["source"] = f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/"
 meta["registry"] = f"https://registry.npmjs.org/maidr/{ver}"
-meta["retrieved"] = datetime.date.today().isoformat()
 for name in ("maidr.js", "maidr-math.css"):
     data = open(os.path.join(assets, name), "rb").read()
     meta["files"][name] = {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
@@ -45,8 +45,14 @@ meta["cdn"] = {
     "jsdelivr": f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/maidr.js",
     "cdnjs": f"https://cdnjs.cloudflare.com/ajax/libs/maidr/{ver}/maidr.min.js",
 }
-json.dump(meta, open(meta_path, "w"), indent=2)
-open(meta_path, "a").write("\n")
+# "retrieved" dates the vendored bytes, not the last run of this script. Bumping it
+# unconditionally leaves a diff behind on a re-vendor of the same release, which makes
+# the weekly workflow open an empty pull request every Monday.
+if json.dumps(meta, sort_keys=True) != before:
+    meta["retrieved"] = datetime.date.today().isoformat()
+with open(meta_path, "w") as fh:
+    json.dump(meta, fh, indent=2)
+    fh.write("\n")
 EOF
 
 if [ "$OLD" != "$VER" ]; then

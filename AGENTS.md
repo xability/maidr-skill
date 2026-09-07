@@ -10,7 +10,10 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 - `skills/maidr/assets/`: `template.html` (hand-authored example), the vendored `maidr.js` and `maidr-math.css`, and `maidr-bundle.json` (provenance and SHA-256).
 - `.claude-plugin/`: Claude Code plugin (`plugin.json`) and single-plugin marketplace (`marketplace.json`, `source: "./"`).
 - `evals/evals.json`: test prompts for exercising the skill with and without it installed.
-- `tools/update-bundle.sh`: refreshes the vendored bundle and rewrites version pins.
+- `tools/update-bundle.sh`: refreshes the vendored bundle and rewrites version pins. It is idempotent —
+  re-vendoring the release already recorded in `maidr-bundle.json` leaves the working tree clean, which
+  is what keeps the weekly `update-bundle` workflow from opening an empty pull request. `retrieved`
+  therefore dates the vendored bytes, not the last run.
 
 ## Facts must be verified
 

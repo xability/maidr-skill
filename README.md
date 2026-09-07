@@ -106,7 +106,14 @@ tools/update-bundle.sh          # latest release on npm
 tools/update-bundle.sh 4.7.0    # a specific version
 ```
 
-The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records their SHA-256 in `assets/maidr-bundle.json`, and rewrites the version pins across the skill. A scheduled GitHub Action runs it weekly and opens a pull request when a new release exists.
+The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records their SHA-256 in `assets/maidr-bundle.json`, and rewrites the version pins across the skill. Re-vendoring a release that is already vendored changes nothing, so the script is safe to re-run.
+
+A scheduled GitHub Action runs it weekly and opens a pull request only when a new release exists. Opening that pull request needs one of:
+
+- **Settings > Actions > General > Workflow permissions**, with *Allow GitHub Actions to create and approve pull requests* enabled (an organization can also enforce this switch off from its own settings, which overrides the repository), or
+- a `BUNDLE_UPDATE_TOKEN` repository secret holding a personal access token with `repo` scope, which the workflow prefers when present.
+
+Without either, the job pushes `chore/update-maidr-bundle` and then fails with `GitHub Actions is not permitted to create or approve pull requests`.
 
 ## Related projects
 

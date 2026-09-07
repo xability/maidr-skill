@@ -22,14 +22,42 @@ jobs:
 
       - name: Refresh vendored maidr.js
         id: refresh
+        env:
+          # Via the environment, not string interpolation, so a dispatch input cannot
+          # inject shell.
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          bash tools/update-bundle.sh "${{ github.event.inputs.version }}" | tee update.log
+          set -o pipefail   # without this, tee's exit status hides a failed refresh
+          bash tools/update-bundle.sh "$VERSION" 2>&1 \
+            | tee "$RUNNER_TEMP/update-bundle.log"
           echo "version=$(python3 -c 'import json;print(json.load(open("skills/maidr/assets/maidr-bundle.json"))["version"])')" >> "$GITHUB_OUTPUT"
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Vendored bundle already current — no pull request needed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo '```'
+            cat "$RUNNER_TEMP/update-bundle.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open pull request if anything changed
+        if: steps.refresh.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
+          # GITHUB_TOKEN can only open pull requests while "Allow GitHub Actions to
+          # create and approve pull requests" is on (Settings > Actions > General).
+          # Set BUNDLE_UPDATE_TOKEN to a PAT with `repo` scope to work without it.
+          token: ${{ secrets.BUNDLE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
           branch: chore/update-maidr-bundle
+          # Only what update-bundle.sh rewrites, so a stray file in the working tree
+          # cannot ride along into the commit.
+          add-paths: |
+            skills/maidr
+            README.md
+            AGENTS.md
           commit-message: "chore: vendor maidr.js ${{ steps.refresh.outputs.version }}"
           title: "chore: vendor maidr.js ${{ steps.refresh.outputs.version }}"
           body: |
@@ -40,6 +68,6 @@ jobs:
             ```
 
             Review `skills/maidr/assets/maidr-bundle.json` for the new checksums, and check that the cdnjs
-            fallback URL resolves (the update log warns when cdnjs has not mirrored the release yet).
+            fallback URL resolves (the job summary warns when cdnjs has not mirrored the release yet).
           labels: dependencies
           delete-branch: true
