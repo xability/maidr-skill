@@ -215,7 +215,10 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
     for p in data:
         missing = required - set(p)
         if missing:
-            rep.error(f"{where}: point {json.dumps(p)[:80]} is missing {sorted(missing)}")
+            if layer_type == "candlestick" and missing == {"value"} and "x" in p:
+                rep.error(f"{where}: candlestick points name the date with \"value\", not \"x\" (got {json.dumps(p)[:80]})")
+            else:
+                rep.error(f"{where}: point {json.dumps(p)[:80]} is missing {sorted(missing)}")
             break
     if layer_type == "pie":
         bad = [p for p in data if not isinstance(p.get("y"), (int, float))]
@@ -355,6 +358,8 @@ def check_layer(layer, where: str, soup, rep: Report) -> None:
 
 def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> None:
     where = f"<{el['tag']} id={el['id']!r} {el['attr']}>"
+    if el["tag"] == "canvas":
+        rep.error(f"{where}: a hand-written MAIDR attribute on a <canvas> does nothing, because navigation highlights drawn elements; put it on an <svg>, or make the canvas accessible through its library's adapter (Chart.js, amCharts)")
     try:
         doc = json.loads(raw)
     except json.JSONDecodeError as exc:

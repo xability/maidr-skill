@@ -72,7 +72,7 @@ Adapters read the library's own data model and write `maidr-data` for you. Load 
 |---|---|---|
 | Plotly.js | `maidr.js` only | Automatic. Create the chart with `Plotly.newPlot(...)` as usual. |
 | D3 | `maidr.js` + `dist/d3.js` (global `maidrD3`) | `maidrD3.bindD3Bar(svgEl, { selector: 'rect.bar', title: 'Daily count', axes: { x: 'Day', y: 'Count' }, x: 'day', y: 'count' })`. One binder per trace type: `bindD3Line`, `bindD3Scatter`, `bindD3Histogram`, `bindD3Pie`, `bindD3Box`, `bindD3Heatmap`, `bindD3Segmented` (stacked/dodged), `bindD3Smooth`, `bindD3Candlestick`, `bindD3Facets`, `bindD3Subplots`, and more. Sets `maidr-data` on the SVG. |
-| Chart.js | `dist/chartjs.js` only (self-contained, global `maidrChartjs`) | `Chart.register(maidrChartjs.maidrPlugin)` before creating charts; every chart on the page becomes accessible, with a highlight overlay on the canvas. |
+| Chart.js | `dist/chartjs.js` only (self-contained, global `maidrChartjs`) | `Chart.register(maidrChartjs.maidrPlugin)` before creating charts; every chart on the page becomes accessible, with a highlight overlay on the canvas. The adapter reads whatever Chart.js drew, so the chart's `type` decides the trace (see the table below). |
 | Highcharts | `maidr.js` + `dist/highcharts.js` (`maidrHighcharts`) | `const data = maidrHighcharts.highchartsToMaidr(chart, { id: 'bar-chart' }); container.setAttribute('maidr-data', JSON.stringify(data)); maidrHighcharts.createHighchartsSync(chart);` (`highchartsGridToMaidr` for dashboards). |
 | ECharts | `maidr.js` + `dist/echarts.js` (`maidrECharts`) | `maidrECharts.createMaidrFromEChart(chartInstance, ...)` after `setOption`. |
 | Vega-Lite | `maidr.js` + `dist/vegalite.js` (`maidrVegaLite`) | `maidrVegaLite.embed('#vis', spec)` as a drop-in for `vegaEmbed`, or `maidrVegaLite.bindVegaLite(...)` on an existing view. |
@@ -87,6 +87,25 @@ Adapters read the library's own data model and write `maidr-data` for you. Load 
 | Victory | `import { MaidrVictory } from 'maidr/victory'` | `<MaidrVictory id="sales" title="Quarterly revenue"><VictoryChart>...</VictoryChart></MaidrVictory>`; data is read from the nested Victory components. |
 
 Canvas libraries (Chart.js, amCharts) get a drawn highlight overlay instead of SVG highlighting; everything non-visual works the same.
+
+### An adapter reads what the library drew
+
+An adapter cannot turn one chart into another. It inspects the chart object and emits the trace type matching the marks on screen, so the way to get a candlestick reading from Chart.js is to have Chart.js draw a candlestick, not to relabel a bar chart. Chart.js core covers `bar`, `line`, `scatter`, `bubble`, `pie`, `doughnut`, `radar`, and `polarArea`; these types come from separate community plugins that must be loaded alongside it:
+
+| Chart | Chart.js `type` | Extra plugin |
+|---|---|---|
+| Candlestick, OHLC | `'candlestick'`, `'ohlc'` | `chartjs-chart-financial` plus a date adapter (`chartjs-adapter-date-fns`) |
+| Box plot, violin | `'boxplot'`, `'violin'` | `@sgratzl/chartjs-chart-boxplot` |
+| Heatmap | `'matrix'` | `chartjs-chart-matrix` |
+| Error bars | `'barWithErrorBars'`, `'lineWithErrorBars'`, `'scatterWithErrorBars'` | `chartjs-chart-error-bars` |
+| Treemap, sankey, word cloud, funnel | `'treemap'`, `'sankey'`, `'wordCloud'`, `'funnel'` | one plugin each (`chartjs-chart-<name>`) |
+
+Faking a candlestick with floating bars (two `'bar'` datasets for wick and body) is read as `dodged_bar`, because that is what Chart.js drew. When a plugin is unavailable, draw the chart as SVG and declare `type: "candlestick"` yourself, starting from `assets/candlestick.html`. The library's full type map is in the [Chart.js guide](https://maidr.ai/docs/chartjs.html).
+
+### Two silent failures
+
+- **`window.maidr` is the input-data global, not a signal that the library loaded.** maidr.js reads it and never assigns it, so `if (window.maidr) { el.setAttribute('maidr', json) }` never runs and the chart is left unbound. Put the JSON in the markup, or set the attribute unconditionally: a MutationObserver picks up attributes added after load.
+- **A `maidr` attribute on a `<canvas>` does nothing.** Hand-authored JSON must sit on an `<svg>`, because navigation highlights drawn elements. A canvas chart gets accessible only through its library's adapter.
 
 ## What maidr does at runtime
 

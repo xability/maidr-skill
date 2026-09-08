@@ -74,6 +74,7 @@ skills/maidr/
   scripts/check_maidr_html.py  static validator for MAIDR-enabled HTML (optional headless browser check)
   scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
+  assets/candlestick.html      hand-authored candlestick, for when the plotting library cannot draw one
   assets/maidr.js              vendored maidr.js 4.6.0 for offline or firewalled use
   assets/maidr-math.css        stylesheet maidr.js fetches beside itself for math in AI-chat replies
   assets/maidr-bundle.json     version, source URLs, and SHA-256 of the vendored files

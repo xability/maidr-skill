@@ -1,7 +1,7 @@
 ---
 name: maidr
 description: >-
-  Make every chart, plot, graph, or data visualization accessible to blind and low-vision readers by building it with MAIDR (Multimodal Access and Interactive Data Representation): the visual chart stays exactly as designed and gains keyboard navigation, screen-reader text, sonification, braille, and AI descriptions. Use this skill whenever you are about to write plotting code or chart markup of any kind (matplotlib, seaborn, plotly, altair, ggplot2, base R graphics, D3, Chart.js, Highcharts, ECharts, Vega-Lite, Recharts, hand-written SVG) and whenever a user mentions accessibility, screen readers, WCAG, blind or low-vision users, sonification, or braille in connection with a chart, even if they never say "maidr". It picks the binding for the environment: py-maidr when Python is available, the maidr R package for R and ggplot2 work, and maidr.js (jsDelivr, cdnjs, or the vendored bundle for firewalled or offline environments) when neither runtime can run.
+  Make every chart or data visualization accessible to blind and low-vision readers with MAIDR (Multimodal Access and Interactive Data Representation): the visual stays as designed and gains keyboard navigation, screen-reader text, sonification, and braille. Use this skill for ANY request that ends in a chart, in any language, before writing the first line of plotting code: bar, line, scatter, histogram, pie, heatmap, box, violin, candlestick, OHLC, and stock charts, in matplotlib, seaborn, plotly, altair, ggplot2, base R, D3, Chart.js, Highcharts, or hand-written SVG. Use it even when the user never says "maidr" or "accessibility", even for a throwaway chart, and even when the product offers its own chart or visualization tool; route that tool's output through this skill. Also use it when a user mentions accessibility, screen readers, WCAG, blind or low-vision readers, sonification, or braille with a chart. It picks py-maidr, the maidr R package, or maidr.js for the environment.
 license: GPL-3.0-or-later
 metadata:
   author: xability
@@ -18,10 +18,15 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 ## Workflow
 
 1. **Pick the binding** (next section). From the project directory run `scripts/detect_env.sh` (bash) or `scripts/detect_env.ps1` (PowerShell) for a JSON verdict, or judge from the same signals by hand.
-2. **Draw the chart exactly as asked**, then route it through the binding using the recipes below. Keep the title and axis labels with units; they are what gets announced.
-3. **Deliver something interactive**: an HTML file the user can open, the inline render in a notebook, Quarto document, or Shiny app, or, in a chat that renders HTML (claude.ai and Claude Code artifacts), an HTML artifact so the chart is explorable right in the conversation instead of as a download. A PNG alone is never the deliverable; if the user wants an image too, ship both.
+2. **Draw the chart the user actually asked for**, then route it through the binding using the recipes below. Keep the title and axis labels with units; they are what gets announced.
+3. **Deliver something interactive** (see "Where the chart goes"). A PNG alone is never the deliverable; if the user wants an image too, ship both.
 4. **Verify** (see "Verify before you hand over").
 5. **Explain how to use it** (see "What to tell the user").
+
+Two rules carry most of the weight, because breaking either produces a chart that looks finished and is not:
+
+- **The drawing and the declared type must be the same chart.** MAIDR announces what the JSON says, so a `candlestick` layer over bars drawn with a bar library tells the reader something the picture does not show. If the plotting library cannot draw the requested type, do not relabel a different type as it: use a library or a binding that can (a hand-authored SVG always can), and say what you did.
+- **In a chat, the chart is an artifact, not a file.** Writing an `.html` file and handing back a download link when the conversation can render HTML defeats the point: the reader wanted the chart, not a download.
 
 ## Pick the binding
 
@@ -33,6 +38,16 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 | No Python and no R: browser-only sandboxes, artifacts, static HTML deliverables | **maidr.js** with hand-authored JSON | `references/javascript.md`, `references/schema.md` |
 
 R is only for R work. Never move a Python or JavaScript user to R, and never move an R user to Python. The user's environment and deliverable decide, not the machine you happen to run on: the probe reports your runtimes, so if the user says they have no Python, or needs one self-contained file that opens anywhere, hand-author maidr.js (or use py-maidr locally and inline the bundle as shown in `references/python.md`). When Python exists on both sides and the user wants "an HTML file", py-maidr's `save_html()` is the best route.
+
+### Where the chart goes
+
+| The user is in | Deliver | Not |
+|---|---|---|
+| A chat that renders HTML (claude.ai, Claude Code) | An **HTML artifact** whose content is the page itself, so the chart renders in the conversation and the reader can Tab into it | An `.html` file created on disk and offered as a download. In claude.ai that arrives as a "Code · HTML" card with a Download button, which is a file, not a chart |
+| A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
+| A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
+
+In a chat, build the page as a single self-contained document, keep the MAIDR JSON in the `maidr` attribute, and load `maidr.js` from a CDN, because the sandbox reads no local files. If the product also offers its own chart or visualization widget, it can host the page, but the accessible chart still has to be the maidr one: a widget that draws its own chart from your data leaves the reader with the picture only.
 
 ### How maidr.js reaches the page (every binding ends here)
 
@@ -114,13 +129,20 @@ Three ways to attach, in order of least work:
 </svg>
 ```
 
-Rules that matter: the JSON `id` equals the SVG `id`; `axes` values are objects with a `label`, never bare strings; `data` follows the drawn order; `selectors` resolves to exactly one element per data point so highlighting lands on the right mark (for a line, one `<path>` per series drawn with straight `M`/`L` segments and one vertex per point); `type` is one of the stable names `bar`, `line`, `point`, `hist`, `heat`, `box`, `pie`, `step`, `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `smooth`, `candlestick`, `violin_box`, `violin_kde`. Per-type data shapes plus multi-panel and multi-layer layouts: `references/schema.md`. Start from `assets/template.html`.
+Rules that matter: the JSON `id` equals the SVG `id`; `axes` values are objects with a `label`, never bare strings; `data` follows the drawn order; `selectors` resolves to exactly one element per data point so highlighting lands on the right mark (for a line, one `<path>` per series drawn with straight `M`/`L` segments and one vertex per point); `type` is one of the stable names `bar`, `line`, `point`, `hist`, `heat`, `box`, `pie`, `step`, `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `smooth`, `candlestick`, `violin_box`, `violin_kde`. Per-type data shapes plus multi-panel and multi-layer layouts: `references/schema.md`. Start from `assets/template.html` for a bar chart, or `assets/candlestick.html` for a financial chart.
+
+Three mistakes are worth naming because each one silently produces a chart that looks bound and is not:
+
+- **The attribute belongs on an `<svg>`, not a `<canvas>`.** maidr highlights drawn elements, and a canvas has none. Only the Chart.js and amCharts adapters read a canvas, and they draw their own overlay.
+- **`window.maidr` is the input-data global, not a "library loaded" flag.** maidr.js reads it and never sets it, so `if (window.maidr) { ... }` is false and skips whatever it guards. Nothing needs to be guarded: set the attribute in the markup, or set it before or after the script loads, since a MutationObserver picks up attributes added later.
+- **Hand-drawing a chart type the JSON does not match.** Floating bars are not a candlestick, and a stacked area is not a line. Draw the marks the type implies, or pick the type the marks actually are.
 
 ## Verify before you hand over
 
 Accessibility that is not verified is a claim, not a feature. Do as many of these as the environment allows:
 
-1. `python scripts/check_maidr_html.py out.html` runs static checks: maidr.js is referenced from a source that will resolve, the JSON parses, ids match, trace types are known, data shapes fit the type, and selector counts match data counts. Add `--browser` to also load the page headlessly when the `playwright` Python package is installed.
+1. **Ask maidr what it bound.** Once a page renders, maidr replaces the chart's `aria-label` with a sentence that names the trace type it actually built, for example "This is a maidr plot of type: vertical dodged_bar. Click to activate. ...". Read it. If it names a type other than the chart you were asked for, the binding is wrong however good the picture looks, and an adapter reporting `dodged_bar` for a candlestick means the underlying library drew bars. This check costs one look and works everywhere, including in a chat artifact where you cannot run a script.
+2. `python scripts/check_maidr_html.py out.html` runs static checks: maidr.js is referenced from a source that will resolve, the JSON parses, ids match, trace types are known, data shapes fit the type, and selector counts match data counts. Add `--browser` to also load the page headlessly when the `playwright` Python package is installed.
 2. With a browser tool (Playwright MCP, Chrome DevTools MCP): serve the folder over `http://` (many browser tools block `file:` URLs; `python -m http.server` works), open the page, confirm there are no console errors and that maidr wrapped the chart in an `<article>` and `<figure>` whose ids start with `maidr-article-` and `maidr-figure-`, then Tab to the chart (a `div[tabindex="0"]` whose role switches from `img` to `application` on focus) and press Right Arrow. The first data point is announced in a `role="alert"` element, for example "Quarter is Q1, Revenue (USD thousands) is 120". A browser tool shared with other agents can race, and browser extensions add console noise (compare against a blank page before blaming the chart); when in doubt, `pip install playwright && playwright install chromium` and use the checker's `--browser` flag instead.
 3. py-maidr and r-maidr print a warning when a chart type fell back to a static image. Read the console output and tell the user instead of shipping a silent image.
 
