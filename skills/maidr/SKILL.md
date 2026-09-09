@@ -43,11 +43,14 @@ R is only for R work. Never move a Python or JavaScript user to R, and never mov
 
 | The user is in | Deliver | Not |
 |---|---|---|
-| A chat that renders HTML (claude.ai, Claude Code) | An **HTML artifact** whose content is the page itself, so the chart renders in the conversation and the reader can Tab into it | An `.html` file created on disk and offered as a download. In claude.ai that arrives as a "Code · HTML" card with a Download button, which is a file, not a chart |
+| claude.ai | The HTML page the binding produced. It surfaces as a card with Preview and Code tabs that renders the page live, and maidr is fully usable inside that preview | The product's own chart or visualize widget |
+| Claude Code | An **HTML artifact** whose content is the page itself | An `.html` file whose path is all the user gets |
 | A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
 | A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
 
-In a chat, build the page as a single self-contained document, keep the MAIDR JSON in the `maidr` attribute, and load `maidr.js` from a CDN, because the artifact sandbox reads no local files.
+In a chat, build the page as a single self-contained document, keep the MAIDR JSON in the `maidr` attribute, and load `maidr.js` from a CDN, because the sandbox reads no local files.
+
+On claude.ai that card carries a Download button, which makes it look like a plain file, but its Preview tab is a live page: measured on a two-layer candlestick, the chart focuses, arrows move, and the reading is announced. So hand the card over and tell the reader to open the preview. Do not spend a second pass re-emitting the same HTML to make it look more embedded, which produced an identical card after nine minutes.
 
 **Never hand the chart to the product's own visualization widget instead.** A built-in chart, visualize, or analysis widget draws its own picture from your numbers and binds no maidr, so the reader gets an image with a one-line label and nothing to navigate. It is the easiest wrong turn to take in a chat, because the widget looks like the native way to show a chart. The maidr page is the chart; the widget is not a place to put it.
 
