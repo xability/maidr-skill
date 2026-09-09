@@ -97,6 +97,25 @@ Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundle
 
 py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js`, or use `use_cdn=False`.
 
+## Candlestick and OHLC charts
+
+`mplfinance` is a hard dependency of py-maidr, so a real candlestick needs no extra install and no hand-authored JSON. Pass `returnfig=True` to get the figure, and name both axes so the announcement is not "X":
+
+```python
+import matplotlib; matplotlib.use("Agg")
+import pandas as pd, mplfinance as mpf, maidr
+
+df = pd.DataFrame(
+    {"Open": [...], "High": [...], "Low": [...], "Close": [...]},
+    index=pd.date_range("2026-01-31", periods=8, freq="ME"),   # a DatetimeIndex is required
+)
+fig, axes = mpf.plot(df, type="candle", style="yahoo", returnfig=True,
+                     title="AMPX monthly price 2026", ylabel="Price (USD)", xlabel="Month")
+maidr.save_html(fig, "ampx.html", use_cdn=True)
+```
+
+Verified output: maidr binds it as `vertical candlestick` and the first arrow press announces "X is 2026-01-31 00:00:00, close Price (USD) is 3.1, trend is bull". Each point carries open, high, low, close and the bull or bear trend, which is the reading a faked chart of floating bars cannot give. Add `volume=True` for a volume panel. This is the right answer whenever a chart library on hand has no candlestick type of its own.
+
 ## Embedding in a chat artifact
 
 claude.ai and Claude Code render HTML artifacts in a sandbox that loads scripts only from cdnjs and jsDelivr and cannot see files, so the chart has to travel as HTML text with a CDN script. py-maidr output already fits: with `use_cdn=True` it is a single document (about 27 KB for a bar chart, 12 KB with `plt.rcParams["svg.fonttype"] = "none"`, which keeps axis text as text instead of glyph outlines) whose inline loader points at jsDelivr.

@@ -34,8 +34,8 @@ Two rules carry most of the weight, because breaking either produces a chart tha
 |---|---|---|
 | The user's code, files, or request are R: `.R`, `.Rmd`, `.qmd` with R chunks, `DESCRIPTION`, `renv.lock`, ggplot2, base graphics | **maidr R package** (CRAN `maidr`) | `references/r.md` |
 | The chart lives in a JavaScript page or app: D3, Chart.js, Highcharts, ECharts, Vega-Lite, Plotly.js, React chart libraries, hand-drawn SVG | **maidr.js** with that library's adapter | `references/javascript.md` |
-| Otherwise, and Python runs here (`python3 --version`, `python --version`, or `uv`) | **py-maidr** (PyPI `maidr`) | `references/python.md` |
-| No Python and no R: browser-only sandboxes, artifacts, static HTML deliverables | **maidr.js** with hand-authored JSON | `references/javascript.md`, `references/schema.md` |
+| Otherwise, and Python runs anywhere you can reach, including a chat product's own code sandbox (`python3 --version`, `python --version`, or `uv`) | **py-maidr** (PyPI `maidr`) | `references/python.md` |
+| Python genuinely cannot run: no interpreter and no sandbox | **maidr.js** with hand-authored JSON | `references/javascript.md`, `references/schema.md` |
 
 R is only for R work. Never move a Python or JavaScript user to R, and never move an R user to Python. The user's environment and deliverable decide, not the machine you happen to run on: the probe reports your runtimes, so if the user says they have no Python, or needs one self-contained file that opens anywhere, hand-author maidr.js (or use py-maidr locally and inline the bundle as shown in `references/python.md`). When Python exists on both sides and the user wants "an HTML file", py-maidr's `save_html()` is the best route.
 
@@ -47,7 +47,23 @@ R is only for R work. Never move a Python or JavaScript user to R, and never mov
 | A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
 | A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
 
-In a chat, build the page as a single self-contained document, keep the MAIDR JSON in the `maidr` attribute, and load `maidr.js` from a CDN, because the sandbox reads no local files. If the product also offers its own chart or visualization widget, it can host the page, but the accessible chart still has to be the maidr one: a widget that draws its own chart from your data leaves the reader with the picture only.
+In a chat, build the page as a single self-contained document, keep the MAIDR JSON in the `maidr` attribute, and load `maidr.js` from a CDN, because the artifact sandbox reads no local files.
+
+**Never hand the chart to the product's own visualization widget instead.** A built-in chart, visualize, or analysis widget draws its own picture from your numbers and binds no maidr, so the reader gets an image with a one-line label and nothing to navigate. It is the easiest wrong turn to take in a chat, because the widget looks like the native way to show a chart. The maidr page is the chart; the widget is not a place to put it.
+
+#### A chat product with a code sandbox (claude.ai)
+
+claude.ai runs Python and installs from PyPI, so it takes the py-maidr route, not the hand-authored one. This matters most for chart types that are tedious or easy to get wrong by hand, candlesticks above all:
+
+```python
+# in the sandbox
+import matplotlib; matplotlib.use("Agg")
+import maidr                       # pip install maidr  (add mplfinance for candlesticks)
+# ... draw the figure ...
+maidr.save_html(fig, "chart.html", use_cdn=True)   # one file, one CDN script, no lib/ folder
+```
+
+Then read `chart.html` and publish its contents as the HTML artifact. A bar chart lands near 27 KB and a candlestick near 39 KB, small enough to carry into an artifact whole; `plt.rcParams["svg.fonttype"] = "none"` shrinks it further. Where `scripts/to_artifact.py` is available, run it on the file first. If the sandbox cannot reach PyPI, fall back to hand-authored maidr.js and say so.
 
 ### How maidr.js reaches the page (every binding ends here)
 
