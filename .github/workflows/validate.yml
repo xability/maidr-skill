@@ -26,6 +26,7 @@ jobs:
           python -m json.tool .claude-plugin/plugin.json > /dev/null
           python -m json.tool .claude-plugin/marketplace.json > /dev/null
           python -m json.tool skills/maidr/assets/maidr-bundle.json > /dev/null
+          python -m json.tool skills/maidr/assets/dotpad-sdk.json > /dev/null
           python -m json.tool evals/evals.json > /dev/null
 
       - name: Template passes the HTML checker
@@ -47,6 +48,22 @@ jobs:
               remote = urllib.request.urlopen(f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/{name}", timeout=30).read()
               assert hashlib.sha256(remote).hexdigest() == digest, f"{name}: differs from maidr@{ver} on npm"
           print(f"vendored maidr {ver} verified")
+          EOF
+
+      - name: DotPad SDK pin names every file with a size and digest
+        run: |
+          python - <<'EOF'
+          import json, re
+          meta = json.load(open("skills/maidr/assets/dotpad-sdk.json"))
+          assert re.fullmatch(r"[0-9a-f]{40}", meta["commit"]), "commit is not a full sha"
+          assert meta["baseUrl"].endswith(f"@{meta['commit']}/Web/{meta['version']}/"), "baseUrl does not pin the commit"
+          assert meta["module"] in meta["files"], "the SDK module is not listed"
+          for name in ("liblouis.js", "liblouis.wasm", "liblouis.data"):
+              assert meta["assetDir"] + name in meta["files"], f"{name} is not listed"
+          for name, info in meta["files"].items():
+              assert info["bytes"] > 0 and re.fullmatch(r"[0-9a-f]{64}", info["sha256"]), name
+          assert meta["files"]["lib/liblouis.data"]["bytes"] == 13751594, "liblouis.data is not the intact size"
+          print(f"dotpad sdk pin {meta['version']} @ {meta['commit'][:7]} ok")
           EOF
 
       - name: Version pins are consistent

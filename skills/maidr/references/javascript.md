@@ -19,6 +19,29 @@ npm package `maidr` 4.6.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: htt
 - Content-security policy: `script-src` needs `https://cdn.jsdelivr.net` and/or `https://cdnjs.cloudflare.com`, plus `'unsafe-inline'` if the page uses inline scripts. The AI chat also needs `connect-src` for the provider the reader picks (or `http://localhost:11434` for Ollama).
 - Only the core `maidr.js` is mirrored on cdnjs. Adapter bundles (`d3.js`, `chartjs.js`, ...) come from jsDelivr or npm.
 
+## A DotPad tactile display on an offline page
+
+maidr.js can draw the chart onto a Dot Pad, a refreshable pin display, over Bluetooth or USB (Chromium only; the reader connects from Settings). It drives the device through the vendor's SDK, which it does not bundle: the SDK's braille engine is a 14 MB liblouis build. By default maidr.js imports the SDK from jsDelivr, pinned to a commit, the first time a DotPad is connected, so a page that is otherwise offline still makes that one request. Nothing else depends on it.
+
+When the reader has a DotPad and no network, ship a copy of the SDK beside the page and say where it is **before** the maidr.js script tag:
+
+```bash
+python scripts/fetch_dotpad_sdk.py ./dotpad-sdk     # ~14 MB, verified against assets/dotpad-sdk.json
+```
+
+```html
+<script>
+  window.MAIDR_DOTPAD_SDK_URL = "./dotpad-sdk/DotPadSDK-3.0.2.js";
+  window.MAIDR_DOTPAD_ASSET_BASE_URL = "./dotpad-sdk/lib/";
+</script>
+<script src="./maidr.js"></script>
+```
+
+- Ship the whole `dotpad-sdk/` directory: it carries the LGPL-2.1 licence text and liblouis wrapper sources the vendor asks redistributors to keep beside the engine. Dot Inc. permit MAIDR to redistribute the SDK.
+- The paths are resolved against the page's URL, so a page delivered as a `srcdoc` iframe or a chat artifact has nothing to resolve them against; those keep the CDN (they cannot reach a device from a sandbox anyway).
+- Setting only the SDK URL leaves the braille engine unfetched and the braille line falls back to uncontracted braille; set both.
+- py-maidr and r-maidr have their own helpers (`references/python.md`, `references/r.md`); this script is for hand-authored pages. The pin mirrors `src/service/dotPadSdk.json` in the maidr repository.
+
 ## Attaching a chart
 
 maidr looks for charts in this order and uses the first match per element:

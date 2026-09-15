@@ -79,6 +79,8 @@ Then read `chart.html` and publish its contents as the HTML artifact. A bar char
 
 The network probe runs on your machine; the reader's browser may sit behind a different firewall. Hand-written pages should carry the loader chain from `assets/template.html` (jsDelivr, then cdnjs, then a local file). maidr initializes correctly even when its script arrives after `DOMContentLoaded`, so a late fallback still works.
 
+**A DotPad tactile display offline.** maidr.js draws charts onto a Dot Pad through the vendor's SDK, which it fetches from jsDelivr on first connect rather than bundling (14 MB of braille tables). An offline page that must reach a DotPad carries its own copy: py-maidr `maidr.download_dotpad_sdk()` and r-maidr `maidr_download_dotpad_sdk()` do it for their `use_cdn=False` output, and for a hand-authored page run `python scripts/fetch_dotpad_sdk.py` and declare the two `window.MAIDR_DOTPAD_*` globals from `references/javascript.md`. Only when the user mentions a DotPad or a tactile display; everything else works offline without it.
+
 ## Python: py-maidr
 
 ```bash

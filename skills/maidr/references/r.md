@@ -113,6 +113,17 @@ There are no maidr environment variables. `RSTUDIO=1` decides Viewer versus brow
 
 `show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build ships 4.6.0); ship both, or pass `use_cdn = TRUE` for a single file that loads the same pinned version from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
 
+### A DotPad tactile display offline
+
+An offline document still fetches the DotPad SDK from jsDelivr the first time a tactile display is connected (maidr.js does not bundle its 14 MB braille engine). Only needed when the reader has a Dot Pad. In the development build (0.4.0.9000 and later):
+
+```r
+maidr_download_dotpad_sdk()                  # ~14 MB, once, into a per-user cache (option maidr.dotpad_sdk_dir or MAIDR_DOTPAD_SDK_DIR moves it)
+save_html(p, "plot.html", use_cdn = FALSE)   # copies it to lib/dotpad-sdk-3.0.2/ beside the file and declares it
+```
+
+`show()` does the same. Widgets, knitr and Shiny render into `srcdoc` frames, where a relative path has nothing to resolve against; there, name a served copy with `options(maidr.dotpad_sdk_url = "https://host/dotpad/DotPadSDK-3.0.2.js", maidr.dotpad_asset_base_url = "https://host/dotpad/lib/")` or the environment variables of the same upper-case names (also on CRAN 0.4.0). A configured URL wins over a downloaded copy.
+
 ## Gotchas
 
 1. Base R needs `show()` with no arguments after drawing. "No Base R plots detected" means nothing was recorded: draw after `library(maidr)` and check `getOption("maidr.base_r")`.

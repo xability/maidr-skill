@@ -5,3 +5,5 @@ node_modules/
 Thumbs.db
 *-workspace/
 .venv/
+# Downloaded by skills/maidr/scripts/fetch_dotpad_sdk.py; never vendored (14 MB)
+dotpad-sdk/

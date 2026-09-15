@@ -35,6 +35,10 @@ The plot type is unsupported (see `python.md`). Draw it anyway and tell the user
 
 It was saved with `use_cdn="auto"` or `True` and the CDN is unreachable, or the `lib/` folder from `use_cdn=False` was not shipped alongside. Re-save with `use_cdn=False` and copy the `lib/` folder too, or set `MAIDR_CDN_VERSION=bundled`.
 
+## A DotPad connects online but not from the offline page, or braille on it reads uncontracted
+
+The page reached maidr.js but not the DotPad SDK, which maidr.js imports from jsDelivr on first connect unless the page names a copy. The console shows "DotPad SDK could not be loaded". Ship the SDK beside the page: py-maidr `maidr.download_dotpad_sdk()` then `save_html(..., use_cdn=False)`; r-maidr `maidr_download_dotpad_sdk()` then `save_html(..., use_cdn = FALSE)`; a hand-authored page `python scripts/fetch_dotpad_sdk.py` plus the two `window.MAIDR_DOTPAD_*` globals (`javascript.md`). Uncontracted (grade 1) braille on the device with the pins otherwise working means the SDK loaded but its braille engine did not: `MAIDR_DOTPAD_ASSET_BASE_URL` is unset or points at a directory without `liblouis.data`, or the copy was made from a pre-fix checkout of the vendor's repository (the file must be 13,751,594 bytes; `fetch_dotpad_sdk.py` verifies it).
+
 ## py-maidr in Streamlit shows another user's chart or loses position
 
 Always pass the figure to `render_maidr(fig, key=...)`; never rely on `plt.gcf()`. Cache the HTML string when the data has not changed so reruns do not rebuild the widget.

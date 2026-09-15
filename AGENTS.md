@@ -6,8 +6,8 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 
 - `skills/maidr/SKILL.md`: the skill body. Keep it under 300 lines; move detail into `references/`.
 - `skills/maidr/references/`: one file per binding (`python.md`, `r.md`, `javascript.md`), the JSON schema (`schema.md`), and `troubleshooting.md`.
-- `skills/maidr/scripts/`: agent-runnable helpers. `detect_env.sh` and `detect_env.ps1` must stay behaviourally identical and print the same JSON shape. `check_maidr_html.py` uses only the standard library, with optional `beautifulsoup4` and `playwright`.
-- `skills/maidr/assets/`: `template.html` (hand-authored example), the vendored `maidr.js` and `maidr-math.css`, and `maidr-bundle.json` (provenance and SHA-256).
+- `skills/maidr/scripts/`: agent-runnable helpers. `detect_env.sh` and `detect_env.ps1` must stay behaviourally identical and print the same JSON shape. `check_maidr_html.py` and `fetch_dotpad_sdk.py` use only the standard library, the former with optional `beautifulsoup4` and `playwright`.
+- `skills/maidr/assets/`: `template.html` (hand-authored example), the vendored `maidr.js` and `maidr-math.css`, `maidr-bundle.json` (provenance and SHA-256), and `dotpad-sdk.json` (the DotPad SDK pin that `scripts/fetch_dotpad_sdk.py` downloads on demand; the SDK itself is never vendored, it is 14 MB).
 - `.claude-plugin/`: Claude Code plugin (`plugin.json`) and single-plugin marketplace (`marketplace.json`, `source: "./"`).
 - `evals/evals.json`: test prompts for exercising the skill with and without it installed.
 - `tools/update-bundle.sh`: refreshes the vendored bundle and rewrites version pins. It is idempotent —
