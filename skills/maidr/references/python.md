@@ -97,6 +97,17 @@ Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundle
 
 py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js`, or use `use_cdn=False`.
 
+### A DotPad tactile display offline
+
+`use_cdn=False` still leaves one network request: the DotPad SDK, which maidr.js imports from jsDelivr the first time a tactile display is connected (its braille engine is 14 MB, so it is not bundled). Only needed when the reader has a Dot Pad. py-maidr 1.24.0 or later:
+
+```python
+maidr.download_dotpad_sdk()                      # ~14 MB, once, into a per-user cache (MAIDR_DOTPAD_SDK_DIR moves it)
+maidr.save_html(fig, "chart.html", use_cdn=False)   # copies it to lib/dotpad-sdk-3.0.2/ and declares it
+```
+
+Ship `lib/` with the HTML, as before. Notebook, Shiny and Flask iframes cannot resolve that relative path; there, name a served copy with `maidr.set_dotpad_sdk("https://host/dotpad/DotPadSDK-3.0.2.js", "https://host/dotpad/lib/")` or the environment variables `MAIDR_DOTPAD_SDK_URL` / `MAIDR_DOTPAD_ASSET_BASE_URL`, which every render then declares. A configured URL wins over a downloaded copy; `maidr.dotpad_sdk_path()` reports whether a copy is on disk.
+
 ## Candlestick and OHLC charts
 
 `mplfinance` is a hard dependency of py-maidr, so a real candlestick needs no extra install and no hand-authored JSON. Pass `returnfig=True` to get the figure, and name both axes so the announcement is not "X":
