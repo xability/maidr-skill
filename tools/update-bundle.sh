@@ -5,11 +5,15 @@
 # Requires curl and python3. Downloads from jsDelivr (a mirror of the npm tarball), records
 # SHA-256 digests in skills/maidr/assets/maidr-bundle.json, and replaces the previous version
 # string everywhere it is pinned. Prints a warning if cdnjs has not mirrored the version yet.
+# Also copies the release's dist/dotpad-sdk.json (the DotPad SDK pin maidr.js is built against)
+# over skills/maidr/assets/dotpad-sdk.json when the release ships one; otherwise the asset is
+# left alone and the script says so.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 ASSETS="$ROOT/skills/maidr/assets"
 META="$ASSETS/maidr-bundle.json"
+DOTPAD="$ASSETS/dotpad-sdk.json"
 PY=$(command -v python3 || command -v python)
 
 OLD=$("$PY" -c "import json;print(json.load(open(r'$META'))['version'])")
@@ -28,6 +32,17 @@ cp "$TMP/maidr-math.css" "$ASSETS/maidr-math.css"
 
 if ! curl -fsSI "https://cdnjs.cloudflare.com/ajax/libs/maidr/$VER/maidr.min.js" >/dev/null 2>&1; then
   echo "WARNING: cdnjs does not serve maidr $VER yet; the cdnjs fallback URL will 404 until it catches up." >&2
+fi
+
+# The DotPad SDK pin: maidr.js ships the manifest it imports the SDK from as dist/dotpad-sdk.json,
+# so the skill copies that rather than maintaining its own. `curl -f` fails on a 404 (a release
+# that predates the manifest), and the JSON check guards against an error page served as 200.
+if curl -fsSL "https://cdn.jsdelivr.net/npm/maidr@$VER/dist/dotpad-sdk.json" -o "$TMP/dotpad-sdk.json" 2>/dev/null \
+   && DOTPAD_VER=$("$PY" -c 'import json,sys;m=json.load(open(sys.argv[1]));v=m.get("version");print(v) if isinstance(v,str) and v else sys.exit(1)' "$TMP/dotpad-sdk.json" 2>/dev/null); then
+  cp "$TMP/dotpad-sdk.json" "$DOTPAD"
+  echo "dotpad sdk pin: $DOTPAD_VER (from maidr@$VER dist/dotpad-sdk.json)"
+else
+  echo "maidr $VER does not ship dist/dotpad-sdk.json; leaving skills/maidr/assets/dotpad-sdk.json as it is ($("$PY" -c "import json;print(json.load(open(r'$DOTPAD'))['version'])"))"
 fi
 
 "$PY" - "$META" "$ASSETS" "$VER" <<'EOF'

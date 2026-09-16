@@ -31,7 +31,7 @@ python scripts/fetch_dotpad_sdk.py ./dotpad-sdk     # ~14 MB, verified against a
 
 ```html
 <script>
-  window.MAIDR_DOTPAD_SDK_URL = "./dotpad-sdk/DotPadSDK-3.0.2.js";
+  window.MAIDR_DOTPAD_SDK_URL = "./dotpad-sdk/DotPadSDK-<version>.js";   /* the script prints the real name, e.g. DotPadSDK-3.0.3.js */
   window.MAIDR_DOTPAD_ASSET_BASE_URL = "./dotpad-sdk/lib/";
 </script>
 <script src="./maidr.js"></script>
@@ -40,7 +40,7 @@ python scripts/fetch_dotpad_sdk.py ./dotpad-sdk     # ~14 MB, verified against a
 - Ship the whole `dotpad-sdk/` directory: it carries the LGPL-2.1 licence text and liblouis wrapper sources the vendor asks redistributors to keep beside the engine. Dot Inc. permit MAIDR to redistribute the SDK.
 - The paths are resolved against the page's URL, so a page delivered as a `srcdoc` iframe or a chat artifact has nothing to resolve them against; those keep the CDN (they cannot reach a device from a sandbox anyway).
 - Setting only the SDK URL leaves the braille engine unfetched and the braille line falls back to uncontracted braille; set both.
-- py-maidr and r-maidr have their own helpers (`references/python.md`, `references/r.md`); this script is for hand-authored pages. The pin mirrors `src/service/dotPadSdk.json` in the maidr repository.
+- py-maidr and r-maidr have their own helpers (`references/python.md`, `references/r.md`); this script is for hand-authored pages. The SDK version, the commit it is served from and every file's size and SHA-256 come from `assets/dotpad-sdk.json`, which `tools/update-bundle.sh` refreshes from the maidr.js package's `dist/dotpad-sdk.json` (the same pin maidr.js itself imports), so the copy always matches the vendored maidr.js.
 
 ## Attaching a chart
 

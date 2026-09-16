@@ -57,12 +57,24 @@ jobs:
           meta = json.load(open("skills/maidr/assets/dotpad-sdk.json"))
           assert re.fullmatch(r"[0-9a-f]{40}", meta["commit"]), "commit is not a full sha"
           assert meta["baseUrl"].endswith(f"@{meta['commit']}/Web/{meta['version']}/"), "baseUrl does not pin the commit"
+          # The files are served from `repository` (a GitHub repo) through jsDelivr's gh endpoint,
+          # so baseUrl is a function of repository, commit and version; nothing else is hard-coded.
+          repo = re.fullmatch(r"https://github\.com/([\w.-]+/[\w.-]+)", meta["repository"])
+          assert repo, "repository is not a GitHub repository URL"
+          assert meta["baseUrl"] == f"https://cdn.jsdelivr.net/gh/{repo.group(1)}@{meta['commit']}/Web/{meta['version']}/", "baseUrl does not serve the named repository"
+          if "upstream" in meta:   # the vendor's release the served files were extracted from
+              up = meta["upstream"]
+              assert re.fullmatch(r"[0-9a-f]{40}", up["commit"]), "upstream commit is not a full sha"
+              assert re.fullmatch(r"[0-9a-f]{64}", up["sha256"]), "upstream archive sha256 is malformed"
+              assert up["archive"].endswith(".zip"), "upstream archive is not the vendor's zip"
           assert meta["module"] in meta["files"], "the SDK module is not listed"
           for name in ("liblouis.js", "liblouis.wasm", "liblouis.data"):
               assert meta["assetDir"] + name in meta["files"], f"{name} is not listed"
           for name, info in meta["files"].items():
               assert info["bytes"] > 0 and re.fullmatch(r"[0-9a-f]{64}", info["sha256"]), name
-          assert meta["files"]["lib/liblouis.data"]["bytes"] == 13751594, "liblouis.data is not the intact size"
+              if "md5" in info:
+                  assert re.fullmatch(r"[0-9a-f]{32}", info["md5"]), f"{name}: md5 is malformed"
+          assert meta["files"][meta["assetDir"] + "liblouis.data"]["bytes"] == 13751594, "liblouis.data is not the intact size"
           print(f"dotpad sdk pin {meta['version']} @ {meta['commit'][:7]} ok")
           EOF
 

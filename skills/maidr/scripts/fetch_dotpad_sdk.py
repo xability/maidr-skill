@@ -20,15 +20,19 @@ Why this exists
     directory beside the page, and declare where it is before maidr.js loads:
 
         <script>
-          window.MAIDR_DOTPAD_SDK_URL = "./dotpad-sdk/DotPadSDK-3.0.2.js";
+          window.MAIDR_DOTPAD_SDK_URL = "./dotpad-sdk/DotPadSDK-<version>.js";
           window.MAIDR_DOTPAD_ASSET_BASE_URL = "./dotpad-sdk/lib/";
         </script>
+
+    <version> is the one named in ../assets/dotpad-sdk.json (for example 3.0.3); the script prints the two
+    lines with the real file names when it finishes.
 
     py-maidr (`maidr.download_dotpad_sdk()`) and the maidr R package (`maidr_download_dotpad_sdk()`) do
     the same for their own output; this script is for hand-authored maidr.js pages.
 
 What is fetched
-    Every file listed in ../assets/dotpad-sdk.json: the SDK module, the liblouis build (js, wasm, data),
+    Every file listed in ../assets/dotpad-sdk.json, the pin maidr.js is built against (tools/update-bundle.sh
+    refreshes it from the maidr.js package's dist/dotpad-sdk.json): the SDK module, the liblouis build (js, wasm, data),
     and the LGPL-2.1 licence text and wrapper sources the vendor asks redistributors to keep beside the
     engine. Each is verified against its recorded size and SHA-256 before it is written; a manifest.json
     naming the commit is written last, so a copy found later can be traced. A second run finds the
