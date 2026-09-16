@@ -79,11 +79,11 @@ skills/maidr/
   assets/maidr.js              vendored maidr.js 4.6.0 for offline or firewalled use
   assets/maidr-math.css        stylesheet maidr.js fetches beside itself for math in AI-chat replies
   assets/maidr-bundle.json     version, source URLs, and SHA-256 of the vendored files
-  assets/dotpad-sdk.json       commit, URLs, and SHA-256 of the DotPad SDK files fetch_dotpad_sdk.py downloads
+  assets/dotpad-sdk.json       version, commit, URLs, and SHA-256 of the DotPad SDK files fetch_dotpad_sdk.py downloads (copied from maidr.js's dist/dotpad-sdk.json)
   agents/openai.yaml           display metadata for Codex and ChatGPT
 .claude-plugin/                Claude Code plugin and marketplace manifests
 evals/evals.json               test prompts used to exercise the skill
-tools/update-bundle.sh         refresh the vendored bundle and version pins
+tools/update-bundle.sh         refresh the vendored bundle, the DotPad SDK pin, and version pins
 ```
 
 ## Verifying a chart yourself
@@ -109,7 +109,7 @@ tools/update-bundle.sh          # latest release on npm
 tools/update-bundle.sh 4.7.0    # a specific version
 ```
 
-The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records their SHA-256 in `assets/maidr-bundle.json`, and rewrites the version pins across the skill. Re-vendoring a release that is already vendored changes nothing, so the script is safe to re-run.
+The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records their SHA-256 in `assets/maidr-bundle.json`, and rewrites the version pins across the skill. It also fetches the release's `dist/dotpad-sdk.json`, the DotPad SDK pin maidr.js is built against, into `assets/dotpad-sdk.json`; a release that does not ship that file leaves the asset as it is, and the script says so. Re-vendoring a release that is already vendored changes nothing, so the script is safe to re-run.
 
 A scheduled GitHub Action runs it weekly and opens a pull request only when a new release exists. Opening that pull request needs one of:
 

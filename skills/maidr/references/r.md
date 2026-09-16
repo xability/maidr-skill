@@ -119,10 +119,10 @@ An offline document still fetches the DotPad SDK from jsDelivr the first time a 
 
 ```r
 maidr_download_dotpad_sdk()                  # ~14 MB, once, into a per-user cache (option maidr.dotpad_sdk_dir or MAIDR_DOTPAD_SDK_DIR moves it)
-save_html(p, "plot.html", use_cdn = FALSE)   # copies it to lib/dotpad-sdk-3.0.2/ beside the file and declares it
+save_html(p, "plot.html", use_cdn = FALSE)   # copies it to lib/dotpad-sdk-<version>/ beside the file and declares it
 ```
 
-`show()` does the same. Widgets, knitr and Shiny render into `srcdoc` frames, where a relative path has nothing to resolve against; there, name a served copy with `options(maidr.dotpad_sdk_url = "https://host/dotpad/DotPadSDK-3.0.2.js", maidr.dotpad_asset_base_url = "https://host/dotpad/lib/")` or the environment variables of the same upper-case names (also on CRAN 0.4.0). A configured URL wins over a downloaded copy.
+`show()` does the same. Widgets, knitr and Shiny render into `srcdoc` frames, where a relative path has nothing to resolve against; there, name a served copy with `options(maidr.dotpad_sdk_url = "https://host/dotpad/DotPadSDK-<version>.js", maidr.dotpad_asset_base_url = "https://host/dotpad/lib/")` (the version is the one named in `assets/dotpad-sdk.json`, e.g. `DotPadSDK-3.0.3.js`) or the environment variables of the same upper-case names (also on CRAN 0.4.0). A configured URL wins over a downloaded copy.
 
 ## Gotchas
 

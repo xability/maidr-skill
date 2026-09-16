@@ -69,5 +69,6 @@ jobs:
 
             Review `skills/maidr/assets/maidr-bundle.json` for the new checksums, and check that the cdnjs
             fallback URL resolves (the job summary warns when cdnjs has not mirrored the release yet).
+            `skills/maidr/assets/dotpad-sdk.json` changes too when the release ships a new DotPad SDK pin.
           labels: dependencies
           delete-branch: true

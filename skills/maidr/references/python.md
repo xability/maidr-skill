@@ -103,10 +103,10 @@ py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`
 
 ```python
 maidr.download_dotpad_sdk()                      # ~14 MB, once, into a per-user cache (MAIDR_DOTPAD_SDK_DIR moves it)
-maidr.save_html(fig, "chart.html", use_cdn=False)   # copies it to lib/dotpad-sdk-3.0.2/ and declares it
+maidr.save_html(fig, "chart.html", use_cdn=False)   # copies it to lib/dotpad-sdk-<version>/ and declares it
 ```
 
-Ship `lib/` with the HTML, as before. Notebook, Shiny and Flask iframes cannot resolve that relative path; there, name a served copy with `maidr.set_dotpad_sdk("https://host/dotpad/DotPadSDK-3.0.2.js", "https://host/dotpad/lib/")` or the environment variables `MAIDR_DOTPAD_SDK_URL` / `MAIDR_DOTPAD_ASSET_BASE_URL`, which every render then declares. A configured URL wins over a downloaded copy; `maidr.dotpad_sdk_path()` reports whether a copy is on disk.
+Ship `lib/` with the HTML, as before. Notebook, Shiny and Flask iframes cannot resolve that relative path; there, name a served copy with `maidr.set_dotpad_sdk("https://host/dotpad/DotPadSDK-<version>.js", "https://host/dotpad/lib/")` (the version is the one named in `assets/dotpad-sdk.json`, e.g. `DotPadSDK-3.0.3.js`) or the environment variables `MAIDR_DOTPAD_SDK_URL` / `MAIDR_DOTPAD_ASSET_BASE_URL`, which every render then declares. A configured URL wins over a downloaded copy; `maidr.dotpad_sdk_path()` reports whether a copy is on disk.
 
 ## Candlestick and OHLC charts
 
