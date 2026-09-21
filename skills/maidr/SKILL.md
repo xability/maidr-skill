@@ -6,7 +6,7 @@ license: GPL-3.0-or-later
 metadata:
   author: xability
   version: "0.1.0"
-  maidr-js-version: "4.6.0"
+  maidr-js-version: "4.8.0"
   homepage: https://maidr.ai
   source: https://github.com/xability/maidr-skill
 ---
@@ -72,8 +72,8 @@ Then read `chart.html` and publish its contents as the HTML artifact. A bar char
 
 | Source | When to use it | Notes |
 |---|---|---|
-| jsDelivr `https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js` | Default whenever it is reachable | `maidr@latest` also works but changes under the reader; pin a version for anything that must keep working |
-| cdnjs `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js` | The sandbox or firewall allows `cdnjs.cloudflare.com` but not jsDelivr; some corporate CSPs allow only cdnjs | Version-pinned only, no `latest` alias; only the core file is mirrored, not the chart-library adapters |
+| jsDelivr `https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js` | Default whenever it is reachable | `maidr@latest` also works but changes under the reader; pin a version for anything that must keep working |
+| cdnjs `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.8.0/maidr.min.js` | The sandbox or firewall allows `cdnjs.cloudflare.com` but not jsDelivr; some corporate CSPs allow only cdnjs | Version-pinned only, no `latest` alias; only the core file is mirrored, not the chart-library adapters |
 | Either CDN inside a chat artifact (claude.ai, Claude Code) | The user is in a chat and should explore the chart in place rather than download a file | The artifact sandbox admits scripts from cdnjs and jsDelivr but no local files or other hosts; keep the JSON in the `maidr` attribute. Sonification starts after the reader clicks or tabs into the chart; the AI chat (`?`) cannot reach any provider from inside the sandbox, so mention that limitation |
 | Vendored bundle `assets/maidr.js` with `assets/maidr-math.css` beside it | No CDN is reachable, the deployment is air-gapped, or the deliverable must be one self-contained file | Copy both files next to the HTML and reference `./maidr.js`, or paste the bundle into an inline `<script>`. py-maidr (`use_cdn=False`) and r-maidr (default) already ship their own copy, so Python and R rarely need this |
 
@@ -136,11 +136,11 @@ save_html(p, "classes.html")    # standalone file with maidr.js copied into lib/
 Three ways to attach, in order of least work:
 
 1. **Plotly.js**: load `maidr.js` after Plotly. Nothing else; Plotly charts are auto-detected.
-2. **Chart libraries with an adapter**: D3, Chart.js, Highcharts, ECharts, Vega-Lite, Recharts, Victory, amCharts, AnyChart, Frappe, Google Charts, Observable Plot, Tableau. Load the adapter from `https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/<lib>.js` (adapters are jsDelivr-only) and call its bind helper. Per-library patterns: `references/javascript.md`.
+2. **Chart libraries with an adapter**: D3, Chart.js, Highcharts, ECharts, Vega-Lite, Recharts, Victory, amCharts, AnyChart, Frappe, Google Charts, Observable Plot, Tableau. Load the adapter from `https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/<lib>.js` (adapters are jsDelivr-only) and call its bind helper. Per-library patterns: `references/javascript.md`.
 3. **Any SVG you draw yourself**: put the MAIDR JSON in a `maidr` attribute on the `<svg>`.
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js"></script>
 <svg id="rev" width="480" height="300" maidr='{"id":"rev","title":"Revenue by quarter",
   "subplots":[[{"layers":[{"id":"rev-bars","type":"bar",
     "axes":{"x":{"label":"Quarter"},"y":{"label":"Revenue (USD thousands)"}},

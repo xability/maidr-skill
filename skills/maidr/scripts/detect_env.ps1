@@ -10,7 +10,7 @@
 #>
 param([string]$Dir = ".")
 $ErrorActionPreference = "SilentlyContinue"
-$MaidrJsVersion = "4.6.0"
+$MaidrJsVersion = "4.8.0"
 
 function Try-Run([string]$exe, [string[]]$arguments) {
   try {

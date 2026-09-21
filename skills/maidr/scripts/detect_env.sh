@@ -12,7 +12,7 @@
 # The network probe reflects THIS machine. A reader's browser may sit behind a different
 # firewall, so pages should still carry a CDN -> CDN -> local fallback chain when possible.
 
-MAIDR_JS_VERSION="4.6.0"
+MAIDR_JS_VERSION="4.8.0"
 DIR="${1:-.}"
 have() { command -v "$1" >/dev/null 2>&1; }
 json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r\n'; }

@@ -1,17 +1,17 @@
 # maidr.js reference
 
-npm package `maidr` 4.6.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: https://maidr.ai/docs/SCHEMA.html. Controls: https://maidr.ai/docs/CONTROLS.html. Per-library guides: `https://maidr.ai/docs/<library>.html` (plotly, d3, chartjs, highcharts, echarts, vegalite, recharts, victory, amcharts, anychart, frappe, google-charts, observable, tableau, react). Source: https://github.com/xability/maidr.
+npm package `maidr` 4.8.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: https://maidr.ai/docs/SCHEMA.html. Controls: https://maidr.ai/docs/CONTROLS.html. Per-library guides: `https://maidr.ai/docs/<library>.html` (plotly, d3, chartjs, highcharts, echarts, vegalite, recharts, victory, amcharts, anychart, frappe, google-charts, observable, tableau, react). Source: https://github.com/xability/maidr.
 
 ## Loading maidr.js
 
 | Source | Tag |
 |---|---|
-| jsDelivr, pinned (default) | `<script src="https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js"></script>` |
+| jsDelivr, pinned (default) | `<script src="https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js"></script>` |
 | jsDelivr, floating | `https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js` (changes under the reader; avoid for durable pages) |
-| cdnjs, pinned only | `<script src="https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js"></script>` |
+| cdnjs, pinned only | `<script src="https://cdnjs.cloudflare.com/ajax/libs/maidr/4.8.0/maidr.min.js"></script>` |
 | npm | `npm install maidr`; `import 'maidr'` for the UMD side-effect build, or `import { Maidr } from 'maidr/react'` |
 | Local file | `<script src="./maidr.js"></script>` with `maidr-math.css` in the same folder (both in this skill's `assets/`) |
-| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file. An inline bundle has no URL to find `maidr-math.css` from; if math in AI-chat replies should be styled, set `window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr-math.css"` (or a local path) in a script before it |
+| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file. An inline bundle has no URL to find `maidr-math.css` from; if math in AI-chat replies should be styled, set `window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr-math.css"` (or a local path) in a script before it |
 
 - No stylesheet is required; maidr styles its own UI at runtime. `maidr.css` on the CDN is an empty placeholder. `maidr-math.css` (KaTeX) is fetched from the same directory as `maidr.js` only when an AI-chat answer contains math.
 - maidr runs on `DOMContentLoaded`, or immediately if the document has already loaded, so async or late loading works. A `MutationObserver` picks up `maidr` attributes and Plotly charts added later (single-page apps, notebooks).
@@ -61,7 +61,7 @@ One attribute per chart. Several charts on one page means several attributes; an
 <head>
   <meta charset="utf-8">
   <title>Revenue by quarter</title>
-  <script src="https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/maidr.js"></script>
 </head>
 <body>
   <svg id="rev" width="480" height="300" viewBox="0 0 480 300" role="img" aria-label="Bar chart of revenue by quarter"
@@ -103,7 +103,7 @@ Adapters read the library's own data model and write `maidr-data` for you. Load 
 | Frappe Charts | `maidr.js` + `dist/frappe.js` (`maidrFrappe`) | `maidrFrappe.createMaidrFromFrappeChart(chart, ...)`. |
 | Observable Plot | `maidr.js` + `dist/observable.js` (`maidrObservable`) | `maidrObservable.initObservablePlots()` once the plots are in the DOM. Quarto: `quarto add xability/maidr` and `filters: [maidr]` handles `{ojs}` cells. |
 | amCharts 5 | `dist/amcharts.js` (self-contained, `maidrAmCharts`) | `maidrAmCharts.bindAmCharts(root, { axisLabels: { x: 'Fruit', y: 'Units sold' } })` returns `{ maidr, dispose }`; multi-chart roots become subplots. |
-| AnyChart | `maidr.js` + `dist/anychart.mjs` (ES module) | `import { bindAnyChart } from 'https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/anychart.mjs'; bindAnyChart(chart, { ... })` after `chart.draw()`. |
+| AnyChart | `maidr.js` + `dist/anychart.mjs` (ES module) | `import { bindAnyChart } from 'https://cdn.jsdelivr.net/npm/maidr@4.8.0/dist/anychart.mjs'; bindAnyChart(chart, { ... })` after `chart.draw()`. |
 | Tableau Embedding API | `maidr.js` + `dist/tableau.js` (`maidrTableau`) | `maidrTableau.bindTableau(viz, ...)`. |
 | React (any SVG) | `import { Maidr } from 'maidr/react'` | `<Maidr data={maidrJson}><svg>...</svg></Maidr>`; `data` is the same JSON as the attribute. |
 | Recharts | `import { MaidrRecharts } from 'maidr/recharts'` | Wrap the chart: `<MaidrRecharts id="sales" title="Quarterly revenue" ...props><BarChart>...</BarChart></MaidrRecharts>`. |

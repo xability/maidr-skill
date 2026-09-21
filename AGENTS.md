@@ -19,7 +19,7 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 
 Every API name, URL, option, and keyboard shortcut in the skill was checked against the maidr, py-maidr, and r-maidr sources and their published docs. When you change one, cite where it comes from in the commit message. Do not add functions from memory; the skill explicitly tells agents not to invent APIs, and it has to hold itself to the same rule.
 
-Current pins: maidr.js 4.6.0, py-maidr 1.23.x, maidr R package 0.4.x. The maidr.js version string appears in `SKILL.md` (frontmatter and CDN URLs), every reference file, both detect scripts, `check_maidr_html.py`, `assets/template.html`, `assets/maidr-bundle.json`, and `README.md`; `tools/update-bundle.sh` rewrites all of them.
+Current pins: maidr.js 4.8.0, py-maidr 1.23.x, maidr R package 0.4.x. The maidr.js version string appears in `SKILL.md` (frontmatter and CDN URLs), every reference file, both detect scripts, `check_maidr_html.py`, `assets/template.html`, `assets/maidr-bundle.json`, and `README.md`; `tools/update-bundle.sh` rewrites all of them.
 
 ## Validate before committing
 

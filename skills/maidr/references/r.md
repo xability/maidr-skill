@@ -111,7 +111,7 @@ There are no maidr environment variables. `RSTUDIO=1` decides Viewer versus brow
 
 ## Offline and CDN
 
-`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build ships 4.6.0); ship both, or pass `use_cdn = TRUE` for a single file that loads the same pinned version from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
+`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build ships 4.8.0); ship both, or pass `use_cdn = TRUE` for a single file that loads the same pinned version from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
 
 ### A DotPad tactile display offline
 
