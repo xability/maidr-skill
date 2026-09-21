@@ -46,6 +46,18 @@ KNOWN = STABLE | EXPERIMENTAL
 NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normalized_bar",
           "violin_kde", "area", "stacked_area", "stacked_normalized_area"}
 OBJECT = {"heat"}
+# how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
+# highlight silently -- navigation and speech keep working -- which is the failure this file exists
+# to catch (xability/r-maidr#316 shipped it on every bar, point and pie chart).
+#   bar family: a string, or an array with exactly one selector per point (single-row data)
+#   point / pie: a string only; any array is ignored
+#   line family: an array with one selector per series; a bare string is one series
+#   segmented: a string (paired series-major unless domMapping.order is "column"), or a
+#              selectors[series][category] grid with null for undrawn cells; a flat array is declined
+BAR_FAMILY = {"bar", "hist", "dot", "lollipop"}
+STRING_ONLY = {"point", "pie"}
+LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc"}
+SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic"}
 # adapters whose bundle already contains the maidr core (their docs load no separate maidr.js)
 SELF_CONTAINED_ADAPTERS = {"chartjs", "amcharts", "recharts", "victory", "react"}
 ADAPTERS = {"d3", "chartjs", "highcharts", "echarts", "vegalite", "recharts", "victory", "amcharts",
@@ -265,6 +277,12 @@ def check_line_selectors(selectors, data, where: str, soup, rep: Report) -> None
     except Exception as exc:
         rep.error(f"{where}: selectors are not valid CSS ({exc})")
         return
+    if isinstance(selectors, str) and len(series) > 1:
+        rep.error(f"{where}: selectors is one string for {len(series)} series; maidr reads a string as a single series and declines the highlight -- give an array with one selector per series, in order")
+        return
+    if isinstance(selectors, list) and len(selectors) != len(series):
+        rep.error(f"{where}: selectors has {len(selectors)} entries for {len(series)} series; a line needs exactly one selector per series, in order")
+        return
     if len(matched) != len(series):
         rep.warn(f"{where}: selectors match {len(matched)} element(s) for {len(series)} series; a line needs one path (or polyline) per series, in order")
         return
@@ -278,23 +296,79 @@ def check_line_selectors(selectors, data, where: str, soup, rep: Report) -> None
             rep.warn(f"{where} series[{i}]: path has {count} vertices but the series has {len(s)} points; highlighting will drift from the announced point")
 
 
-def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report, data=None) -> None:
+def _count(selector: str, soup, rep: Report, where: str):
+    """How many drawn elements a selector matches, or None when it is not valid CSS."""
+    try:
+        return len(drawn(soup.select(selector)))
+    except Exception as exc:  # bad CSS
+        rep.error(f"{where}: selectors '{selector}' is not a valid CSS selector ({exc})")
+        return None
+
+
+def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report,
+                    data=None, dom_mapping=None) -> None:
     if selectors is None:
         rep.info(f"{where}: no selectors; navigation works but nothing is highlighted visually")
         return
-    # A one-element list is the same as a single selector string (r-maidr emits this form).
-    if isinstance(selectors, list) and len(selectors) == 1 and isinstance(selectors[0], str):
-        selectors = selectors[0]
-    if layer_type == "line" and soup is not None and isinstance(selectors, (str, list)):
+
+    # point and pie read a string and nothing else: an array of any length -- one element or one
+    # per point -- is not a selector to them, and the layer loses its highlight silently.
+    if layer_type in STRING_ONLY and isinstance(selectors, list):
+        rep.error(f"{where}: type '{layer_type}' reads selectors as a string only; an array is ignored and nothing is highlighted -- join the entries with ', ' into one selector list")
+        return
+
+    if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
         check_line_selectors(selectors, data, where, soup, rep)
         return
+
+    if layer_type in SEGMENTED:
+        series = [x for x in data if isinstance(x, list)] if isinstance(data, list) else []
+        if isinstance(selectors, str):
+            if not (isinstance(dom_mapping, dict) and dom_mapping.get("order") == "column"):
+                rep.warn(f"{where}: a string selector on a '{layer_type}' layer is paired with the segments series by series; if the chart is drawn category by category (every hand-written stacking loop, ggplot2, R barplot) add \"domMapping\": {{\"order\": \"column\"}} (and \"groupDirection\": \"forward\" when each category's first element is its first series), or the highlight lands on the wrong bar")
+            if soup is None:
+                return
+            matched = _count(selectors, soup, rep, where)
+            if matched is None:
+                return
+            if matched == 0:
+                rep.error(f"{where}: selectors '{selectors}' matches no element in the document")
+            elif matched > n_points:
+                rep.error(f"{where}: selectors '{selectors}' matches {matched} elements but the grid has {n_points} cells; highlighting would land on the wrong segments")
+            elif matched < n_points:
+                rep.warn(f"{where}: selectors '{selectors}' matches {matched} elements for {n_points} cells; only zero-valued cells may go undrawn, or the pairing shifts")
+            return
+        if isinstance(selectors, list):
+            if not all(isinstance(row, list) for row in selectors):
+                rep.error(f"{where}: type '{layer_type}' takes one string or a selectors[series][category] grid; a flat array is declined and nothing is highlighted")
+                return
+            if len(selectors) != len(series) or any(len(row) != len(s_) for row, s_ in zip(selectors, series)):
+                rep.error(f"{where}: selector grid is {len(selectors)} x {[len(r) for r in selectors]} but data is {len(series)} series x {[len(s_) for s_ in series]}; the grid must match the data cell for cell (null for an undrawn cell)")
+                return
+            if soup is None:
+                return
+            for r, row in enumerate(selectors):
+                for c, cell in enumerate(row):
+                    if cell is None:
+                        continue
+                    if not isinstance(cell, str):
+                        rep.error(f"{where}: selector grid cell [{r}][{c}] must be a string or null")
+                        return
+                    matched = _count(cell, soup, rep, where)
+                    if matched is None:
+                        return
+                    if matched == 0:
+                        rep.error(f"{where}: selector grid cell [{r}][{c}] '{cell}' matches nothing; one unresolvable cell declines the whole grid")
+                        return
+            return
+        rep.error(f"{where}: selectors must be a string or an array")
+        return
+
     if isinstance(selectors, str):
         if soup is None or layer_type in NESTED:
             return
-        try:
-            matched = len(drawn(soup.select(selectors)))
-        except Exception as exc:  # bad CSS
-            rep.error(f"{where}: selectors '{selectors}' is not a valid CSS selector ({exc})")
+        matched = _count(selectors, soup, rep, where)
+        if matched is None:
             return
         if matched == 0:
             rep.error(f"{where}: selectors '{selectors}' matches no element in the document")
@@ -302,6 +376,22 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
             rep.error(f"{where}: selectors '{selectors}' matches {matched} elements but data has {n_points} points; highlighting would land on the wrong marks")
     elif isinstance(selectors, list):
         if layer_type in NESTED:
+            return
+        if layer_type in BAR_FAMILY:
+            if len(selectors) != n_points:
+                rep.error(f"{where}: selectors list has {len(selectors)} entries for {n_points} data points; a '{layer_type}' array means exactly one selector per point, and any other length is declined -- a single selector goes in as a string, not a one-element list")
+                return
+            if soup is not None:
+                for i, one in enumerate(selectors):
+                    if not isinstance(one, str):
+                        rep.error(f"{where}: selectors[{i}] must be a string")
+                        return
+                    matched = _count(one, soup, rep, where)
+                    if matched is None:
+                        return
+                    if matched == 0:
+                        rep.error(f"{where}: selectors[{i}] '{one}' matches nothing; one unresolvable entry declines the whole list")
+                        return
             return
         if len(selectors) != n_points:
             rep.warn(f"{where}: selectors list has {len(selectors)} entries for {n_points} data points")
@@ -353,7 +443,7 @@ def check_layer(layer, where: str, soup, rep: Report) -> None:
         return
     n = check_data_shape(t, layer["data"], where, rep)
     if n:
-        check_selectors(layer.get("selectors"), n, t, where, soup, rep, layer["data"])
+        check_selectors(layer.get("selectors"), n, t, where, soup, rep, layer["data"], dom_mapping=layer.get("domMapping"))
 
 
 def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> None:
@@ -409,7 +499,27 @@ def browser_check(path: str, rep: Report) -> None:
     url = "file:///" + os.path.abspath(path).replace("\\", "/")
     errors: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        # Playwright pins an exact browser build and refuses any other, so an environment that ships
+        # its own Chromium names it: PLAYWRIGHT_CHROMIUM_EXECUTABLE, or a chromium-*/ build under
+        # PLAYWRIGHT_BROWSERS_PATH from another Playwright version. A launch that fails is reported
+        # rather than raised: the static checks above still stand.
+        launch: dict = {}
+        exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+        if not exe:
+            root = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+            if root and os.path.isdir(root):
+                import glob
+                found = sorted(glob.glob(os.path.join(root, "chromium-*", "chrome-linux", "chrome"))
+                               + glob.glob(os.path.join(root, "chromium-*", "chrome-mac", "*", "*", "*", "Chromium")))
+                if found:
+                    exe = found[-1]
+        if exe:
+            launch["executable_path"] = exe
+        try:
+            browser = p.chromium.launch(**launch)
+        except Exception as exc:
+            rep.warn(f"browser: could not launch Chromium ({str(exc).splitlines()[0][:160]}); run `playwright install chromium` or set PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+            return
         page = browser.new_page()
         page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -419,6 +529,31 @@ def browser_check(path: str, rep: Report) -> None:
             rep.info("browser: maidr initialized (a maidr-figure-* container wraps the chart)")
         except Exception:
             rep.error("browser: maidr did not initialize within 8 s (no maidr-figure-* container appeared); check the console errors and the JSON")
+        # Then drive it the way a reader does: Tab onto the chart, Right Arrow onto the first point,
+        # and look for the outline maidr draws -- a visible clone of the mark tagged data-maidr-owned.
+        # A payload that parses and announces can still outline nothing (a selectors shape the type
+        # does not read) or the wrong mark; only the DOM after a keypress can tell.
+        try:
+            page.keyboard.press("Tab")
+            page.wait_for_timeout(400)
+            spoken = page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''")
+            if "ENTER" in spoken:
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(400)
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(500)
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(500)
+            spoken = page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''")
+            visible = page.evaluate("() => [...document.querySelectorAll('svg [data-maidr-owned]')].filter((e) => getComputedStyle(e).visibility !== 'hidden').length")
+            if not spoken.strip():
+                rep.warn("browser: Right Arrow announced nothing; the chart may not have taken focus")
+            elif visible == 0:
+                rep.error(f"browser: Right Arrow announced '{spoken.strip()[:80]}' but nothing on the chart is highlighted; the layer's selectors are not in the shape its type reads (see schema.md), or resolve to the wrong elements")
+            else:
+                rep.info(f"browser: Right Arrow announced '{spoken.strip()[:60]}' and highlighted a mark")
+        except Exception as exc:
+            rep.warn(f"browser: could not drive the chart ({exc})")
         for e in errors:
             rep.error(f"browser console: {e[:300]}")
         browser.close()
