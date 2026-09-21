@@ -11,11 +11,11 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 - **Unknown or misspelled `type`.** Scatter is `point`, histogram is `hist`, heatmap is `heat`. `candlestick_delta` must never be declared.
 - **Empty `data` or wrong nesting.** `line`, `step`, `smooth`, and the grouped bar types need one inner array per series; `bar`, `point`, `hist`, `pie`, `box` are flat; `heat` is an object.
 
-## Navigation works but nothing highlights on the chart
+## Navigation works but nothing highlights on the chart: `selectors` has a shape the layer's type does not read, or resolves to the wrong count. The shapes are per type (`schema.md`): a `bar`/`hist` string must match one element per point, and an array must have exactly one selector per point -- a one-element array on a seven-point bar is declined; `point` and `pie` read a string only, never an array; a multi-series `line` needs one selector per series, not one string matching every path; a segmented layer takes one string or a `selectors[series][category]` grid, never a flat array, and a grid with one unresolvable cell is declined whole. Point at the marks (`rect`, `circle`, `path`), not their `<g>` group, unless the type says otherwise (a candlestick names one `<g>` per candle), and check the count
 
 `selectors` does not resolve to exactly one element per data point, in data order. Point at the marks (`rect`, `circle`, `path`), not their `<g>` group, and check the count with the checker (needs `beautifulsoup4`) or in the console: `document.querySelectorAll('#id rect.bar').length`.
 
-## Values are announced in the wrong order or against the wrong bar
+## Values are announced in the wrong order or against the wrong bar: for a flat layer, `data` order and DOM order disagree -- emit the JSON in the order the marks are drawn. For a segmented layer (`dodged_bar`, `stacked_bar`, `stacked_normalized_bar`) reordering `data` cannot fix it, because `data` is one array per series whatever the drawing order: declare the drawing order instead with `"domMapping": { "order": "column" }` when the chart is drawn category by category (plus `"groupDirection": "forward"` when each category's first element is its first series), or name every cell in a `selectors[series][category]` grid
 
 `data` order and DOM order disagree. Emit the JSON in the same order the marks are drawn (left to right, or the library's series order).
 

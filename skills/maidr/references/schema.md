@@ -23,7 +23,14 @@ Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` i
 - Each layer: `id` (string), `type` (trace type), `data`, optional `title`, `name`, `axes`, `selectors`, `orientation` (`"vert"` default or `"horz"`), `stepDirection` (`"hv"`, `"vh"`, `"mid"`, step only).
 - `axes` per layer: `{ "x": {...}, "y": {...}, "z": {...} }`. Each axis object accepts `label`, `min`, `max`, `tickStep` (the last three drive grid navigation on scatter plots), and `format`. Bare strings such as `"x": "Day"` are rejected. Default labels are `X`, `Y`, and `Level`.
 - `format`: `{ "type": "currency" | "percent" | "fixed" | "number" | "date" | "scientific", "decimals": 0, "currency": "USD", "locale": "en-US" }`, or `{ "function": "return value.toFixed(1) + ' kg'" }`.
-- `selectors`: a CSS selector string that matches one element per data point in data order, or an array of selectors (one per point; for grouped bars an array of arrays, one per series). Highlighting is skipped when the count does not match, so navigation still works but the visual cue is lost. Nested types (line, step, smooth) usually point at one path per series.
+- `selectors`: which drawn elements the layer highlights. The shape is a contract with maidr.js 4.x, and it is read **per type** -- a shape the type does not read loses the highlight silently, while navigation and speech keep working, which is the failure nothing announces:
+  - `bar`, `hist`, `dot`, `lollipop`: a **string** matched with `querySelectorAll` and paired with the points in document order, or an array with **exactly one selector per point** (single-row data only). A one-element array on a multi-point layer is not "a string in a list": it is one selector for N points, and the layer is declined.
+  - `point`, `pie`: a **string only**. An array of any length is ignored (`Svg.isUsableSelector` accepts strings), so a per-point list must be joined with `", "` into one selector list.
+  - `line`, `step`, `smooth`, `area`: an array with **one selector per series**, in series order; a bare string counts as one series, so a string matching N paths for N series is declined.
+  - `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `mosaic`: a **string** matching every segment, paired series by series by default -- see `domMapping` under the segmented types below when the chart is drawn category by category -- or a grid `selectors[series][category]` with one selector per cell that `querySelector` resolves to that one segment, `null` for a cell that was never drawn. A flat array is declined.
+  - `heat`: a string matching every cell (row-major, top row first), or a grid `selectors[row][column]` with `null` for a cell that was not drawn.
+  - `box`, `violin_box`: one selector object per box (see the box section); `candlestick`: a string, a one-element array or a selector object.
+  - Fewer matches than points is not skipped for a bar: the elements are assigned to the non-zero points in document order, so a selector that under-matches by one shifts every highlight after it onto the wrong bar. More matches than points is declined.
 
 ## Trace types
 
@@ -54,7 +61,7 @@ Horizontal bars: add `"orientation": "horz"` on the layer and keep `x` as the ca
 
 Optional per-point `label` names an ordinal level announced instead of the number (`y` stays numeric). `step` adds layer-level `"stepDirection": "hv" | "vh" | "mid"` (matplotlib `steps-post`, `steps-pre`, `steps-mid`).
 
-`selectors` for a line matches one `<path>` (or `<polyline>`) per series, in series order. maidr highlights a line by walking that path's vertices, so draw each series with straight `M`/`L` segments and exactly one vertex per data point in data order; a smoothed curve (`C`, `Q`) or an over-sampled path makes the highlight drift away from the announced point. Draw markers as separate elements if you want them.
+`selectors` for a line is an array with one entry per series, in series order, each matching that series' one `<path>` (or `<polyline>`); a bare string is read as a single series and is declined when it matches more than one path. maidr highlights a line by walking that path's vertices, so draw each series with straight `M`/`L` segments and exactly one vertex per data point in data order; a smoothed curve (`C`, `Q`) or an over-sampled path makes the highlight drift away from the announced point. Draw markers as separate elements if you want them.
 
 ### `point` (scatter, flat array, numeric coordinates)
 
@@ -95,7 +102,17 @@ Layer-level `"orientation": "vert"` or `"horz"`. Empty outlier arrays are fine.
 ]
 ```
 
-Readers move Left/Right across categories and Up/Down across fills; maidr adds summary and combined pseudo-layers itself. `selectors` for these is an array of arrays matching the data.
+Readers move Left/Right across categories and Up/Down across fills; maidr adds summary and combined pseudo-layers itself.
+
+`selectors` for these is either one string matching every segment, or a grid the same shape as `data` -- `selectors[series][category]`, one selector per cell, each resolving with `querySelector` to that one segment, `null` where the chart drew nothing for the cell. A flat array of selectors is declined.
+
+With the string form maidr pairs the matched segments with the cells **series by series**: all of series 0's segments in document order, then series 1's, and so on. A chart drawn **category by category** -- every hand-written stacking loop, ggplot2, R's `barplot()` -- has to say so, or every segment after the first is outlined for another cell's value:
+
+```json
+"domMapping": { "order": "column", "groupDirection": "forward" }
+```
+
+`order: "column"` pairs the segments one category at a time; `groupDirection` says which series a category's first element is: `"forward"` for series 0 first (bars drawn bottom-up in the order the series are listed), `"reverse"` (the default) when the last series is drawn first, as a stack drawn top-down is. Chart-library adapters set this themselves; hand-authored JSON has to.
 
 ### `pie` (flat array in slice order)
 
@@ -105,7 +122,7 @@ Readers move Left/Right across categories and Up/Down across fills; maidr adds s
 "data": [ { "x": "Apples", "y": 30 }, { "x": "Bananas", "y": 50 }, { "x": "Cherries", "y": 20 } ]
 ```
 
-No `percentage` field (derived) and no `orientation`. `selectors` must match exactly one element per slice. A doughnut is the same layer.
+No `percentage` field (derived) and no `orientation`. `selectors` is a string, never an array, and must match exactly one element per slice. A doughnut is the same layer.
 
 ### `candlestick` (flat array)
 
