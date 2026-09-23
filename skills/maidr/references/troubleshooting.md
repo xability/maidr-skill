@@ -4,7 +4,7 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 
 ## The page loads but Tab never reaches the chart and nothing is announced
 
-- **maidr.js did not load.** Open the browser console. A blocked CDN shows a network error on the script URL. Switch to the other CDN (`cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js`), or copy `assets/maidr.js` and `assets/maidr-math.css` next to the page and load `./maidr.js`, or use the loader chain from `assets/template.html`.
+- **maidr.js did not load.** Open the browser console. A blocked CDN shows a network error on the script URL. Switch to the other CDN (`cdnjs.cloudflare.com/ajax/libs/maidr/4.10.0/maidr.min.js`), or copy `assets/maidr.js` and `assets/maidr-math.css` next to the page and load `./maidr.js`, or use the loader chain from `assets/template.html`.
 - **The JSON does not parse.** Common causes: single quotes inside the JSON, a trailing comma, an unescaped apostrophe in a label (write `&#39;`), or the attribute wrapped in double quotes while the JSON also uses double quotes. The checker prints the character offset of the error.
 - **No attachment method matched.** The JSON must sit in a `maidr` (or `maidr-data`) attribute, or in `window.maidr` with `id` equal to the SVG's `id`. A plain `<script type="application/json">` block is not read.
 - **`axes` uses bare strings.** `"axes": { "x": "Day" }` is rejected; use `{ "x": { "label": "Day" } }`.

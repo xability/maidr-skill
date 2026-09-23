@@ -107,11 +107,11 @@ options(
 )
 ```
 
-There are no maidr environment variables. `RSTUDIO=1` decides Viewer versus browser.
+`RSTUDIO=1` decides Viewer versus browser. The CDN and DotPad settings below also read environment variables.
 
 ## Offline and CDN
 
-`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build ships 4.6.0); ship both, or pass `use_cdn = TRUE` for a single file that loads the same pinned version from jsDelivr. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
+`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build is refreshed with every maidr.js release); ship both, or pass `use_cdn = TRUE` for a single file that loads maidr.js from jsDelivr. In the development build (0.4.0.9000 and later) `use_cdn = TRUE` loads the latest maidr.js release, looked up once per R session, as py-maidr does; a failed lookup falls back to the bundled version. Pin it with `options(maidr.cdn_version = "bundled")` or a version such as `"4.10.0"`, or the `MAIDR_CDN_VERSION` environment variable; CRAN 0.4.0 always loads its bundled version. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
 
 ### A DotPad tactile display offline
 

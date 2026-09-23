@@ -1,4 +1,4 @@
-# MAIDR JSON schema (maidr 4.6.0)
+# MAIDR JSON schema (maidr 4.10.0)
 
 Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` in the maidr repository). This page condenses what a hand-authored chart needs. py-maidr and r-maidr generate this JSON for you; you only write it for hand-drawn SVGs or when an adapter does not exist.
 

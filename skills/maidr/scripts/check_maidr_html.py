@@ -28,7 +28,7 @@ import re
 import sys
 from html.parser import HTMLParser
 
-MAIDR_VERSION = "4.6.0"
+MAIDR_VERSION = "4.10.0"
 
 STABLE = {
     "bar", "box", "candlestick", "dodged_bar", "heat", "hist", "line", "pie", "point", "smooth",
@@ -120,6 +120,19 @@ class Collector(HTMLParser):
             self._script["text"] += data
 
 
+def older_than_vendored(version: str) -> bool:
+    """True when an X.Y.Z version predates MAIDR_VERSION, the release this skill vendors.
+
+    Pages should name the latest release, which is never older than the vendored one; a
+    version that does not parse is left alone rather than guessed at.
+    """
+    parts = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not parts:
+        return False
+    vendored = tuple(int(p) for p in MAIDR_VERSION.split("."))
+    return tuple(int(p) for p in parts.groups()) < vendored
+
+
 def classify_src(src: str) -> str:
     s = src.lower()
     if "cdn.jsdelivr.net" in s:
@@ -145,9 +158,9 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
                     m = re.search(r"maidr@([^/]+)/", src) or re.search(r"/libs/maidr/([^/]+)/", src)
                     ver = m.group(1) if m else None
                     if ver in (None, "latest") and kind == "jsdelivr":
-                        rep.warn(f"maidr.js loaded unpinned ({src}); pin a version such as maidr@{MAIDR_VERSION} so the page does not change under the reader")
-                    elif ver and ver not in ("latest", MAIDR_VERSION):
-                        rep.info(f"maidr.js pinned to {ver}; this skill was written against {MAIDR_VERSION}")
+                        rep.warn(f"maidr.js loaded unpinned ({src}); name the latest release as a version (scripts/detect_env.sh reports it as maidr_js_version) -- jsDelivr caches @latest for up to a week")
+                    elif ver and older_than_vendored(ver):
+                        rep.warn(f"maidr.js pinned to {ver}, older than the {MAIDR_VERSION} this skill vendors; use the latest release (scripts/detect_env.sh reports it as maidr_js_version)")
                 if kind == "local":
                     path = os.path.normpath(os.path.join(html_dir, src))
                     if not os.path.exists(path):

@@ -76,7 +76,7 @@ skills/maidr/
   scripts/fetch_dotpad_sdk.py  download the DotPad tactile-display SDK maidr.js is pinned to, for offline pages (not vendored: 14 MB)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
   assets/candlestick.html      hand-authored candlestick, for when the plotting library cannot draw one
-  assets/maidr.js              vendored maidr.js 4.6.0 for offline or firewalled use
+  assets/maidr.js              vendored maidr.js 4.10.0 for offline or firewalled use
   assets/maidr-math.css        stylesheet maidr.js fetches beside itself for math in AI-chat replies
   assets/maidr-bundle.json     version, source URLs, and SHA-256 of the vendored files
   assets/dotpad-sdk.json       version, commit, URLs, and SHA-256 of the DotPad SDK files fetch_dotpad_sdk.py downloads (copied from maidr.js's dist/dotpad-sdk.json)
@@ -111,12 +111,9 @@ tools/update-bundle.sh 4.7.0    # a specific version
 
 The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records their SHA-256 in `assets/maidr-bundle.json`, and rewrites the version pins across the skill. It also fetches the release's `dist/dotpad-sdk.json`, the DotPad SDK pin maidr.js is built against, into `assets/dotpad-sdk.json`; a release that does not ship that file leaves the asset as it is, and the script says so. Re-vendoring a release that is already vendored changes nothing, so the script is safe to re-run.
 
-A scheduled GitHub Action runs it weekly and opens a pull request only when a new release exists. Opening that pull request needs one of:
+The `update-bundle` workflow runs it and commits the refresh straight to `main`: maidr's release workflow notifies this repository the moment a release reaches npm (a `maidr-released` repository dispatch), and a daily run catches a notification that never arrives. It then starts `validate` on `main`, because a push made with the workflow's own token starts no workflows.
 
-- **Settings > Actions > General > Workflow permissions**, with *Allow GitHub Actions to create and approve pull requests* enabled (an organization can also enforce this switch off from its own settings, which overrides the repository), or
-- a `BUNDLE_UPDATE_TOKEN` repository secret holding a personal access token with `repo` scope, which the workflow prefers when present.
-
-Without either, the job pushes `chore/update-maidr-bundle` and then fails with `GitHub Actions is not permitted to create or approve pull requests`.
+Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) looks up the latest release on npm and reports it as `maidr_js_version`, and the skill tells the agent to put that version in every URL; the vendored version is only the fallback when the lookup fails. The plugin manifests carry no `version`, so Claude Code uses the commit and an installed copy picks up every refresh.
 
 ## Related projects
 

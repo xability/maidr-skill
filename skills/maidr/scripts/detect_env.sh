@@ -12,10 +12,33 @@
 # The network probe reflects THIS machine. A reader's browser may sit behind a different
 # firewall, so pages should still carry a CDN -> CDN -> local fallback chain when possible.
 
-MAIDR_JS_VERSION="4.6.0"
+# The vendored release (assets/maidr.js). Pages use the latest release on npm instead,
+# resolved below, and fall back to this one when the lookup fails or answers older.
+MAIDR_JS_VERSION="4.10.0"
 DIR="${1:-.}"
 have() { command -v "$1" >/dev/null 2>&1; }
 json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r\n'; }
+
+# ---------- Latest maidr.js release ----------
+# Asked once, from the npm registry's dist-tags (a few bytes). Only a plain X.Y.Z answer
+# is used, and never one older than the vendored release: a page always names a real,
+# immutable version, never the "@latest" tag jsDelivr caches for up to a week.
+newer() {  # true when $1 is a later X.Y.Z than $2
+  awk -v a="$1" -v b="$2" 'BEGIN { split(a, x, "."); split(b, y, ".");
+    for (i = 1; i <= 3; i++) { if (x[i] + 0 != y[i] + 0) exit !(x[i] + 0 > y[i] + 0) } exit 1 }'
+}
+LATEST=""
+if have curl; then
+  LATEST=$(curl -fsS -m 4 https://registry.npmjs.org/-/package/maidr/dist-tags 2>/dev/null)
+elif have wget; then
+  LATEST=$(wget -qO- -T 4 https://registry.npmjs.org/-/package/maidr/dist-tags 2>/dev/null)
+fi
+LATEST=$(printf '%s' "$LATEST" | sed -n 's/.*"latest"[[:space:]]*:[[:space:]]*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p')
+JS_VERSION="$MAIDR_JS_VERSION"; JS_VERSION_SOURCE="vendored"
+if [ -n "$LATEST" ]; then
+  if newer "$LATEST" "$MAIDR_JS_VERSION"; then JS_VERSION="$LATEST"; JS_VERSION_SOURCE="npm-latest"
+  elif [ "$LATEST" = "$MAIDR_JS_VERSION" ]; then JS_VERSION_SOURCE="npm-latest"; fi
+fi
 
 # ---------- Python ----------
 PY_CMD=""; PY_VER=""; PY_MAIDR=""; PIP=false; UV=false
@@ -81,8 +104,8 @@ probe() {  # prints true|false|unknown
     wget -q --spider -T 6 "$1" >/dev/null 2>&1 && echo true || echo false
   else echo unknown; fi
 }
-JSDELIVR=$(probe "https://cdn.jsdelivr.net/npm/maidr@${MAIDR_JS_VERSION}/dist/maidr.js")
-CDNJS=$(probe "https://cdnjs.cloudflare.com/ajax/libs/maidr/${MAIDR_JS_VERSION}/maidr.min.js")
+JSDELIVR=$(probe "https://cdn.jsdelivr.net/npm/maidr@${JS_VERSION}/dist/maidr.js")
+CDNJS=$(probe "https://cdnjs.cloudflare.com/ajax/libs/maidr/${JS_VERSION}/maidr.min.js")
 PYPI=$(probe "https://pypi.org/simple/maidr/")
 CRAN=$(probe "https://cloud.r-project.org/web/packages/maidr/index.html")
 
@@ -110,7 +133,9 @@ b() { if [ -n "$1" ]; then echo true; else echo false; fi; }
 q() { if [ -n "$1" ]; then printf '"%s"' "$(json_str "$1")"; else printf 'null'; fi; }
 cat <<JSON
 {
-  "maidr_js_version": "${MAIDR_JS_VERSION}",
+  "maidr_js_version": "${JS_VERSION}",
+  "maidr_js_version_source": "${JS_VERSION_SOURCE}",
+  "maidr_js_vendored_version": "${MAIDR_JS_VERSION}",
   "project_dir": $(q "$DIR"),
   "python": { "available": $(b "$PY_CMD"), "command": $(q "$PY_CMD"), "version": $(q "$PY_VER"), "pip": $PIP, "uv": $UV, "py_maidr_version": $(q "$PY_MAIDR") },
   "r": { "available": $(b "$RSCRIPT"), "rscript": $(q "$RSCRIPT"), "version": $(q "$R_VER"), "r_maidr_version": $(q "$R_MAIDR") },

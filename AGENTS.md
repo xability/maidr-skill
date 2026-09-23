@@ -12,14 +12,14 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 - `evals/evals.json`: test prompts for exercising the skill with and without it installed.
 - `tools/update-bundle.sh`: refreshes the vendored bundle, copies the release's `dist/dotpad-sdk.json` over `assets/dotpad-sdk.json` when the release ships one, and rewrites version pins. It is idempotent —
   re-vendoring the release already recorded in `maidr-bundle.json` leaves the working tree clean, which
-  is what keeps the weekly `update-bundle` workflow from opening an empty pull request. `retrieved`
-  therefore dates the vendored bytes, not the last run.
+  is what keeps the `update-bundle` workflow (run by maidr's release dispatch and daily) from committing an
+  empty refresh to `main`. `retrieved` therefore dates the vendored bytes, not the last run.
 
 ## Facts must be verified
 
 Every API name, URL, option, and keyboard shortcut in the skill was checked against the maidr, py-maidr, and r-maidr sources and their published docs. When you change one, cite where it comes from in the commit message. Do not add functions from memory; the skill explicitly tells agents not to invent APIs, and it has to hold itself to the same rule.
 
-Current pins: maidr.js 4.6.0, py-maidr 1.23.x, maidr R package 0.4.x. The maidr.js version string appears in `SKILL.md` (frontmatter and CDN URLs), every reference file, both detect scripts, `check_maidr_html.py`, `assets/template.html`, `assets/maidr-bundle.json`, and `README.md`; `tools/update-bundle.sh` rewrites all of them.
+Current pins: maidr.js 4.10.0, py-maidr 1.25.x, maidr R package 0.4.x. The maidr.js version string appears in `SKILL.md` (frontmatter and CDN URLs), every reference file, both detect scripts, `check_maidr_html.py`, `assets/template.html`, `assets/maidr-bundle.json`, and `README.md`; `tools/update-bundle.sh` rewrites all of them. The pinned version is the vendored release and a floor, not what pages load: `detect_env` reports the latest npm release as `maidr_js_version` and the skill tells agents to use it, and `check_maidr_html.py` warns only on a version older than the vendored one. The plugin manifests deliberately carry no `version`: a declared one is Claude Code's update signal, and an unchanged one kept installed copies on their first download.
 
 ## Validate before committing
 

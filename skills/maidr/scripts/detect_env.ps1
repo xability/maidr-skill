@@ -10,7 +10,23 @@
 #>
 param([string]$Dir = ".")
 $ErrorActionPreference = "SilentlyContinue"
-$MaidrJsVersion = "4.6.0"
+# The vendored release (assets/maidr.js). Pages use the latest release on npm instead,
+# resolved below, and fall back to this one when the lookup fails or answers older.
+$MaidrJsVersion = "4.10.0"
+
+# ---------- Latest maidr.js release ----------
+# Asked once, from the npm registry's dist-tags. Only a plain X.Y.Z answer is used, and
+# never one older than the vendored release: a page always names a real, immutable
+# version, never the "@latest" tag jsDelivr caches for up to a week.
+$jsVersion = $MaidrJsVersion; $jsVersionSource = "vendored"
+try {
+  $tags = Invoke-RestMethod -Uri "https://registry.npmjs.org/-/package/maidr/dist-tags" -TimeoutSec 4 -UseBasicParsing
+  $latest = [string]$tags.latest
+  if ($latest -match '^\d+\.\d+\.\d+$') {
+    if ([version]$latest -gt [version]$MaidrJsVersion) { $jsVersion = $latest; $jsVersionSource = "npm-latest" }
+    elseif ($latest -eq $MaidrJsVersion) { $jsVersionSource = "npm-latest" }
+  }
+} catch {}
 
 function Try-Run([string]$exe, [string[]]$arguments) {
   try {
@@ -83,8 +99,8 @@ function Probe([string]$url) {
     return ($r.StatusCode -ge 200 -and $r.StatusCode -lt 400)
   } catch { return $false }
 }
-$jsdelivr = Probe "https://cdn.jsdelivr.net/npm/maidr@$MaidrJsVersion/dist/maidr.js"
-$cdnjs    = Probe "https://cdnjs.cloudflare.com/ajax/libs/maidr/$MaidrJsVersion/maidr.min.js"
+$jsdelivr = Probe "https://cdn.jsdelivr.net/npm/maidr@$jsVersion/dist/maidr.js"
+$cdnjs    = Probe "https://cdnjs.cloudflare.com/ajax/libs/maidr/$jsVersion/maidr.min.js"
 $pypi     = Probe "https://pypi.org/simple/maidr/"
 $cran     = Probe "https://cloud.r-project.org/web/packages/maidr/index.html"
 
@@ -105,8 +121,10 @@ if ($rSignals -gt 0 -and $rSignals -ge $pySignals) {
 $jsSource = if ($jsdelivr) { "jsdelivr" } elseif ($cdnjs) { "cdnjs" } else { "bundle" }
 
 [ordered]@{
-  maidr_js_version = $MaidrJsVersion
-  project_dir      = $Dir
+  maidr_js_version          = $jsVersion
+  maidr_js_version_source   = $jsVersionSource
+  maidr_js_vendored_version = $MaidrJsVersion
+  project_dir               = $Dir
   python  = [ordered]@{ available = [bool]$pyCmd; command = $pyCmd; version = $pyVer; pip = $pip; uv = $uv; py_maidr_version = $pyMaidr }
   r       = [ordered]@{ available = [bool]$rscript; rscript = $rscript; version = $rVer; r_maidr_version = $rMaidr }
   node    = [ordered]@{ available = [bool]$nodeVer; version = $nodeVer }

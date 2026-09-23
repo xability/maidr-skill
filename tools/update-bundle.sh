@@ -21,6 +21,12 @@ VER="${1:-}"
 if [ -z "$VER" ]; then
   VER=$(curl -fsSL https://registry.npmjs.org/maidr/latest | "$PY" -c 'import sys,json;print(json.load(sys.stdin)["version"])')
 fi
+# The version reaches URLs, a sed pattern and file contents, and on a dispatch it comes from
+# another repository's payload, so only a plain release version gets past this point.
+if ! printf '%s' "$VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "not a maidr release version: '$VER'" >&2
+  exit 1
+fi
 echo "vendored: $OLD  ->  target: $VER"
 
 TMP=$(mktemp -d)
@@ -61,8 +67,8 @@ meta["cdn"] = {
     "cdnjs": f"https://cdnjs.cloudflare.com/ajax/libs/maidr/{ver}/maidr.min.js",
 }
 # "retrieved" dates the vendored bytes, not the last run of this script. Bumping it
-# unconditionally leaves a diff behind on a re-vendor of the same release, which makes
-# the weekly workflow open an empty pull request every Monday.
+# unconditionally leaves a diff behind on a re-vendor of the same release, which would make
+# the update-bundle workflow commit an empty refresh on every run.
 if json.dumps(meta, sort_keys=True) != before:
     meta["retrieved"] = datetime.date.today().isoformat()
 with open(meta_path, "w") as fh:
@@ -72,7 +78,7 @@ EOF
 
 if [ "$OLD" != "$VER" ]; then
   OLD_RE=$(printf '%s' "$OLD" | sed 's/\./\\./g')
-  grep -rl --exclude=maidr.js --exclude=maidr-math.css --exclude=maidr-bundle.json "$OLD" \
+  grep -rl --exclude-dir=__pycache__ --exclude=maidr.js --exclude=maidr-math.css --exclude=maidr-bundle.json "$OLD" \
     "$ROOT/skills/maidr" "$ROOT/README.md" "$ROOT/AGENTS.md" 2>/dev/null \
     | while IFS= read -r file; do
         sed -i "s/\b${OLD_RE}\b/${VER}/g" "$file"
