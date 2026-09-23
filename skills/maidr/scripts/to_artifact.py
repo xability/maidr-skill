@@ -26,7 +26,7 @@ import os
 import re
 import sys
 
-DEFAULT_VERSION = "4.6.0"
+DEFAULT_VERSION = "4.10.0"
 LOADER = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S | re.I)
 CORE_SRC = re.compile(r"<script\b[^>]*\bsrc=[\"'][^\"']*maidr(?:\.min)?\.js[\"'][^>]*>\s*</script>", re.I)
 LIB_REFS = re.compile(r"<(?:link|script)\b[^>]*(?:href|src)=[\"'][^\"']*lib/maidr[^\"']*[\"'][^>]*>(?:\s*</script>)?", re.I)

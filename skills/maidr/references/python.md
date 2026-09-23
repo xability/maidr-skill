@@ -28,7 +28,7 @@ Development build: `pip install -U git+https://github.com/xability/py-maidr.git`
 | `maidr.close(plot=None)` | Drop the registration for a figure (long-running apps). |
 | `maidr.set_backend(use_maidr=True)` | Whether `plt.show()` goes through maidr. |
 | `maidr.set_use_cdn(value)`, `maidr.get_use_cdn()` | Process-wide default for `use_cdn`: `True`, `False`, or `"auto"`. |
-| `maidr.set_cdn_version("4.6.0" \| "bundled" \| "latest" \| None)` | Pin the maidr.js version used in CDN URLs. |
+| `maidr.set_cdn_version("4.10.0" \| "bundled" \| "latest" \| None)` | Pin the maidr.js version used in CDN URLs. |
 | `maidr.bundle_status()` | Compare the bundled maidr.js with the published release. |
 | `maidr.read_bundled_js()`, `maidr.bundled_js_path()`, `maidr.bundled_math_css_path()` | The maidr.js source (and file paths) shipped inside the installed package, for inlining into a single file. |
 | `from maidr.widget.shiny import output_maidr, render_maidr` | `output_maidr(id, width="100%", height="auto")` in the UI; `@render_maidr` (accepts `use_cdn=`) decorates the server function that returns the plot. |
@@ -91,11 +91,11 @@ html = loader.sub(lambda m: inline, html, count=1)
 path.write_text(html, encoding="utf-8")   # about 1.5 MB, no lib/ folder, no network needed
 ```
 
-The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.6.0/dist/maidr-math.css";</script>` to `inline`.
+The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.10.0/dist/maidr-math.css";</script>` to `inline`.
 
-Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.6.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
+Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.10.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 
-py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.6.0/maidr.min.js`, or use `use_cdn=False`.
+py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.10.0/maidr.min.js`, or use `use_cdn=False`.
 
 ### A DotPad tactile display offline
 

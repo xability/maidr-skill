@@ -1,8 +1,36 @@
 name: update-bundle
 
+# Keeps the vendored maidr.js, and every version pin in the skill, on the latest maidr
+# release, and commits the refresh straight to `main`, as r-maidr and py-maidr do.
+#
+# It used to open a pull request once a week and wait for someone to merge it. Nobody did:
+# the 4.8.0 refresh sat open from 14 Sep while 4.9.0 and 4.10.0 shipped, and the skill kept
+# handing out 4.6.0. Two things made that easy to miss. A pull request opened with
+# GITHUB_TOKEN starts no workflows, so it carried no checks and never went green; and the
+# Monday 06:17 UTC schedule ran nine hours before maidr's Monday 15:00 UTC release, so even
+# a prompt merge landed each release a week late.
+#
+# Two triggers now, doing different jobs. maidr's release workflow pings this repository
+# as soon as it publishes to npm, which is what lands a release here in minutes; the daily
+# schedule is the backstop for a ping that never arrives.
+#
+# The push is made with GITHUB_TOKEN, which starts no workflows for the events it causes,
+# `workflow_dispatch` excepted. So the last step dispatches `validate` on `main` itself:
+# `main` can still go red, but on the commit that caused it and within minutes.
+
 on:
+  repository_dispatch:
+    # Sent by maidr's release workflow the moment `npm publish` succeeds.
+    # `client_payload.version` names the version just published, so the job fetches that
+    # exact version rather than re-resolving `latest`, which sidesteps the window where the
+    # dist-tag has not propagated yet. A repository_dispatch runs this file as it is on the
+    # default branch, so a change to this trigger takes effect once it is on `main`.
+    types: [maidr-released]
   schedule:
-    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+    # The backstop: the dispatch is one cross-repository hop that can be missed (an expired
+    # token, a release published outside CI), and a miss is silent because nothing here
+    # would run. The refresh is a no-op when the bundle is already current.
+    - cron: "17 16 * * *"   # daily, after maidr's Monday 15:00 UTC release
   workflow_dispatch:
     inputs:
       version:
@@ -12,63 +40,61 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+  # For `gh workflow run` in the last step.
+  actions: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    # A dispatch can arrive while the daily run is working, and both push to `main`.
+    # Queue rather than cancel: the second run then finds the bundle current and commits
+    # nothing.
+    concurrency: update-bundle
     steps:
       - uses: actions/checkout@v4
 
       - name: Refresh vendored maidr.js
         id: refresh
         env:
-          # Via the environment, not string interpolation, so a dispatch input cannot
-          # inject shell.
-          VERSION: ${{ github.event.inputs.version }}
+          # Via the environment, not string interpolation, so neither a dispatch input nor
+          # another repository's payload can inject shell; update-bundle.sh also rejects
+          # anything but a plain X.Y.Z. Empty on a scheduled run, which resolves `latest`.
+          VERSION: ${{ github.event.inputs.version || github.event.client_payload.version }}
         run: |
           set -o pipefail   # without this, tee's exit status hides a failed refresh
           bash tools/update-bundle.sh "$VERSION" 2>&1 \
             | tee "$RUNNER_TEMP/update-bundle.log"
           echo "version=$(python3 -c 'import json;print(json.load(open("skills/maidr/assets/maidr-bundle.json"))["version"])')" >> "$GITHUB_OUTPUT"
-          if git diff --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Vendored bundle already current — no pull request needed." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
           {
             echo '```'
             cat "$RUNNER_TEMP/update-bundle.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open pull request if anything changed
-        if: steps.refresh.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          # GITHUB_TOKEN can only open pull requests while "Allow GitHub Actions to
-          # create and approve pull requests" is on (Settings > Actions > General).
-          # Set BUNDLE_UPDATE_TOKEN to a PAT with `repo` scope to work without it.
-          token: ${{ secrets.BUNDLE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
-          branch: chore/update-maidr-bundle
-          # Only what update-bundle.sh rewrites, so a stray file in the working tree
-          # cannot ride along into the commit.
-          add-paths: |
-            skills/maidr
-            README.md
-            AGENTS.md
-          commit-message: "chore: vendor maidr.js ${{ steps.refresh.outputs.version }}"
-          title: "chore: vendor maidr.js ${{ steps.refresh.outputs.version }}"
-          body: |
-            Automated refresh of the vendored maidr.js bundle and version pins.
+      - name: Commit the refresh to main
+        id: commit
+        env:
+          VERSION: ${{ steps.refresh.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Only what update-bundle.sh rewrites, so a stray file cannot ride along.
+          git add skills/maidr README.md AGENTS.md
+          if git diff --cached --quiet; then
+            echo "Vendored bundle already current; nothing to commit." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git -c user.name="xabilitylab" \
+              -c user.email="187909674+xabilitylab@users.noreply.github.com" \
+              commit -m "chore: vendor maidr.js ${VERSION}" \
+              --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
-            ```
-            ${{ steps.refresh.outputs.version }}
-            ```
-
-            Review `skills/maidr/assets/maidr-bundle.json` for the new checksums, and check that the cdnjs
-            fallback URL resolves (the job summary warns when cdnjs has not mirrored the release yet).
-            `skills/maidr/assets/dotpad-sdk.json` changes too when the release ships a new DotPad SDK pin.
-          labels: dependencies
-          delete-branch: true
+      - name: Validate the refreshed skill on main
+        # See the header: the push above starts no workflows, so validate is started here.
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run validate.yml --ref main
