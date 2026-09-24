@@ -213,5 +213,79 @@ class DataShapeTest(CheckerCase):
                 self.assertClean(run(os.path.join(FIXTURES, "py-maidr", f"{name}.html")))
 
 
+def rects(cls: str, n: int) -> str:
+    return "".join(f'<rect class="{cls}" x="{i}" y="0" width="1" height="1"/>' for i in range(n))
+
+
+@unittest.skipUnless(HAVE_BS4, "selector checks need beautifulsoup4")
+class SelectorFamilyTest(CheckerCase):
+    """The "By layer type" table under Selectors in maidr's docs/SCHEMA.md, type by type."""
+
+    def warnings_about_selectors(self, result: dict) -> list[str]:
+        return [m for m in messages(result, "WARN") if "select" in m or "series" in m]
+
+    def test_diverging_bar_is_segmented(self):
+        # diverging.ts: DivergingTrace extends SegmentedTrace, so a flat array is declined
+        data = [[{"x": "A", "y": -2, "z": "n"}, {"x": "B", "y": -1, "z": "n"}], [{"x": "A", "y": 3, "z": "p"}, {"x": "B", "y": 1, "z": "p"}]]
+        bad = layer("diverging_bar", data, selectors=["rect.s"] * 4)
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [bad]}]), rects("s", 4)), "flat array is declined")
+        good = layer("diverging_bar", data, selectors="rect.s", domMapping={"order": "column"})
+        self.assertClean(self.check_doc(figure([{"layers": [good]}]), rects("s", 4)))
+
+    def test_funnel_is_bar_family(self):
+        # funnel.ts: FunnelTrace extends BarTrace; a list means one selector per stage
+        data = [{"x": "a", "y": 3}, {"x": "b", "y": 2}, {"x": "c", "y": 1}]
+        good = layer("funnel", data, selectors=["rect.s:nth-of-type(1)", "rect.s:nth-of-type(2)", "rect.s:nth-of-type(3)"])
+        self.assertClean(self.check_doc(figure([{"layers": [good]}]), rects("s", 3)))
+        bad = layer("funnel", data, selectors="rect.s")
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [bad]}]), rects("s", 2)), "matches 2 elements")
+
+    def test_line_family_needs_one_selector_per_series(self):
+        for type_ in ("bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"):
+            with self.subTest(type=type_):
+                result = self.check_doc(figure([{"layers": [layer(type_, [SERIES, SERIES], selectors="path.l")]}]),
+                                        '<path class="l" d="M0 0 L1 1"/><path class="l" d="M0 0 L1 1"/>')
+                self.assertErrorMentions(result, "one string for 2 series")
+
+    def test_line_family_accepts_one_marker_per_point(self):
+        # line.ts mapViaDomElements: a selector matching one element per point pairs them in order
+        dots = "".join(f'<circle class="s{r}" cx="{i}" cy="{r}" r="1"/>' for r in range(2) for i in range(2))
+        result = self.check_doc(figure([{"layers": [layer("radar", [SERIES, SERIES], selectors=["circle.s0", "circle.s1"])]}]), dots)
+        self.assertClean(result)
+        self.assertEqual(self.warnings_about_selectors(result), [])
+
+    def test_contour_level_may_name_several_paths(self):
+        # contour.ts: a selector resolving to several elements is read as one level
+        level = [{"x": 0, "y": 0, "level": 1}, {"x": 1, "y": 1, "level": 1}]
+        result = self.check_doc(figure([{"layers": [layer("contour", [level], selectors=["path.lv"])]}]),
+                                '<path class="lv" d="M0 0 L1 1 L2 2"/><path class="lv" d="M5 5 L6 6 L7 7"/>')
+        self.assertClean(result)
+        self.assertEqual(self.warnings_about_selectors(result), [])
+
+    def test_concatenated_types_count_every_match(self):
+        # gantt.ts and its peers: each list entry is resolved and the matches concatenated
+        data = {"points": [[{"x": "a", "start": 0, "end": 1}, {"x": "a", "start": 2, "end": 3}], [{"x": "b", "start": 1, "end": 2}]]}
+        svg = rects("l0", 2) + rects("l1", 1)
+        result = self.check_doc(figure([{"layers": [layer("gantt", data, selectors=["rect.l0", "rect.l1"])]}]), svg)
+        self.assertClean(result)
+        self.assertEqual(self.warnings_about_selectors(result), [])
+        short = self.check_doc(figure([{"layers": [layer("gantt", data, selectors=["rect.l0"])]}]), svg)
+        self.assertErrorMentions(short, "declares 3")
+
+    def test_ridgeline_pairs_one_element_per_ridge(self):
+        data = [[{"x": 1, "y": 0.2}, {"x": 2, "y": 0.4}], [{"x": 1, "y": 0.3}, {"x": 2, "y": 0.1}]]
+        svg = '<path class="r" d="M0 0 L1 1"/><path class="r" d="M0 2 L1 3"/>'
+        self.assertClean(self.check_doc(figure([{"layers": [layer("ridgeline", data, selectors="path.r")]}]), svg))
+
+    def test_gauge_uses_its_first_match(self):
+        gauge = layer("gauge", {"value": 3, "min": 0, "max": 10}, selectors="rect.g")
+        self.assertClean(self.check_doc(figure([{"layers": [gauge]}]), rects("g", 2)))
+
+    def test_py_maidr_gantt_selectors(self):
+        result = run(os.path.join(FIXTURES, "py-maidr", "gantt.html"))
+        self.assertClean(result)
+        self.assertEqual(self.warnings_about_selectors(result), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -50,7 +50,6 @@ NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normal
           "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc",
           "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival",
           "ridgeline", "hexbin", "mosaic", "diverging_bar"}
-SEGMENTED_DATA = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
 #   either: flat for one group, or nested with one array per group (errorBar.ts toGroups)
 EITHER = {"error_bar", "forest"}
 #   object: a single object rather than an array
@@ -71,15 +70,24 @@ POINT_FIELDS = {
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
 # to catch (xability/r-maidr#316 shipped it on every bar, point and pie chart).
+# The families follow the "By layer type" table under Selectors in maidr's docs/SCHEMA.md.
 #   bar family: a string, or an array with exactly one selector per point (single-row data)
 #   point / pie: a string only; any array is ignored
-#   line family: an array with one selector per series; a bare string is one series
+#   line family: an array with one selector per series; a bare string is one series. Each entry
+#                names the series' path/polyline/polygon, or one marker per point; a contour
+#                entry may name several paths, read as one level
 #   segmented: a string (paired series-major unless domMapping.order is "column"), or a
 #              selectors[series][category] grid with null for undrawn cells; a flat array is declined
-BAR_FAMILY = {"bar", "hist", "dot", "lollipop"}
-STRING_ONLY = {"point", "pie"}
-LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc"}
-SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic"}
+#   concatenated: a string, or a list of strings each resolved and the matches concatenated; the
+#                 total must be exactly one element per item (a gauge uses its first match)
+BAR_FAMILY = {"bar", "hist", "dot", "lollipop", "funnel"}
+STRING_ONLY = {"point", "pie", "sunflower", "volcano", "manhattan"}
+LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc",
+               "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"}
+SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
+CONCATENATED = {"boxen", "ridgeline", "dumbbell", "error_bar", "forest", "gantt", "hexbin",
+                "waterfall", "word_cloud", "gauge", "alluvial", "chord", "sankey", "network",
+                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack"}
 # adapters whose bundle already contains the maidr core (their docs load no separate maidr.js)
 SELF_CONTAINED_ADAPTERS = {"chartjs", "amcharts", "recharts", "victory", "react"}
 ADAPTERS = {"d3", "chartjs", "highcharts", "echarts", "vegalite", "recharts", "victory", "amcharts",
@@ -271,7 +279,7 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
             if not isinstance(p, dict) or not fields <= set(p):
                 rep.error(f"{where}: every point needs {', '.join(sorted(fields))} (got {json.dumps(p)[:80]})")
                 break
-            if layer_type in SEGMENTED_DATA and not ("fill" in p or "z" in p):
+            if layer_type in SEGMENTED and not ("fill" in p or "z" in p):
                 rep.warn(f"{where}: grouped bar points should carry a 'fill' (group name); got {json.dumps(p)[:80]}")
                 break
         return len(points)
@@ -335,27 +343,31 @@ def drawn(elements):
     return [e for e in elements if e.find_parent("defs") is None]
 
 
-def check_line_selectors(selectors, data, where: str, soup, rep: Report) -> None:
-    """One path per series, one straight-segment vertex per point: that is what maidr walks when highlighting a line."""
+def check_line_selectors(selectors, data, where: str, soup, rep: Report, layer_type: str = "line") -> None:
+    """One selector per series, each naming the series' line or one marker per point: what maidr walks when highlighting a line (src/model/line.ts mapToSvgElements)."""
     series = [s for s in data if isinstance(s, list)] if isinstance(data, list) else []
-    try:
-        if isinstance(selectors, str):
-            matched = drawn(soup.select(selectors))
-        else:
-            matched = [m[0] for m in (drawn(soup.select(s)) for s in selectors if isinstance(s, str)) if m]
-    except Exception as exc:
-        rep.error(f"{where}: selectors are not valid CSS ({exc})")
-        return
     if isinstance(selectors, str) and len(series) > 1:
         rep.error(f"{where}: selectors is one string for {len(series)} series; maidr reads a string as a single series and declines the highlight -- give an array with one selector per series, in order")
         return
     if isinstance(selectors, list) and len(selectors) != len(series):
-        rep.error(f"{where}: selectors has {len(selectors)} entries for {len(series)} series; a line needs exactly one selector per series, in order")
+        rep.error(f"{where}: selectors has {len(selectors)} entries for {len(series)} series; a {layer_type} layer needs exactly one selector per series, in order")
         return
-    if len(matched) != len(series):
-        rep.warn(f"{where}: selectors match {len(matched)} element(s) for {len(series)} series; a line needs one path (or polyline) per series, in order")
+    try:
+        per_series = [drawn(soup.select(s)) if isinstance(s, str) else []
+                      for s in ([selectors] if isinstance(selectors, str) else selectors)]
+    except Exception as exc:
+        rep.error(f"{where}: selectors are not valid CSS ({exc})")
         return
-    for i, (el, s) in enumerate(zip(matched, series)):
+    missing = [i for i, m in enumerate(per_series) if not m]
+    if missing:
+        rep.warn(f"{where}: selectors for series {missing} match nothing; a line needs one path (or polyline) per series, in order")
+        return
+    for i, (found, s) in enumerate(zip(per_series, series)):
+        if len(found) == len(s):
+            continue  # one marker per point, paired in document order
+        if layer_type == "contour" and len(found) > 1:
+            continue  # several paths for one level: maidr outlines them all (src/model/contour.ts)
+        el = found[0]
         count, problem = vertex_count(el)
         if problem == "curved":
             rep.warn(f"{where} series[{i}]: <path> uses curve commands; maidr highlights vertices, so draw straight M/L segments with one vertex per point")
@@ -374,6 +386,30 @@ def _count(selector: str, soup, rep: Report, where: str):
         return None
 
 
+def check_concatenated_selectors(selectors, layer_type: str, data, n_points: int, where: str, soup, rep: Report) -> None:
+    """A string, or a list of strings whose matches are concatenated; the total must equal the items declared."""
+    entries = [selectors] if isinstance(selectors, str) else selectors
+    if not (isinstance(entries, list) and entries and all(isinstance(e, str) for e in entries)):
+        rep.error(f"{where}: type '{layer_type}' reads selectors as a string or a list of strings; this shape is declined and nothing is highlighted")
+        return
+    if soup is None:
+        return
+    total = 0
+    for one in entries:
+        matched = _count(one, soup, rep, where)
+        if matched is None:
+            return
+        total += matched
+    # a ridgeline pairs one element per ridge (row of data), everything else one per point
+    items = len(data) if layer_type == "ridgeline" and isinstance(data, list) else n_points
+    if total == 0:
+        rep.error(f"{where}: selectors match no element in the document")
+    elif layer_type == "gauge":
+        return  # gauge.ts highlights the first match
+    elif total != items:
+        rep.error(f"{where}: selectors match {total} element(s) in all but the layer declares {items}; a '{layer_type}' layer needs exactly one element per item, in order, or it is declined")
+
+
 def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report,
                     data=None, dom_mapping=None) -> None:
     if selectors is None:
@@ -387,7 +423,11 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
         return
 
     if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
-        check_line_selectors(selectors, data, where, soup, rep)
+        check_line_selectors(selectors, data, where, soup, rep, layer_type)
+        return
+
+    if layer_type in CONCATENATED:
+        check_concatenated_selectors(selectors, layer_type, data, n_points, where, soup, rep)
         return
 
     if layer_type in SEGMENTED:
