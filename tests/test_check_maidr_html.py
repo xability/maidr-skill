@@ -331,5 +331,36 @@ class LegacySelectorListTest(CheckerCase):
         self.assertErrorMentions(result, "string only")
 
 
+@unittest.skipUnless(HAVE_BS4, "selector checks need beautifulsoup4")
+class HeatSelectorTest(CheckerCase):
+    """heatmap.ts mapToSvgElements: a string naming every cell, a [row][column] grid, or a legacy list."""
+
+    HEAT = {"x": ["a", "b"], "y": ["r1", "r2"], "points": [[1, 2], [3, 4]]}
+
+    def selector_warnings(self, result: dict) -> list[str]:
+        return [m for m in messages(result, "WARN") if "select" in m]
+
+    def test_legacy_list_is_joined_with_a_warning(self):
+        result = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors=["rect.s"])]}]), rects("s", 4))
+        self.assertClean(result)
+        self.assertEqual(len([m for m in self.selector_warnings(result) if "joins the list" in m]), 1)
+        short = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors=["rect.s"])]}]), rects("s", 3))
+        self.assertErrorMentions(short, "has 4 cells")
+
+    def test_grid_matching_the_data_is_clean(self):
+        grid = [["rect.s:nth-of-type(1)", None], ["rect.s:nth-of-type(3)", "rect.s:nth-of-type(4)"]]
+        result = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors=grid)]}]), rects("s", 4))
+        self.assertClean(result)
+        self.assertEqual(self.selector_warnings(result), [])
+
+    def test_grid_of_another_shape_is_declined(self):
+        result = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors=[["rect.s", "rect.s"]])]}]), rects("s", 4))
+        self.assertErrorMentions(result, "2 rows x 2 columns")
+
+    def test_one_raster_image_is_overlaid(self):
+        result = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors="image.h")]}]), '<image class="h" href="h.png"/>')
+        self.assertClean(result)
+
+
 if __name__ == "__main__":
     unittest.main()

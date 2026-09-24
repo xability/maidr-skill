@@ -73,6 +73,7 @@ POINT_FIELDS = {
 # The families follow the "By layer type" table under Selectors in maidr's docs/SCHEMA.md.
 #   bar family: a string, or an array with exactly one selector per point (single-row data)
 #   point / pie: a string only
+#   heat: a string naming every cell (or one raster <image>), or a selectors[row][column] grid
 #   (a flat list of strings where these read a string is the pre-4.0 shape: 4.10.0 joins it and
 #   warns, older 4.x releases highlight nothing; the checker warns and checks the joined string)
 #   line family: an array with one selector per series; a bare string is one series. Each entry
@@ -412,6 +413,56 @@ def check_concatenated_selectors(selectors, layer_type: str, data, n_points: int
         rep.error(f"{where}: selectors match {total} element(s) in all but the layer declares {items}; a '{layer_type}' layer needs exactly one element per item, in order, or it is declined")
 
 
+def check_heat_selectors(selectors, data, where: str, soup, rep: Report) -> None:
+    """A heat layer reads a string naming every cell, or a selectors[row][column] grid (src/model/heatmap.ts)."""
+    pts = data.get("points") if isinstance(data, dict) else None
+    rows = len(pts) if isinstance(pts, list) else 0
+    cols = len(pts[0]) if rows and isinstance(pts[0], list) else 0
+    if isinstance(selectors, list) and not any(isinstance(row, list) for row in selectors):
+        if not (selectors and all(isinstance(e, str) and e.strip() for e in selectors)):
+            rep.error(f"{where}: a heat layer takes one string or a selectors[row][column] grid; this list is neither and nothing is highlighted")
+            return
+        joined = ", ".join(selectors)
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a 'heat' layer reads one selector string or a grid; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.10.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        selectors = joined
+    if isinstance(selectors, list):
+        if len(selectors) != rows or any(not isinstance(row, list) or len(row) != cols for row in selectors):
+            rep.error(f"{where}: heat selector grid must be {rows} rows x {cols} columns, like data.points (null for an undrawn cell); any other shape is declined")
+            return
+        if soup is None:
+            return
+        for r, row in enumerate(selectors):
+            for c, cell in enumerate(row):
+                if cell is None:
+                    continue
+                if not isinstance(cell, str):
+                    rep.error(f"{where}: heat selector grid cell [{r}][{c}] must be a string or null")
+                    return
+                matched = _count(cell, soup, rep, where)
+                if matched is None:
+                    return
+                if matched == 0:
+                    rep.error(f"{where}: heat selector grid cell [{r}][{c}] '{cell}' matches nothing; one unresolvable cell declines the whole grid")
+                    return
+        return
+    if not isinstance(selectors, str):
+        rep.error(f"{where}: selectors must be a string or an array")
+        return
+    if soup is None:
+        return
+    try:
+        found = drawn(soup.select(selectors))
+    except Exception as exc:
+        rep.error(f"{where}: selectors '{selectors}' is not a valid CSS selector ({exc})")
+        return
+    if len(found) == 1 and found[0].name == "image":
+        return  # one raster image: maidr lays a transparent cell grid over it
+    if not found:
+        rep.error(f"{where}: selectors '{selectors}' matches no element in the document")
+    elif len(found) != rows * cols:
+        rep.error(f"{where}: selectors '{selectors}' matches {len(found)} elements but the heat map has {rows * cols} cells; the highlight is declined")
+
+
 def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report,
                     data=None, dom_mapping=None) -> None:
     if selectors is None:
@@ -449,6 +500,10 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
 
     if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
         check_line_selectors(selectors, data, where, soup, rep, layer_type)
+        return
+
+    if layer_type == "heat":
+        check_heat_selectors(selectors, data, where, soup, rep)
         return
 
     if layer_type in CONCATENATED:
