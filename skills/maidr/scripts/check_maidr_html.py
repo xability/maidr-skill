@@ -691,6 +691,48 @@ def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> No
         rep.info(f"{where}: multi-panel figure with {n_sub} subplots in a {len(sub)}-row grid")
 
 
+# The keys browser_check presses, in order, until a mark is outlined. Right Arrow onto the first
+# point is what a reader does first, but the first stop is not always a mark: a single box starts
+# on its lower-outlier stop, which is empty when the box has no low outliers and outlines nothing,
+# and a second Right runs off the end ("No more data to display"). Up then reaches the minimum.
+# Down and Left cover the other orientations and a start at the far end.
+HIGHLIGHT_KEYS = ("ArrowRight", "ArrowRight", "ArrowUp", "ArrowDown", "ArrowLeft")
+
+
+def probe_highlight(press, read, keys=HIGHLIGHT_KEYS) -> dict:
+    """Press `keys` one at a time until some mark is outlined.
+
+    `press(key)` sends one key; `read()` returns (announced text, number of visible
+    data-maidr-owned clones). Stops at the first key after which a clone is visible, so a chart
+    whose first stop is a real mark costs one keypress. Returns {"highlighted": bool,
+    "keys": keys pressed, "spoken": [(key, text), ...]}. Only a probe in which no key outlines
+    anything reports highlighted False: every stop reached announced without an outline.
+    """
+    pressed: list[str] = []
+    spoken: list[tuple[str, str]] = []
+    for key in keys:
+        press(key)
+        pressed.append(key)
+        text, visible = read()
+        spoken.append((key, text.strip()))
+        if visible:
+            return {"highlighted": True, "keys": pressed, "spoken": spoken}
+    return {"highlighted": False, "keys": pressed, "spoken": spoken}
+
+
+def report_probe(result: dict, rep: Report) -> None:
+    said = [(k, t) for k, t in result["spoken"] if t]
+    path = ", ".join(result["keys"])
+    if result["highlighted"]:
+        last = result["spoken"][-1][1] or (said[-1][1] if said else "")
+        rep.info(f"browser: after {path} maidr announced '{last[:60]}' and highlighted a mark")
+    elif not said:
+        rep.warn(f"browser: {path} announced nothing; the chart may not have taken focus")
+    else:
+        heard = "; ".join(f"{k}: '{t[:50]}'" for k, t in said)
+        rep.error(f"browser: no key outlined a mark ({heard}); the layer's selectors are not in the shape its type reads (see schema.md), or resolve to the wrong elements")
+
+
 def browser_check(path: str, rep: Report) -> None:
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
@@ -730,10 +772,11 @@ def browser_check(path: str, rep: Report) -> None:
             rep.info("browser: maidr initialized (a maidr-figure-* container wraps the chart)")
         except Exception:
             rep.error("browser: maidr did not initialize within 8 s (no maidr-figure-* container appeared); check the console errors and the JSON")
-        # Then drive it the way a reader does: Tab onto the chart, Right Arrow onto the first point,
-        # and look for the outline maidr draws -- a visible clone of the mark tagged data-maidr-owned.
-        # A payload that parses and announces can still outline nothing (a selectors shape the type
-        # does not read) or the wrong mark; only the DOM after a keypress can tell.
+        # Then drive it the way a reader does: Tab onto the chart, then arrow keys (see
+        # probe_highlight), looking for the outline maidr draws -- a visible clone of the mark
+        # tagged data-maidr-owned. A payload that parses and announces can still outline nothing
+        # (a selectors shape the type does not read) or the wrong mark; only the DOM after a
+        # keypress can tell.
         try:
             page.keyboard.press("Tab")
             page.wait_for_timeout(400)
@@ -741,18 +784,16 @@ def browser_check(path: str, rep: Report) -> None:
             if "ENTER" in spoken:
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(400)
-            page.keyboard.press("ArrowRight")
-            page.wait_for_timeout(500)
-            page.keyboard.press("ArrowRight")
-            page.wait_for_timeout(500)
-            spoken = page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''")
-            visible = page.evaluate("() => [...document.querySelectorAll('svg [data-maidr-owned]')].filter((e) => getComputedStyle(e).visibility !== 'hidden').length")
-            if not spoken.strip():
-                rep.warn("browser: Right Arrow announced nothing; the chart may not have taken focus")
-            elif visible == 0:
-                rep.error(f"browser: Right Arrow announced '{spoken.strip()[:80]}' but nothing on the chart is highlighted; the layer's selectors are not in the shape its type reads (see schema.md), or resolve to the wrong elements")
-            else:
-                rep.info(f"browser: Right Arrow announced '{spoken.strip()[:60]}' and highlighted a mark")
+
+            def press(key: str) -> None:
+                page.keyboard.press(key)
+                page.wait_for_timeout(500)
+
+            def read() -> tuple[str, int]:
+                return (page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''"),
+                        page.evaluate("() => [...document.querySelectorAll('svg [data-maidr-owned]')].filter((e) => getComputedStyle(e).visibility !== 'hidden').length"))
+
+            report_probe(probe_highlight(press, read), rep)
         except Exception as exc:
             rep.warn(f"browser: could not drive the chart ({exc})")
         for e in errors:

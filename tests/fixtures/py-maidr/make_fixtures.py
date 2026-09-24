@@ -76,8 +76,15 @@ def gantt():
     return fig
 
 
+def box():
+    # A single box: py-maidr emits type "box", and Right Arrow from the first stop runs off the end.
+    fig, ax = plt.subplots()
+    ax.boxplot([[1, 2, 3, 4, 5, 6, 7, 20]])
+    return fig
+
+
 FIXTURES = {"empty_panel": empty_panel, "roc": roc, "hexbin": hexbin, "contour": contour,
-            "errorbar": errorbar, "gantt": gantt}
+            "errorbar": errorbar, "gantt": gantt, "box": box}
 
 for name in sys.argv[1:] or FIXTURES:
     maidr.save_html(FIXTURES[name](), file=os.path.join(OUT, f"{name}.html"))

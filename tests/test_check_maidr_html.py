@@ -19,6 +19,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -218,7 +219,7 @@ class DataShapeTest(CheckerCase):
         self.assertErrorMentions(result, "expects a flat array")
 
     def test_py_maidr_output(self):
-        for name in ("hexbin", "contour", "errorbar", "gantt"):
+        for name in ("hexbin", "contour", "errorbar", "gantt", "box"):
             with self.subTest(fixture=name):
                 self.assertClean(run(os.path.join(FIXTURES, "py-maidr", f"{name}.html")))
 
@@ -370,6 +371,93 @@ class HeatSelectorTest(CheckerCase):
     def test_one_raster_image_is_overlaid(self):
         result = self.check_doc(figure([{"layers": [layer("heat", self.HEAT, selectors="image.h")]}]), '<image class="h" href="h.png"/>')
         self.assertClean(result)
+
+
+class HighlightProbeTest(unittest.TestCase):
+    """browser_check's key sequence, driven against a scripted chart instead of a browser."""
+
+    def probe(self, stops: dict):
+        # stops maps the number of keys pressed so far to (announcement, visible clones).
+        checker = load_checker()
+        pressed: list[str] = []
+        result = checker.probe_highlight(pressed.append, lambda: stops.get(len(pressed), ("", 0)))
+        rep = checker.Report()
+        checker.report_probe(result, rep)
+        return result, rep
+
+    def test_first_right_that_outlines_stops_the_probe(self):
+        result, rep = self.probe({1: ("X is A, Y is 1", 1)})
+        self.assertEqual(result["keys"], ["ArrowRight"])
+        self.assertEqual(rep.errors, 0)
+
+    def test_single_box_reaches_the_minimum_with_up(self):
+        # py-maidr 1.25.0, one box without low outliers (maidr.js 4.10.0): Right lands on the empty
+        # lower-outlier stop, a second Right runs off the end, Up reaches the outlined minimum.
+        result, rep = self.probe({1: ("X is 1, no Lower outlier(s) for Y", 0),
+                                  2: ("No more data to display", 0),
+                                  3: ("X is 1, Minimum Y is 1", 1)})
+        self.assertTrue(result["highlighted"])
+        self.assertEqual(result["keys"], ["ArrowRight", "ArrowRight", "ArrowUp"])
+        self.assertEqual(rep.errors, 0)
+
+    def test_announcing_without_any_outline_is_an_error(self):
+        result, rep = self.probe({n: ("X is 1, Minimum Y is 1", 0) for n in range(1, 6)})
+        self.assertFalse(result["highlighted"])
+        self.assertEqual(result["keys"], list(load_checker().HIGHLIGHT_KEYS))
+        self.assertEqual(rep.errors, 1)
+        self.assertIn("no key outlined a mark", rep.items[-1]["message"])
+
+    def test_silence_is_a_warning_not_an_error(self):
+        result, rep = self.probe({})
+        self.assertFalse(result["highlighted"])
+        self.assertEqual((rep.errors, rep.warnings), (0, 1))
+
+
+def playwright_chromium() -> bool:
+    try:
+        import playwright.sync_api  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+@unittest.skipUnless(playwright_chromium(), "the playwright package is not installed")
+class BrowserBoxTest(unittest.TestCase):
+    """The real probe on py-maidr 1.25.0 box output, offline: the fixture's lib/ fallback is
+    served from the vendored bundle (the same maidr.js 4.10.0 the CDN tag names)."""
+
+    def browser_run(self, html_text: str) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            lib = os.path.join(tmp, "lib", "maidr-4.10.0")
+            os.makedirs(lib)
+            shutil.copy(os.path.join(ROOT, "skills", "maidr", "assets", "maidr.js"), lib)
+            path = os.path.join(tmp, "box.html")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(html_text)
+            out = subprocess.run([sys.executable, CHECKER, path, "--browser", "--json"],
+                                 capture_output=True, text=True)
+        result = json.loads(out.stdout)
+        if any("could not launch Chromium" in m for m in messages(result, "WARN")):
+            self.skipTest("Chromium could not be launched")
+        return result
+
+    def fixture(self) -> str:
+        with open(os.path.join(FIXTURES, "py-maidr", "box.html"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def probe_messages(self, result: dict, level: str) -> list[str]:
+        return [m for m in messages(result, level) if m.startswith("browser: ") and "initialized" not in m]
+
+    def test_single_box_is_highlighted(self):
+        result = self.browser_run(self.fixture())
+        self.assertEqual(self.probe_messages(result, "ERROR"), [])
+        self.assertTrue(any("highlighted a mark" in m for m in self.probe_messages(result, "INFO")),
+                        messages(result, "INFO"))
+
+    def test_single_box_with_dead_selectors_still_errors(self):
+        result = self.browser_run(self.fixture().replace("id='maidr-", "id='nomatch-"))
+        self.assertTrue(any("no key outlined a mark" in m for m in self.probe_messages(result, "ERROR")),
+                        messages(result, "ERROR"))
 
 
 if __name__ == "__main__":
