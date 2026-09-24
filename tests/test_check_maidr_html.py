@@ -227,7 +227,7 @@ class SelectorFamilyTest(CheckerCase):
     def test_diverging_bar_is_segmented(self):
         # diverging.ts: DivergingTrace extends SegmentedTrace, so a flat array is declined
         data = [[{"x": "A", "y": -2, "z": "n"}, {"x": "B", "y": -1, "z": "n"}], [{"x": "A", "y": 3, "z": "p"}, {"x": "B", "y": 1, "z": "p"}]]
-        bad = layer("diverging_bar", data, selectors=["rect.s"] * 4)
+        bad = layer("diverging_bar", data, selectors=["rect.s", None, "rect.s", None])
         self.assertErrorMentions(self.check_doc(figure([{"layers": [bad]}]), rects("s", 4)), "flat array is declined")
         good = layer("diverging_bar", data, selectors="rect.s", domMapping={"order": "column"})
         self.assertClean(self.check_doc(figure([{"layers": [good]}]), rects("s", 4)))
@@ -285,6 +285,50 @@ class SelectorFamilyTest(CheckerCase):
         result = run(os.path.join(FIXTURES, "py-maidr", "gantt.html"))
         self.assertClean(result)
         self.assertEqual(self.warnings_about_selectors(result), [])
+
+
+@unittest.skipUnless(HAVE_BS4, "selector checks need beautifulsoup4")
+class LegacySelectorListTest(CheckerCase):
+    """maidr 4.10.0 joins a pre-4.0 flat list of strings into one selector (src/util/selectors.ts, #1275)."""
+
+    BARS = [{"x": "a", "y": 1}, {"x": "b", "y": 2}, {"x": "c", "y": 3}]
+
+    def legacy_warnings(self, result: dict) -> list[str]:
+        return [m for m in messages(result, "WARN") if "joins the list" in m]
+
+    def test_point_list_is_joined_with_a_warning(self):
+        pts = [{"x": 1, "y": 1}, {"x": 2, "y": 2}]
+        svg = '<circle class="a" cx="1" cy="1" r="1"/><circle class="b" cx="2" cy="2" r="1"/>'
+        result = self.check_doc(figure([{"layers": [layer("point", pts, selectors=["circle.a", "circle.b"])]}]), svg)
+        self.assertClean(result)
+        self.assertEqual(len(self.legacy_warnings(result)), 1)
+
+    def test_one_element_bar_list_is_checked_as_its_string(self):
+        good = layer("bar", self.BARS, selectors=["rect.s"])
+        result = self.check_doc(figure([{"layers": [good]}]), rects("s", 3))
+        self.assertClean(result)
+        self.assertEqual(len(self.legacy_warnings(result)), 1)
+        # the joined selector still has to match one element per bar
+        short = self.check_doc(figure([{"layers": [good]}]), rects("s", 2))
+        self.assertErrorMentions(short, "matches 2 elements")
+
+    def test_one_selector_per_bar_is_not_legacy(self):
+        per_bar = ["rect.s:nth-of-type(1)", "rect.s:nth-of-type(2)", "rect.s:nth-of-type(3)"]
+        result = self.check_doc(figure([{"layers": [layer("bar", self.BARS, selectors=per_bar)]}]), rects("s", 3))
+        self.assertClean(result)
+        self.assertEqual(self.legacy_warnings(result), [])
+
+    def test_segmented_list_over_rects_is_read_by_column(self):
+        data = [[{"x": "A", "y": 1, "z": "u"}, {"x": "B", "y": 2, "z": "u"}], [{"x": "A", "y": 3, "z": "v"}, {"x": "B", "y": 4, "z": "v"}]]
+        result = self.check_doc(figure([{"layers": [layer("stacked_bar", data, selectors=["rect.s"])]}]), rects("s", 4))
+        self.assertClean(result)
+        self.assertEqual(len(self.legacy_warnings(result)), 1)
+        self.assertFalse(any("domMapping" in m for m in messages(result, "WARN")))
+
+    def test_point_list_with_a_blank_entry_is_declined(self):
+        pts = [{"x": 1, "y": 1}]
+        result = self.check_doc(figure([{"layers": [layer("point", pts, selectors=["circle", ""])]}]), '<circle cx="1" cy="1" r="1"/>')
+        self.assertErrorMentions(result, "string only")
 
 
 if __name__ == "__main__":

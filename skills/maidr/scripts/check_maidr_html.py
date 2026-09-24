@@ -72,12 +72,14 @@ POINT_FIELDS = {
 # to catch (xability/r-maidr#316 shipped it on every bar, point and pie chart).
 # The families follow the "By layer type" table under Selectors in maidr's docs/SCHEMA.md.
 #   bar family: a string, or an array with exactly one selector per point (single-row data)
-#   point / pie: a string only; any array is ignored
+#   point / pie: a string only
+#   (a flat list of strings where these read a string is the pre-4.0 shape: 4.10.0 joins it and
+#   warns, older 4.x releases highlight nothing; the checker warns and checks the joined string)
 #   line family: an array with one selector per series; a bare string is one series. Each entry
 #                names the series' path/polyline/polygon, or one marker per point; a contour
 #                entry may name several paths, read as one level
 #   segmented: a string (paired series-major unless domMapping.order is "column"), or a
-#              selectors[series][category] grid with null for undrawn cells; a flat array is declined
+#              selectors[series][category] grid with null for undrawn cells
 #   concatenated: a string, or a list of strings each resolved and the matches concatenated; the
 #                 total must be exactly one element per item (a gauge uses its first match)
 BAR_FAMILY = {"bar", "hist", "dot", "lollipop", "funnel"}
@@ -416,10 +418,33 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
         rep.info(f"{where}: no selectors; navigation works but nothing is highlighted visually")
         return
 
-    # point and pie read a string and nothing else: an array of any length -- one element or one
-    # per point -- is not a selector to them, and the layer loses its highlight silently.
+    # A flat list of strings where the type reads one string -- any list on point/pie, a bar list
+    # that is not one entry per point, a flat list on a segmented layer -- is the shape producers
+    # emitted for maidr.js before 4.0. maidr 4.10.0 joins it into one selector list and warns in
+    # the console (src/util/selectors.ts joinSelectorList, #1275); earlier 4.x releases read it as
+    # nothing. So it is checked as the joined string, and flagged, since only a string is the
+    # contract.
+    legacy = (isinstance(selectors, list) and selectors
+              and all(isinstance(e, str) and e.strip() for e in selectors)
+              and (layer_type in STRING_ONLY or layer_type in SEGMENTED
+                   or (layer_type in BAR_FAMILY and len(selectors) != n_points)))
+    if legacy:
+        joined = ", ".join(selectors)
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a '{layer_type}' layer reads one selector string; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.10.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        if layer_type in SEGMENTED and not (isinstance(dom_mapping, dict) and dom_mapping.get("order")):
+            # a legacy segmented list over <rect> marks is walked category by category, as before #1135
+            try:
+                marks = drawn(soup.select(joined)) if soup is not None else []
+            except Exception:
+                marks = []
+            if marks and all(m.name == "rect" for m in marks):
+                dom_mapping = {**(dom_mapping or {}), "order": "column"}
+        selectors = joined
+
+    # point and pie read a string and nothing else: any other array is not a selector to them,
+    # and the layer loses its highlight silently.
     if layer_type in STRING_ONLY and isinstance(selectors, list):
-        rep.error(f"{where}: type '{layer_type}' reads selectors as a string only; an array is ignored and nothing is highlighted -- join the entries with ', ' into one selector list")
+        rep.error(f"{where}: type '{layer_type}' reads selectors as a string only; this array is not a list of selector strings and nothing is highlighted -- give one selector string")
         return
 
     if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
