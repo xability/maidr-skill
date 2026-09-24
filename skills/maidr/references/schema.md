@@ -36,7 +36,7 @@ Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` i
 
 Stable (build on these): `bar`, `box`, `candlestick`, `dodged_bar`, `heat`, `hist`, `line`, `pie`, `point`, `smooth`, `stacked_bar`, `stacked_normalized_bar`, `step`, `violin_box`, `violin_kde`.
 
-Experimental (may change in any release): `alluvial`, `area`, `boxen`, `bump`, `chord`, `choropleth`, `contour`, `diverging_bar`, `dot`, `dumbbell`, `error_bar`, `forest`, `funnel`, `gantt`, `gauge`, `hexbin`, `icicle`, `lollipop`, `manhattan`, `mosaic`, `network`, `pack`, `parallel_coordinates`, `polar_area`, `radar`, `ridgeline`, `sankey`, `stacked_area`, `stacked_normalized_area`, `sunburst`, `sunflower`, `survival`, `tree`, `treemap`, `volcano`, `waterfall`, `word_cloud`.
+Experimental (may change in any release): `alluvial`, `area`, `boxen`, `bump`, `chord`, `choropleth`, `contour`, `diverging_bar`, `dot`, `dumbbell`, `error_bar`, `forest`, `funnel`, `gantt`, `gauge`, `hexbin`, `icicle`, `lollipop`, `manhattan`, `mosaic`, `network`, `pack`, `parallel_coordinates`, `polar_area`, `radar`, `ridgeline`, `roc`, `rug`, `sankey`, `stacked_area`, `stacked_normalized_area`, `sunburst`, `sunflower`, `survival`, `tree`, `treemap`, `volcano`, `waterfall`, `word_cloud`.
 
 Never declare `candlestick_delta`; it is derived at runtime from a `candlestick` layer and a page that declares it fails to bind. Scatter is `point` (not `scatter`), histogram is `hist`, heatmap is `heat`.
 

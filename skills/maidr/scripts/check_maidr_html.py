@@ -38,13 +38,13 @@ EXPERIMENTAL = {
     "alluvial", "area", "boxen", "bump", "chord", "choropleth", "contour", "diverging_bar", "dot",
     "dumbbell", "error_bar", "forest", "funnel", "gantt", "gauge", "hexbin", "icicle", "lollipop",
     "manhattan", "mosaic", "network", "pack", "parallel_coordinates", "polar_area", "radar",
-    "ridgeline", "sankey", "stacked_area", "stacked_normalized_area", "sunburst", "sunflower",
-    "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
+    "ridgeline", "roc", "rug", "sankey", "stacked_area", "stacked_normalized_area", "sunburst",
+    "sunflower", "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
 }
 KNOWN = STABLE | EXPERIMENTAL
 # data container shape by trace type
 NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normalized_bar",
-          "violin_kde", "area", "stacked_area", "stacked_normalized_area"}
+          "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc"}
 OBJECT = {"heat"}
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
@@ -237,6 +237,11 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
         "hist": {"x", "y", "xMin", "xMax"}, "box": {"min", "q1", "q2", "q3", "max"},
         "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
     }.get(layer_type, set())
+    if layer_type == "rug":
+        # a vertical rug marks x, a horizontal one (orientation "horz") marks y (maidr src/model/rug.ts)
+        bad = [p for p in data if "x" not in p and "y" not in p]
+        if bad:
+            rep.error(f"{where}: rug point {json.dumps(bad[0])[:80]} has neither x nor y")
     for p in data:
         missing = required - set(p)
         if missing:

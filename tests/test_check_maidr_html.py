@@ -15,8 +15,10 @@ Selector checks need beautifulsoup4 and are skipped without it; CI installs it.
 from __future__ import annotations
 
 import html
+import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -107,6 +109,46 @@ class EmptySubplotTest(CheckerCase):
     def test_py_maidr_empty_panel(self):
         result = run(os.path.join(FIXTURES, "py-maidr", "empty_panel.html"))
         self.assertClean(result)
+
+
+def load_checker():
+    spec = importlib.util.spec_from_file_location("check_maidr_html", CHECKER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TraceTypeTest(CheckerCase):
+    def test_known_types_match_the_vendored_bundle(self):
+        # The checker's list drifted once already (roc and rug, read since 4.9.0, were rejected
+        # as unknown); tie it to the TraceType enum inside the maidr.js the skill vendors.
+        with open(os.path.join(ROOT, "skills", "maidr", "assets", "maidr.js"), encoding="utf-8") as fh:
+            bundle = fh.read()
+        # A TypeScript string enum compiles to function(e){return e.AREA=`area`,...,e}({}).
+        enums = re.finditer(r"function\((\w)\)\{return ((?:\1\.\w+=`[^`]*`,)+)\1\}", bundle)
+        body = next((m.group(2) for m in enums if "CANDLESTICK_DELTA=" in m.group(2)), None)
+        self.assertIsNotNone(body, "TraceType enum not found in the vendored maidr.js")
+        core = set(re.findall(r"=`([^`]*)`", body))
+        self.assertIn("candlestick_delta", core)
+        self.assertEqual(load_checker().KNOWN, core - {"candlestick_delta"})
+
+    def test_roc(self):
+        data = [[{"x": 0, "y": 0}, {"x": 0.5, "y": 0.8}, {"x": 1, "y": 1}]]
+        self.assertClean(self.check_doc(figure([{"layers": [layer("roc", data)]}])))
+
+    def test_rug(self):
+        self.assertClean(self.check_doc(figure([{"layers": [layer("rug", [{"x": 1.5}, {"x": 2.5}])]}])))
+        horizontal = layer("rug", [{"y": 1.5}], orientation="horz")
+        self.assertClean(self.check_doc(figure([{"layers": [horizontal]}])))
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [layer("rug", [{"v": 1}])]}])),
+                                 "neither x nor y")
+
+    def test_candlestick_delta_is_still_rejected(self):
+        result = self.check_doc(figure([{"layers": [layer("candlestick_delta", [])]}]))
+        self.assertErrorMentions(result, "derived at runtime")
+
+    def test_py_maidr_roc(self):
+        self.assertClean(run(os.path.join(FIXTURES, "py-maidr", "roc.html")))
 
 
 if __name__ == "__main__":
