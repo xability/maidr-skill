@@ -486,6 +486,7 @@ def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> No
     if not (isinstance(sub, list) and sub and all(isinstance(row, list) and row for row in sub)):
         rep.error(f"{where}: subplots must be a non-empty 2-D array: [[{{layers: [...]}}]] for a single chart")
         return
+    occupied = 0
     for r, row in enumerate(sub):
         for c, sp in enumerate(row):
             w = f"{where} subplot[{r}][{c}]"
@@ -493,11 +494,21 @@ def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> No
                 rep.error(f"{w}: must be an object")
                 continue
             layers = sp.get("layers")
-            if not (isinstance(layers, list) and layers):
-                rep.error(f"{w}: layers must be a non-empty array")
+            # maidr.js keeps an empty grid position as a navigable cell with nothing to describe
+            # (src/model/plot.ts: Subplot), which is what py-maidr and r-maidr emit for an axes
+            # the figure left empty. A missing or non-array `layers` is read the same way, with a
+            # console warning naming the cell.
+            if not isinstance(layers, list):
+                rep.warn(f"{w}: no layers array; maidr reads it as an empty subplot and warns in the console -- emit \"layers\": [] for a position no chart occupies")
                 continue
+            if not layers:
+                rep.info(f"{w}: empty subplot (layers: []); maidr keeps the grid position and reads it as having nothing to describe")
+                continue
+            occupied += 1
             for i, layer in enumerate(layers):
                 check_layer(layer, f"{w} layer[{i}]", soup, rep)
+    if occupied == 0:
+        rep.warn(f"{where}: every subplot is empty; the chart will be announced but there is nothing to navigate")
     n_sub = sum(len(row) for row in sub)
     if n_sub > 1:
         rep.info(f"{where}: multi-panel figure with {n_sub} subplots in a {len(sub)}-row grid")

@@ -19,7 +19,7 @@ Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` i
 
 - `id` (required) and `subplots` (required) are the only mandatory top-level keys. `subplots` is a 2-D grid: outer array = rows, inner array = columns. A single chart is `[[ { "layers": [...] } ]]`.
 - Top-level `axes` is optional and only `label` is honored there (shared labels for a facet grid). `live` and `maxWidth` are for streaming charts.
-- Each subplot: `layers` (required, non-empty), optional `selector` (CSS selector of the panel's container, useful when several panels share one SVG), optional `legend` (array of strings), optional `id`.
+- Each subplot: `layers` (required; `[]` for a grid position no chart occupies, which readers can still move onto), optional `selector` (CSS selector of the panel's container, useful when several panels share one SVG), optional `legend` (array of strings), optional `id`.
 - Each layer: `id` (string), `type` (trace type), `data`, optional `title`, `name`, `axes`, `selectors`, `orientation` (`"vert"` default or `"horz"`), `stepDirection` (`"hv"`, `"vh"`, `"mid"`, step only).
 - `axes` per layer: `{ "x": {...}, "y": {...}, "z": {...} }`. Each axis object accepts `label`, `min`, `max`, `tickStep` (the last three drive grid navigation on scatter plots), and `format`. Bare strings such as `"x": "Day"` are rejected. Default labels are `X`, `Y`, and `Level`.
 - `format`: `{ "type": "currency" | "percent" | "fixed" | "number" | "date" | "scientific", "decimals": 0, "currency": "USD", "locale": "en-US" }`, or `{ "function": "return value.toFixed(1) + ' kg'" }`.
