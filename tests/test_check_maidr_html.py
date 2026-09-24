@@ -151,5 +151,67 @@ class TraceTypeTest(CheckerCase):
         self.assertClean(run(os.path.join(FIXTURES, "py-maidr", "roc.html")))
 
 
+SERIES = [{"x": 1, "y": 2, "z": "a"}, {"x": 2, "y": 3, "z": "a"}]
+
+
+class DataShapeTest(CheckerCase):
+    """Each maidr.js trace class casts `layer.data` to one shape (maidr src/model/<type>.ts)."""
+
+    def assertAccepted(self, type_: str, data) -> None:
+        with self.subTest(type=type_):
+            self.assertClean(self.check_doc(figure([{"layers": [layer(type_, data)]}])))
+
+    def test_nested_types(self):
+        # LineTrace / StepTrace / SegmentedTrace subclasses, and the violin, ridgeline and hexbin rows
+        for type_ in ("bump", "radar", "polar_area", "parallel_coordinates", "roc", "survival"):
+            self.assertAccepted(type_, [SERIES, SERIES])
+        self.assertAccepted("contour", [[{"x": 1, "y": 1, "level": 1}, {"x": 2, "y": 1, "level": 1}]])
+        self.assertAccepted("ridgeline", [[{"x": 1, "y": 0.2}], [{"x": 1, "y": 0.3}]])
+        self.assertAccepted("hexbin", [[{"x": 1, "y": 1, "count": 3}, {"x": 2, "y": 1, "count": 1}]])
+        self.assertAccepted("mosaic", [[{"x": "A", "y": 0.4, "z": "u", "width": 0.5}]])
+        self.assertAccepted("diverging_bar", [[{"x": "A", "y": -2, "z": "neg"}], [{"x": "A", "y": 3, "z": "pos"}]])
+
+    def test_nested_types_reject_flat_data(self):
+        result = self.check_doc(figure([{"layers": [layer("radar", SERIES)]}]))
+        self.assertErrorMentions(result, "expects nested data")
+
+    def test_hexbin_needs_count(self):
+        result = self.check_doc(figure([{"layers": [layer("hexbin", [[{"x": 1, "y": 1}]])]}]))
+        self.assertErrorMentions(result, "count")
+
+    def test_error_bar_is_flat_or_grouped(self):
+        # errorBar.ts toGroups: a flat array is one group; y is optional (a band draws only bounds)
+        flat = [{"x": 1, "y": 2, "yMin": 1, "yMax": 3}, {"x": 2, "yMin": 1, "yMax": 3}]
+        self.assertAccepted("error_bar", flat)
+        self.assertAccepted("error_bar", [flat, flat])
+        self.assertAccepted("forest", [{"x": "study", "y": 1.2, "yMin": 0.9, "yMax": 1.5}])
+        result = self.check_doc(figure([{"layers": [layer("forest", [{"x": "study", "yMin": 1}])]}]))
+        self.assertErrorMentions(result, "missing ['y']")
+
+    def test_object_types(self):
+        self.assertAccepted("gauge", {"value": 3, "min": 0, "max": 10})
+        self.assertAccepted("dumbbell", {"points": [{"x": "A", "start": 1, "end": 2}]})
+        self.assertAccepted("gantt", {"points": [[{"x": "t", "start": 0, "end": 1}], [{"x": "u", "start": 1, "end": 3}]]})
+
+    def test_object_types_reject_arrays_and_missing_keys(self):
+        cases = [("gauge", [{"value": 3}], "one object"),
+                 ("gauge", {"value": 3, "max": 10}, "missing ['min']"),
+                 ("dumbbell", {"points": [[{"x": "A", "start": 1, "end": 2}]]}, "flat array"),
+                 ("gantt", {"points": [{"x": "t", "start": 0, "end": 1}]}, "one inner array"),
+                 ("gantt", {"points": [[{"x": "t", "start": 0}]]}, "missing ['end']")]
+        for type_, data, needle in cases:
+            with self.subTest(type=type_, data=data):
+                self.assertErrorMentions(self.check_doc(figure([{"layers": [layer(type_, data)]}])), needle)
+
+    def test_flat_types_still_reject_nested_data(self):
+        result = self.check_doc(figure([{"layers": [layer("bar", [[{"x": "A", "y": 1}]])]}]))
+        self.assertErrorMentions(result, "expects a flat array")
+
+    def test_py_maidr_output(self):
+        for name in ("hexbin", "contour", "errorbar", "gantt"):
+            with self.subTest(fixture=name):
+                self.assertClean(run(os.path.join(FIXTURES, "py-maidr", f"{name}.html")))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -41,7 +41,43 @@ def roc():
     return fig
 
 
-FIXTURES = {"empty_panel": empty_panel, "roc": roc}
+def hexbin():
+    # Hexagonal binning: py-maidr emits type "hexbin" with one array of bins per row.
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    fig, ax = plt.subplots()
+    ax.hexbin(rng.random(200), rng.random(200), gridsize=5)
+    return fig
+
+
+def contour():
+    # Contour lines: py-maidr emits type "contour" with one array of points per curve.
+    import numpy as np
+
+    x, y = np.meshgrid(np.linspace(-2, 2, 20), np.linspace(-2, 2, 20))
+    fig, ax = plt.subplots()
+    ax.contour(x, y, x**2 + y**2, levels=3)
+    return fig
+
+
+def errorbar():
+    # Error bars: py-maidr emits type "error_bar".
+    fig, ax = plt.subplots()
+    ax.errorbar([1, 2, 3], [2, 3, 1], yerr=[0.2, 0.3, 0.1])
+    return fig
+
+
+def gantt():
+    # Axes.broken_barh, one call per lane: py-maidr emits type "gantt", data {points: [[...]]}.
+    fig, ax = plt.subplots()
+    ax.broken_barh([(1, 3), (6, 2)], (10, 8))
+    ax.broken_barh([(2, 4)], (20, 8))
+    return fig
+
+
+FIXTURES = {"empty_panel": empty_panel, "roc": roc, "hexbin": hexbin, "contour": contour,
+            "errorbar": errorbar, "gantt": gantt}
 
 for name in sys.argv[1:] or FIXTURES:
     maidr.save_html(FIXTURES[name](), file=os.path.join(OUT, f"{name}.html"))

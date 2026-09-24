@@ -144,6 +144,17 @@ No `percentage` field (derived) and no `orientation`. `selectors` is a string, n
 
 A violin plot is two layers in one subplot: `violin_box` first, then `violin_kde`. Spec: https://maidr.ai/docs/VIOLIN_PLOT_SPEC.html.
 
+### Experimental types: the data container
+
+Only the container is listed here, because it is what `check_maidr_html.py` checks and what a wrong guess breaks; point fields beyond these may change between releases (see maidr's `docs/SCHEMA.md` for the release in use).
+
+| Container | Types |
+|---|---|
+| nested, one inner array per series or row, points `{x, y}` | `area`, `stacked_area`, `stacked_normalized_area`, `bump`, `radar`, `polar_area`, `parallel_coordinates`, `roc`, `contour`, `survival`, `ridgeline`, `hexbin` (points also carry `count`), `mosaic`, `diverging_bar` (points carry `z` or `fill`, as the segmented bars do) |
+| flat for one group, or nested with one array per group; points need `x` | `error_bar` (`y` optional), `forest` (`y` required) |
+| one object | `gauge` `{value, min, max}`, `dumbbell` `{points: [{x, start, end}, ...]}`, `gantt` `{points: [[{x, start, end}, ...], ...]}` with one inner array per lane |
+| flat array of point objects | every other type, e.g. `dot`, `lollipop`, `funnel`, `boxen`, `waterfall`, `rug` (`x`, or `y` when `orientation` is `"horz"`) |
+
 ## Multiple layers (overlaid charts, one panel)
 
 ```json

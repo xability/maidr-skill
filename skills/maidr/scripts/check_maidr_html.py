@@ -42,10 +42,32 @@ EXPERIMENTAL = {
     "sunflower", "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
 }
 KNOWN = STABLE | EXPERIMENTAL
-# data container shape by trace type
+# data container shape by trace type, as each maidr.js 4.x trace class casts `layer.data`
+# (src/model/<type>.ts). Every type not named here takes a flat array of point objects.
+#   nested: one inner array per series/group/row -- LineTrace, StepTrace and SegmentedTrace and
+#           their subclasses, and the violin, ridgeline and hexbin rows
 NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normalized_bar",
-          "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc"}
+          "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc",
+          "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival",
+          "ridgeline", "hexbin", "mosaic", "diverging_bar"}
+SEGMENTED_DATA = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
+#   either: flat for one group, or nested with one array per group (errorBar.ts toGroups)
+EITHER = {"error_bar", "forest"}
+#   object: a single object rather than an array
 OBJECT = {"heat"}
+RECORD = {  # type -> keys the object must carry
+    "gauge": {"value", "min", "max"},  # GaugePoint: one measure on a range
+    "dumbbell": {"points"},            # DumbbellData: points is a flat array of {x, start, end}
+    "gantt": {"points"},               # GanttData: points is one array of {x, start, end} per lane
+}
+# point fields each shape needs; a type absent here is only checked for being an object
+POINT_FIELDS = {
+    "bar": {"x", "y"}, "pie": {"x", "y"}, "point": {"x", "y"}, "dot": {"x", "y"},
+    "hist": {"x", "y", "xMin", "xMax"}, "box": {"min", "q1", "q2", "q3", "max"},
+    "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
+    "error_bar": {"x"}, "forest": {"x", "y"}, "dumbbell": {"x", "start", "end"},
+    "gantt": {"x", "start", "end"}, "hexbin": {"x", "y", "count"},
+}
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
 # to catch (xability/r-maidr#316 shipped it on every bar, point and pie chart).
@@ -208,20 +230,48 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
             rep.error(f"{where}: heat dimensions disagree (points is {len(pts)}x{len(pts[0])}, x has {len(xs)}, y has {len(ys)})")
         return sum(len(r) for r in pts)
 
+    if layer_type in RECORD:
+        keys = RECORD[layer_type]
+        if not isinstance(data, dict):
+            rep.error(f"{where}: type '{layer_type}' expects data to be one object with {sorted(keys)}, not {type(data).__name__}")
+            return 0
+        missing = keys - set(data)
+        if missing:
+            rep.error(f"{where}: {layer_type} data is missing {sorted(missing)}")
+            return 0
+        if layer_type == "gauge":
+            bad = [k for k in sorted(keys) if not isinstance(data[k], (int, float))]
+            if bad:  # gauge.ts coerces with Number(), so a numeric string still reads
+                rep.warn(f"{where}: gauge {bad} should be numbers")
+            return 1
+        pts = data["points"]
+        if layer_type == "gantt":
+            if not (isinstance(pts, list) and pts and all(isinstance(lane, list) for lane in pts)):
+                rep.error(f"{where}: gantt data.points must be a non-empty array with one inner array of tasks per lane")
+                return 0
+            points = [p for lane in pts for p in lane]
+        else:
+            if not (isinstance(pts, list) and pts) or any(isinstance(p, list) for p in pts):
+                rep.error(f"{where}: dumbbell data.points must be a non-empty flat array of {{x, start, end}}")
+                return 0
+            points = pts
+        return _check_points(layer_type, points, where, rep)
+
     if not isinstance(data, list) or not data:
         rep.error(f"{where}: data must be a non-empty array")
         return 0
 
-    if layer_type in NESTED:
+    if layer_type in NESTED or (layer_type in EITHER and all(isinstance(g, list) for g in data)):
         if not all(isinstance(series, list) for series in data):
             rep.error(f"{where}: type '{layer_type}' expects nested data: one inner array per series, e.g. [[{{x,y}}, ...]]")
             return 0
         points = [p for series in data for p in series]
+        fields = POINT_FIELDS.get(layer_type, {"x", "y"})
         for p in points[:50]:
-            if not isinstance(p, dict) or "x" not in p or "y" not in p:
-                rep.error(f"{where}: every point needs x and y (got {json.dumps(p)[:80]})")
+            if not isinstance(p, dict) or not fields <= set(p):
+                rep.error(f"{where}: every point needs {', '.join(sorted(fields))} (got {json.dumps(p)[:80]})")
                 break
-            if layer_type in ("dodged_bar", "stacked_bar", "stacked_normalized_bar") and not ("fill" in p or "z" in p):
+            if layer_type in SEGMENTED_DATA and not ("fill" in p or "z" in p):
                 rep.warn(f"{where}: grouped bar points should carry a 'fill' (group name); got {json.dumps(p)[:80]}")
                 break
         return len(points)
@@ -229,14 +279,15 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
     if all(isinstance(series, list) for series in data):
         rep.error(f"{where}: type '{layer_type}' expects a flat array of points, but data is nested")
         return 0
+    return _check_points(layer_type, data, where, rep)
+
+
+def _check_points(layer_type: str, data: list, where: str, rep: Report) -> int:
+    """Field checks for a flat list of points. Returns the number of points."""
     if not all(isinstance(p, dict) for p in data):
         rep.error(f"{where}: data points must be objects")
         return 0
-    required = {
-        "bar": {"x", "y"}, "pie": {"x", "y"}, "point": {"x", "y"}, "dot": {"x", "y"},
-        "hist": {"x", "y", "xMin", "xMax"}, "box": {"min", "q1", "q2", "q3", "max"},
-        "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
-    }.get(layer_type, set())
+    required = POINT_FIELDS.get(layer_type, set())
     if layer_type == "rug":
         # a vertical rug marks x, a horizontal one (orientation "horz") marks y (maidr src/model/rug.ts)
         bad = [p for p in data if "x" not in p and "y" not in p]
