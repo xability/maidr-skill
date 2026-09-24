@@ -143,6 +143,16 @@ class TraceTypeTest(CheckerCase):
         self.assertErrorMentions(self.check_doc(figure([{"layers": [layer("rug", [{"v": 1}])]}])),
                                  "neither x nor y")
 
+    @unittest.skipUnless(HAVE_BS4, "selector checks need beautifulsoup4")
+    def test_rug_list_needs_one_selector_per_tick(self):
+        # rug.ts mapToSvgElements: a list must hold exactly one resolvable selector per observation
+        pts = [{"x": 1}, {"x": 2}, {"x": 3}]
+        ticks = "".join(f'<line class="t" x1="{i}" x2="{i}" y1="0" y2="1"/>' for i in range(3))
+        per_tick = [f"line.t:nth-of-type({i})" for i in (1, 2, 3)]
+        self.assertClean(self.check_doc(figure([{"layers": [layer("rug", pts, selectors=per_tick)]}]), ticks))
+        short = self.check_doc(figure([{"layers": [layer("rug", pts, selectors=["line.t"])]}]), ticks)
+        self.assertErrorMentions(short, "1 entries for 3 data points")
+
     def test_candlestick_delta_is_still_rejected(self):
         result = self.check_doc(figure([{"layers": [layer("candlestick_delta", [])]}]))
         self.assertErrorMentions(result, "derived at runtime")

@@ -566,7 +566,8 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
     elif isinstance(selectors, list):
         if layer_type in NESTED:
             return
-        if layer_type in BAR_FAMILY:
+        if layer_type in BAR_FAMILY or layer_type == "rug":
+            # a rug list names one tick per observation, and any other length is declined (src/model/rug.ts)
             if len(selectors) != n_points:
                 rep.error(f"{where}: selectors list has {len(selectors)} entries for {n_points} data points; a '{layer_type}' array means exactly one selector per point, and any other length is declined -- a single selector goes in as a string, not a one-element list")
                 return
