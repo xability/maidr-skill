@@ -9,6 +9,7 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 - `skills/maidr/scripts/`: agent-runnable helpers. `detect_env.sh` and `detect_env.ps1` must stay behaviourally identical and print the same JSON shape. `check_maidr_html.py` and `fetch_dotpad_sdk.py` use only the standard library, the former with optional `beautifulsoup4` and `playwright`.
 - `skills/maidr/assets/`: `template.html` (hand-authored example), the vendored `maidr.js` and `maidr-math.css`, `maidr-bundle.json` (provenance and SHA-256), and `dotpad-sdk.json` (the DotPad SDK pin that `scripts/fetch_dotpad_sdk.py` downloads on demand; the SDK itself is never vendored, it is 14 MB). The pin is a copy of the maidr.js package's `dist/dotpad-sdk.json`, refreshed by `tools/update-bundle.sh`; do not hand-edit it, and keep the docs version-generic ("the version named in `assets/dotpad-sdk.json`") so a new pin needs no prose change.
 - `.claude-plugin/`: Claude Code plugin (`plugin.json`) and single-plugin marketplace (`marketplace.json`, `source: "./"`).
+- `tests/`: regression tests for `check_maidr_html.py` (standard-library `unittest`), with real binding output under `tests/fixtures/` and the script that regenerates it. They live outside `skills/maidr/` so installed copies do not carry them.
 - `evals/evals.json`: test prompts for exercising the skill with and without it installed.
 - `tools/update-bundle.sh`: refreshes the vendored bundle, copies the release's `dist/dotpad-sdk.json` over `assets/dotpad-sdk.json` when the release ships one, and rewrites version pins. It is idempotent —
   re-vendoring the release already recorded in `maidr-bundle.json` leaves the working tree clean, which
@@ -26,6 +27,7 @@ Current pins: maidr.js 4.10.0, py-maidr 1.25.x, maidr R package 0.4.x. The maidr
 ```bash
 uvx --from skills-ref agentskills validate skills/maidr          # frontmatter and naming rules
 python skills/maidr/scripts/check_maidr_html.py skills/maidr/assets/template.html
+uv run --no-project --with beautifulsoup4 python -m unittest discover -s tests -v   # checker regression tests
 bash skills/maidr/scripts/detect_env.sh . | python -m json.tool
 pwsh -File skills/maidr/scripts/detect_env.ps1 . | ConvertFrom-Json  # on Windows
 python - <<'EOF'

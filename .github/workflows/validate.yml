@@ -35,6 +35,10 @@ jobs:
       - name: Template passes the HTML checker
         run: python skills/maidr/scripts/check_maidr_html.py skills/maidr/assets/template.html
 
+      - name: HTML checker regression tests
+        # beautifulsoup4 so the selector checks run rather than skip
+        run: uv run --no-project --with beautifulsoup4 python -m unittest discover -s tests -v
+
       - name: Environment detector prints valid JSON
         run: bash skills/maidr/scripts/detect_env.sh . | python -m json.tool > /dev/null
 

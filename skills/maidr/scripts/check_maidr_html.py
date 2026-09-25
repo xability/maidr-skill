@@ -38,26 +38,59 @@ EXPERIMENTAL = {
     "alluvial", "area", "boxen", "bump", "chord", "choropleth", "contour", "diverging_bar", "dot",
     "dumbbell", "error_bar", "forest", "funnel", "gantt", "gauge", "hexbin", "icicle", "lollipop",
     "manhattan", "mosaic", "network", "pack", "parallel_coordinates", "polar_area", "radar",
-    "ridgeline", "sankey", "stacked_area", "stacked_normalized_area", "sunburst", "sunflower",
-    "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
+    "ridgeline", "roc", "rug", "sankey", "stacked_area", "stacked_normalized_area", "sunburst",
+    "sunflower", "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
 }
 KNOWN = STABLE | EXPERIMENTAL
-# data container shape by trace type
+# data container shape by trace type, as each maidr.js 4.x trace class casts `layer.data`
+# (src/model/<type>.ts). Every type not named here takes a flat array of point objects.
+#   nested: one inner array per series/group/row -- LineTrace, StepTrace and SegmentedTrace and
+#           their subclasses, and the violin, ridgeline and hexbin rows
 NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normalized_bar",
-          "violin_kde", "area", "stacked_area", "stacked_normalized_area"}
+          "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc",
+          "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival",
+          "ridgeline", "hexbin", "mosaic", "diverging_bar"}
+#   either: flat for one group, or nested with one array per group (errorBar.ts toGroups)
+EITHER = {"error_bar", "forest"}
+#   object: a single object rather than an array
 OBJECT = {"heat"}
+RECORD = {  # type -> keys the object must carry
+    "gauge": {"value", "min", "max"},  # GaugePoint: one measure on a range
+    "dumbbell": {"points"},            # DumbbellData: points is a flat array of {x, start, end}
+    "gantt": {"points"},               # GanttData: points is one array of {x, start, end} per lane
+}
+# point fields each shape needs; a type absent here is only checked for being an object
+POINT_FIELDS = {
+    "bar": {"x", "y"}, "pie": {"x", "y"}, "point": {"x", "y"}, "dot": {"x", "y"},
+    "hist": {"x", "y", "xMin", "xMax"}, "box": {"min", "q1", "q2", "q3", "max"},
+    "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
+    "error_bar": {"x"}, "forest": {"x", "y"}, "dumbbell": {"x", "start", "end"},
+    "gantt": {"x", "start", "end"}, "hexbin": {"x", "y", "count"},
+}
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
 # to catch (xability/r-maidr#316 shipped it on every bar, point and pie chart).
+# The families follow the "By layer type" table under Selectors in maidr's docs/SCHEMA.md.
 #   bar family: a string, or an array with exactly one selector per point (single-row data)
-#   point / pie: a string only; any array is ignored
-#   line family: an array with one selector per series; a bare string is one series
+#   point / pie: a string only
+#   heat: a string naming every cell (or one raster <image>), or a selectors[row][column] grid
+#   (a flat list of strings where these read a string is the pre-4.0 shape: 4.10.0 joins it and
+#   warns, older 4.x releases highlight nothing; the checker warns and checks the joined string)
+#   line family: an array with one selector per series; a bare string is one series. Each entry
+#                names the series' path/polyline/polygon, or one marker per point; a contour
+#                entry may name several paths, read as one level
 #   segmented: a string (paired series-major unless domMapping.order is "column"), or a
-#              selectors[series][category] grid with null for undrawn cells; a flat array is declined
-BAR_FAMILY = {"bar", "hist", "dot", "lollipop"}
-STRING_ONLY = {"point", "pie"}
-LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc"}
-SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic"}
+#              selectors[series][category] grid with null for undrawn cells
+#   concatenated: a string, or a list of strings each resolved and the matches concatenated; the
+#                 total must be exactly one element per item (a gauge uses its first match)
+BAR_FAMILY = {"bar", "hist", "dot", "lollipop", "funnel"}
+STRING_ONLY = {"point", "pie", "sunflower", "volcano", "manhattan"}
+LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc",
+               "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"}
+SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
+CONCATENATED = {"boxen", "ridgeline", "dumbbell", "error_bar", "forest", "gantt", "hexbin",
+                "waterfall", "word_cloud", "gauge", "alluvial", "chord", "sankey", "network",
+                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack"}
 # adapters whose bundle already contains the maidr core (their docs load no separate maidr.js)
 SELF_CONTAINED_ADAPTERS = {"chartjs", "amcharts", "recharts", "victory", "react"}
 ADAPTERS = {"d3", "chartjs", "highcharts", "echarts", "vegalite", "recharts", "victory", "amcharts",
@@ -208,20 +241,48 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
             rep.error(f"{where}: heat dimensions disagree (points is {len(pts)}x{len(pts[0])}, x has {len(xs)}, y has {len(ys)})")
         return sum(len(r) for r in pts)
 
+    if layer_type in RECORD:
+        keys = RECORD[layer_type]
+        if not isinstance(data, dict):
+            rep.error(f"{where}: type '{layer_type}' expects data to be one object with {sorted(keys)}, not {type(data).__name__}")
+            return 0
+        missing = keys - set(data)
+        if missing:
+            rep.error(f"{where}: {layer_type} data is missing {sorted(missing)}")
+            return 0
+        if layer_type == "gauge":
+            bad = [k for k in sorted(keys) if not isinstance(data[k], (int, float))]
+            if bad:  # gauge.ts coerces with Number(), so a numeric string still reads
+                rep.warn(f"{where}: gauge {bad} should be numbers")
+            return 1
+        pts = data["points"]
+        if layer_type == "gantt":
+            if not (isinstance(pts, list) and pts and all(isinstance(lane, list) for lane in pts)):
+                rep.error(f"{where}: gantt data.points must be a non-empty array with one inner array of tasks per lane")
+                return 0
+            points = [p for lane in pts for p in lane]
+        else:
+            if not (isinstance(pts, list) and pts) or any(isinstance(p, list) for p in pts):
+                rep.error(f"{where}: dumbbell data.points must be a non-empty flat array of {{x, start, end}}")
+                return 0
+            points = pts
+        return _check_points(layer_type, points, where, rep)
+
     if not isinstance(data, list) or not data:
         rep.error(f"{where}: data must be a non-empty array")
         return 0
 
-    if layer_type in NESTED:
+    if layer_type in NESTED or (layer_type in EITHER and all(isinstance(g, list) for g in data)):
         if not all(isinstance(series, list) for series in data):
             rep.error(f"{where}: type '{layer_type}' expects nested data: one inner array per series, e.g. [[{{x,y}}, ...]]")
             return 0
         points = [p for series in data for p in series]
+        fields = POINT_FIELDS.get(layer_type, {"x", "y"})
         for p in points[:50]:
-            if not isinstance(p, dict) or "x" not in p or "y" not in p:
-                rep.error(f"{where}: every point needs x and y (got {json.dumps(p)[:80]})")
+            if not isinstance(p, dict) or not fields <= set(p):
+                rep.error(f"{where}: every point needs {', '.join(sorted(fields))} (got {json.dumps(p)[:80]})")
                 break
-            if layer_type in ("dodged_bar", "stacked_bar", "stacked_normalized_bar") and not ("fill" in p or "z" in p):
+            if layer_type in SEGMENTED and not ("fill" in p or "z" in p):
                 rep.warn(f"{where}: grouped bar points should carry a 'fill' (group name); got {json.dumps(p)[:80]}")
                 break
         return len(points)
@@ -229,14 +290,20 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
     if all(isinstance(series, list) for series in data):
         rep.error(f"{where}: type '{layer_type}' expects a flat array of points, but data is nested")
         return 0
+    return _check_points(layer_type, data, where, rep)
+
+
+def _check_points(layer_type: str, data: list, where: str, rep: Report) -> int:
+    """Field checks for a flat list of points. Returns the number of points."""
     if not all(isinstance(p, dict) for p in data):
         rep.error(f"{where}: data points must be objects")
         return 0
-    required = {
-        "bar": {"x", "y"}, "pie": {"x", "y"}, "point": {"x", "y"}, "dot": {"x", "y"},
-        "hist": {"x", "y", "xMin", "xMax"}, "box": {"min", "q1", "q2", "q3", "max"},
-        "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
-    }.get(layer_type, set())
+    required = POINT_FIELDS.get(layer_type, set())
+    if layer_type == "rug":
+        # a vertical rug marks x, a horizontal one (orientation "horz") marks y (maidr src/model/rug.ts)
+        bad = [p for p in data if "x" not in p and "y" not in p]
+        if bad:
+            rep.error(f"{where}: rug point {json.dumps(bad[0])[:80]} has neither x nor y")
     for p in data:
         missing = required - set(p)
         if missing:
@@ -279,27 +346,31 @@ def drawn(elements):
     return [e for e in elements if e.find_parent("defs") is None]
 
 
-def check_line_selectors(selectors, data, where: str, soup, rep: Report) -> None:
-    """One path per series, one straight-segment vertex per point: that is what maidr walks when highlighting a line."""
+def check_line_selectors(selectors, data, where: str, soup, rep: Report, layer_type: str = "line") -> None:
+    """One selector per series, each naming the series' line or one marker per point: what maidr walks when highlighting a line (src/model/line.ts mapToSvgElements)."""
     series = [s for s in data if isinstance(s, list)] if isinstance(data, list) else []
-    try:
-        if isinstance(selectors, str):
-            matched = drawn(soup.select(selectors))
-        else:
-            matched = [m[0] for m in (drawn(soup.select(s)) for s in selectors if isinstance(s, str)) if m]
-    except Exception as exc:
-        rep.error(f"{where}: selectors are not valid CSS ({exc})")
-        return
     if isinstance(selectors, str) and len(series) > 1:
         rep.error(f"{where}: selectors is one string for {len(series)} series; maidr reads a string as a single series and declines the highlight -- give an array with one selector per series, in order")
         return
     if isinstance(selectors, list) and len(selectors) != len(series):
-        rep.error(f"{where}: selectors has {len(selectors)} entries for {len(series)} series; a line needs exactly one selector per series, in order")
+        rep.error(f"{where}: selectors has {len(selectors)} entries for {len(series)} series; a {layer_type} layer needs exactly one selector per series, in order")
         return
-    if len(matched) != len(series):
-        rep.warn(f"{where}: selectors match {len(matched)} element(s) for {len(series)} series; a line needs one path (or polyline) per series, in order")
+    try:
+        per_series = [drawn(soup.select(s)) if isinstance(s, str) else []
+                      for s in ([selectors] if isinstance(selectors, str) else selectors)]
+    except Exception as exc:
+        rep.error(f"{where}: selectors are not valid CSS ({exc})")
         return
-    for i, (el, s) in enumerate(zip(matched, series)):
+    missing = [i for i, m in enumerate(per_series) if not m]
+    if missing:
+        rep.warn(f"{where}: selectors for series {missing} match nothing; a line needs one path (or polyline) per series, in order")
+        return
+    for i, (found, s) in enumerate(zip(per_series, series)):
+        if len(found) == len(s):
+            continue  # one marker per point, paired in document order
+        if layer_type == "contour" and len(found) > 1:
+            continue  # several paths for one level: maidr outlines them all (src/model/contour.ts)
+        el = found[0]
         count, problem = vertex_count(el)
         if problem == "curved":
             rep.warn(f"{where} series[{i}]: <path> uses curve commands; maidr highlights vertices, so draw straight M/L segments with one vertex per point")
@@ -318,20 +389,125 @@ def _count(selector: str, soup, rep: Report, where: str):
         return None
 
 
+def check_concatenated_selectors(selectors, layer_type: str, data, n_points: int, where: str, soup, rep: Report) -> None:
+    """A string, or a list of strings whose matches are concatenated; the total must equal the items declared."""
+    entries = [selectors] if isinstance(selectors, str) else selectors
+    if not (isinstance(entries, list) and entries and all(isinstance(e, str) for e in entries)):
+        rep.error(f"{where}: type '{layer_type}' reads selectors as a string or a list of strings; this shape is declined and nothing is highlighted")
+        return
+    if soup is None:
+        return
+    total = 0
+    for one in entries:
+        matched = _count(one, soup, rep, where)
+        if matched is None:
+            return
+        total += matched
+    # a ridgeline pairs one element per ridge (row of data), everything else one per point
+    items = len(data) if layer_type == "ridgeline" and isinstance(data, list) else n_points
+    if total == 0:
+        rep.error(f"{where}: selectors match no element in the document")
+    elif layer_type == "gauge":
+        return  # gauge.ts highlights the first match
+    elif total != items:
+        rep.error(f"{where}: selectors match {total} element(s) in all but the layer declares {items}; a '{layer_type}' layer needs exactly one element per item, in order, or it is declined")
+
+
+def check_heat_selectors(selectors, data, where: str, soup, rep: Report) -> None:
+    """A heat layer reads a string naming every cell, or a selectors[row][column] grid (src/model/heatmap.ts)."""
+    pts = data.get("points") if isinstance(data, dict) else None
+    rows = len(pts) if isinstance(pts, list) else 0
+    cols = len(pts[0]) if rows and isinstance(pts[0], list) else 0
+    if isinstance(selectors, list) and not any(isinstance(row, list) for row in selectors):
+        if not (selectors and all(isinstance(e, str) and e.strip() for e in selectors)):
+            rep.error(f"{where}: a heat layer takes one string or a selectors[row][column] grid; this list is neither and nothing is highlighted")
+            return
+        joined = ", ".join(selectors)
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a 'heat' layer reads one selector string or a grid; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.10.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        selectors = joined
+    if isinstance(selectors, list):
+        if len(selectors) != rows or any(not isinstance(row, list) or len(row) != cols for row in selectors):
+            rep.error(f"{where}: heat selector grid must be {rows} rows x {cols} columns, like data.points (null for an undrawn cell); any other shape is declined")
+            return
+        if soup is None:
+            return
+        for r, row in enumerate(selectors):
+            for c, cell in enumerate(row):
+                if cell is None:
+                    continue
+                if not isinstance(cell, str):
+                    rep.error(f"{where}: heat selector grid cell [{r}][{c}] must be a string or null")
+                    return
+                matched = _count(cell, soup, rep, where)
+                if matched is None:
+                    return
+                if matched == 0:
+                    rep.error(f"{where}: heat selector grid cell [{r}][{c}] '{cell}' matches nothing; one unresolvable cell declines the whole grid")
+                    return
+        return
+    if not isinstance(selectors, str):
+        rep.error(f"{where}: selectors must be a string or an array")
+        return
+    if soup is None:
+        return
+    try:
+        found = drawn(soup.select(selectors))
+    except Exception as exc:
+        rep.error(f"{where}: selectors '{selectors}' is not a valid CSS selector ({exc})")
+        return
+    if len(found) == 1 and found[0].name == "image":
+        return  # one raster image: maidr lays a transparent cell grid over it
+    if not found:
+        rep.error(f"{where}: selectors '{selectors}' matches no element in the document")
+    elif len(found) != rows * cols:
+        rep.error(f"{where}: selectors '{selectors}' matches {len(found)} elements but the heat map has {rows * cols} cells; the highlight is declined")
+
+
 def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup, rep: Report,
                     data=None, dom_mapping=None) -> None:
     if selectors is None:
         rep.info(f"{where}: no selectors; navigation works but nothing is highlighted visually")
         return
 
-    # point and pie read a string and nothing else: an array of any length -- one element or one
-    # per point -- is not a selector to them, and the layer loses its highlight silently.
+    # A flat list of strings where the type reads one string -- any list on point/pie, a bar list
+    # that is not one entry per point, a flat list on a segmented layer -- is the shape producers
+    # emitted for maidr.js before 4.0. maidr 4.10.0 joins it into one selector list and warns in
+    # the console (src/util/selectors.ts joinSelectorList, #1275); earlier 4.x releases read it as
+    # nothing. So it is checked as the joined string, and flagged, since only a string is the
+    # contract.
+    legacy = (isinstance(selectors, list) and selectors
+              and all(isinstance(e, str) and e.strip() for e in selectors)
+              and (layer_type in STRING_ONLY or layer_type in SEGMENTED
+                   or (layer_type in BAR_FAMILY and len(selectors) != n_points)))
+    if legacy:
+        joined = ", ".join(selectors)
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a '{layer_type}' layer reads one selector string; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.10.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        if layer_type in SEGMENTED and not (isinstance(dom_mapping, dict) and dom_mapping.get("order")):
+            # a legacy segmented list over <rect> marks is walked category by category, as before #1135
+            try:
+                marks = drawn(soup.select(joined)) if soup is not None else []
+            except Exception:
+                marks = []
+            if marks and all(m.name == "rect" for m in marks):
+                dom_mapping = {**(dom_mapping or {}), "order": "column"}
+        selectors = joined
+
+    # point and pie read a string and nothing else: any other array is not a selector to them,
+    # and the layer loses its highlight silently.
     if layer_type in STRING_ONLY and isinstance(selectors, list):
-        rep.error(f"{where}: type '{layer_type}' reads selectors as a string only; an array is ignored and nothing is highlighted -- join the entries with ', ' into one selector list")
+        rep.error(f"{where}: type '{layer_type}' reads selectors as a string only; this array is not a list of selector strings and nothing is highlighted -- give one selector string")
         return
 
     if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
-        check_line_selectors(selectors, data, where, soup, rep)
+        check_line_selectors(selectors, data, where, soup, rep, layer_type)
+        return
+
+    if layer_type == "heat":
+        check_heat_selectors(selectors, data, where, soup, rep)
+        return
+
+    if layer_type in CONCATENATED:
+        check_concatenated_selectors(selectors, layer_type, data, n_points, where, soup, rep)
         return
 
     if layer_type in SEGMENTED:
@@ -390,7 +566,8 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
     elif isinstance(selectors, list):
         if layer_type in NESTED:
             return
-        if layer_type in BAR_FAMILY:
+        if layer_type in BAR_FAMILY or layer_type == "rug":
+            # a rug list names one tick per observation, and any other length is declined (src/model/rug.ts)
             if len(selectors) != n_points:
                 rep.error(f"{where}: selectors list has {len(selectors)} entries for {n_points} data points; a '{layer_type}' array means exactly one selector per point, and any other length is declined -- a single selector goes in as a string, not a one-element list")
                 return
@@ -486,6 +663,7 @@ def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> No
     if not (isinstance(sub, list) and sub and all(isinstance(row, list) and row for row in sub)):
         rep.error(f"{where}: subplots must be a non-empty 2-D array: [[{{layers: [...]}}]] for a single chart")
         return
+    occupied = 0
     for r, row in enumerate(sub):
         for c, sp in enumerate(row):
             w = f"{where} subplot[{r}][{c}]"
@@ -493,14 +671,66 @@ def check_json_blob(raw: str, el: dict, col: Collector, soup, rep: Report) -> No
                 rep.error(f"{w}: must be an object")
                 continue
             layers = sp.get("layers")
-            if not (isinstance(layers, list) and layers):
-                rep.error(f"{w}: layers must be a non-empty array")
+            # maidr.js keeps an empty grid position as a navigable cell with nothing to describe
+            # (src/model/plot.ts: Subplot), which is what py-maidr and r-maidr emit for an axes
+            # the figure left empty. A missing or non-array `layers` is read the same way, with a
+            # console warning naming the cell.
+            if not isinstance(layers, list):
+                rep.warn(f"{w}: no layers array; maidr reads it as an empty subplot and warns in the console -- emit \"layers\": [] for a position no chart occupies")
                 continue
+            if not layers:
+                rep.info(f"{w}: empty subplot (layers: []); maidr keeps the grid position and reads it as having nothing to describe")
+                continue
+            occupied += 1
             for i, layer in enumerate(layers):
                 check_layer(layer, f"{w} layer[{i}]", soup, rep)
+    if occupied == 0:
+        rep.warn(f"{where}: every subplot is empty; the chart will be announced but there is nothing to navigate")
     n_sub = sum(len(row) for row in sub)
     if n_sub > 1:
         rep.info(f"{where}: multi-panel figure with {n_sub} subplots in a {len(sub)}-row grid")
+
+
+# The keys browser_check presses, in order, until a mark is outlined. Right Arrow onto the first
+# point is what a reader does first, but the first stop is not always a mark: a single box starts
+# on its lower-outlier stop, which is empty when the box has no low outliers and outlines nothing,
+# and a second Right runs off the end ("No more data to display"). Up then reaches the minimum.
+# Down and Left cover the other orientations and a start at the far end.
+HIGHLIGHT_KEYS = ("ArrowRight", "ArrowRight", "ArrowUp", "ArrowDown", "ArrowLeft")
+
+
+def probe_highlight(press, read, keys=HIGHLIGHT_KEYS) -> dict:
+    """Press `keys` one at a time until some mark is outlined.
+
+    `press(key)` sends one key; `read()` returns (announced text, number of visible
+    data-maidr-owned clones). Stops at the first key after which a clone is visible, so a chart
+    whose first stop is a real mark costs one keypress. Returns {"highlighted": bool,
+    "keys": keys pressed, "spoken": [(key, text), ...]}. Only a probe in which no key outlines
+    anything reports highlighted False: every stop reached announced without an outline.
+    """
+    pressed: list[str] = []
+    spoken: list[tuple[str, str]] = []
+    for key in keys:
+        press(key)
+        pressed.append(key)
+        text, visible = read()
+        spoken.append((key, text.strip()))
+        if visible:
+            return {"highlighted": True, "keys": pressed, "spoken": spoken}
+    return {"highlighted": False, "keys": pressed, "spoken": spoken}
+
+
+def report_probe(result: dict, rep: Report) -> None:
+    said = [(k, t) for k, t in result["spoken"] if t]
+    path = ", ".join(result["keys"])
+    if result["highlighted"]:
+        last = result["spoken"][-1][1] or (said[-1][1] if said else "")
+        rep.info(f"browser: after {path} maidr announced '{last[:60]}' and highlighted a mark")
+    elif not said:
+        rep.warn(f"browser: {path} announced nothing; the chart may not have taken focus")
+    else:
+        heard = "; ".join(f"{k}: '{t[:50]}'" for k, t in said)
+        rep.error(f"browser: no key outlined a mark ({heard}); the layer's selectors are not in the shape its type reads (see schema.md), or resolve to the wrong elements")
 
 
 def browser_check(path: str, rep: Report) -> None:
@@ -542,10 +772,11 @@ def browser_check(path: str, rep: Report) -> None:
             rep.info("browser: maidr initialized (a maidr-figure-* container wraps the chart)")
         except Exception:
             rep.error("browser: maidr did not initialize within 8 s (no maidr-figure-* container appeared); check the console errors and the JSON")
-        # Then drive it the way a reader does: Tab onto the chart, Right Arrow onto the first point,
-        # and look for the outline maidr draws -- a visible clone of the mark tagged data-maidr-owned.
-        # A payload that parses and announces can still outline nothing (a selectors shape the type
-        # does not read) or the wrong mark; only the DOM after a keypress can tell.
+        # Then drive it the way a reader does: Tab onto the chart, then arrow keys (see
+        # probe_highlight), looking for the outline maidr draws -- a visible clone of the mark
+        # tagged data-maidr-owned. A payload that parses and announces can still outline nothing
+        # (a selectors shape the type does not read) or the wrong mark; only the DOM after a
+        # keypress can tell.
         try:
             page.keyboard.press("Tab")
             page.wait_for_timeout(400)
@@ -553,18 +784,16 @@ def browser_check(path: str, rep: Report) -> None:
             if "ENTER" in spoken:
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(400)
-            page.keyboard.press("ArrowRight")
-            page.wait_for_timeout(500)
-            page.keyboard.press("ArrowRight")
-            page.wait_for_timeout(500)
-            spoken = page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''")
-            visible = page.evaluate("() => [...document.querySelectorAll('svg [data-maidr-owned]')].filter((e) => getComputedStyle(e).visibility !== 'hidden').length")
-            if not spoken.strip():
-                rep.warn("browser: Right Arrow announced nothing; the chart may not have taken focus")
-            elif visible == 0:
-                rep.error(f"browser: Right Arrow announced '{spoken.strip()[:80]}' but nothing on the chart is highlighted; the layer's selectors are not in the shape its type reads (see schema.md), or resolve to the wrong elements")
-            else:
-                rep.info(f"browser: Right Arrow announced '{spoken.strip()[:60]}' and highlighted a mark")
+
+            def press(key: str) -> None:
+                page.keyboard.press(key)
+                page.wait_for_timeout(500)
+
+            def read() -> tuple[str, int]:
+                return (page.evaluate("() => (document.querySelector('#maidr-text-container, [aria-live]') || {}).textContent || ''"),
+                        page.evaluate("() => [...document.querySelectorAll('svg [data-maidr-owned]')].filter((e) => getComputedStyle(e).visibility !== 'hidden').length"))
+
+            report_probe(probe_highlight(press, read), rep)
         except Exception as exc:
             rep.warn(f"browser: could not drive the chart ({exc})")
         for e in errors:

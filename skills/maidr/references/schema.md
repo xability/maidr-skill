@@ -19,16 +19,17 @@ Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` i
 
 - `id` (required) and `subplots` (required) are the only mandatory top-level keys. `subplots` is a 2-D grid: outer array = rows, inner array = columns. A single chart is `[[ { "layers": [...] } ]]`.
 - Top-level `axes` is optional and only `label` is honored there (shared labels for a facet grid). `live` and `maxWidth` are for streaming charts.
-- Each subplot: `layers` (required, non-empty), optional `selector` (CSS selector of the panel's container, useful when several panels share one SVG), optional `legend` (array of strings), optional `id`.
+- Each subplot: `layers` (required; `[]` for a grid position no chart occupies, which readers can still move onto), optional `selector` (CSS selector of the panel's container, useful when several panels share one SVG), optional `legend` (array of strings), optional `id`.
 - Each layer: `id` (string), `type` (trace type), `data`, optional `title`, `name`, `axes`, `selectors`, `orientation` (`"vert"` default or `"horz"`), `stepDirection` (`"hv"`, `"vh"`, `"mid"`, step only).
 - `axes` per layer: `{ "x": {...}, "y": {...}, "z": {...} }`. Each axis object accepts `label`, `min`, `max`, `tickStep` (the last three drive grid navigation on scatter plots), and `format`. Bare strings such as `"x": "Day"` are rejected. Default labels are `X`, `Y`, and `Level`.
 - `format`: `{ "type": "currency" | "percent" | "fixed" | "number" | "date" | "scientific", "decimals": 0, "currency": "USD", "locale": "en-US" }`, or `{ "function": "return value.toFixed(1) + ' kg'" }`.
 - `selectors`: which drawn elements the layer highlights. The shape is a contract with maidr.js 4.x, and it is read **per type** -- a shape the type does not read loses the highlight silently, while navigation and speech keep working, which is the failure nothing announces:
-  - `bar`, `hist`, `dot`, `lollipop`: a **string** matched with `querySelectorAll` and paired with the points in document order, or an array with **exactly one selector per point** (single-row data only). A one-element array on a multi-point layer is not "a string in a list": it is one selector for N points, and the layer is declined.
-  - `point`, `pie`: a **string only**. An array of any length is ignored (`Svg.isUsableSelector` accepts strings), so a per-point list must be joined with `", "` into one selector list.
-  - `line`, `step`, `smooth`, `area`: an array with **one selector per series**, in series order; a bare string counts as one series, so a string matching N paths for N series is declined.
-  - `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `mosaic`: a **string** matching every segment, paired series by series by default -- see `domMapping` under the segmented types below when the chart is drawn category by category -- or a grid `selectors[series][category]` with one selector per cell that `querySelector` resolves to that one segment, `null` for a cell that was never drawn. A flat array is declined.
-  - `heat`: a string matching every cell (row-major, top row first), or a grid `selectors[row][column]` with `null` for a cell that was not drawn.
+  - `bar`, `hist`, `dot`, `lollipop`, `funnel`: a **string** matched with `querySelectorAll` and paired with the points in document order, or an array with **exactly one selector per point** (single-row data only). A one-element array on a multi-point layer is not "a string in a list": it is one selector for N points, and any list that is not one entry per point is the pre-4.0 shape -- maidr 4.10.0 joins such a list into one selector list and warns in the console; 4.x releases before it highlight nothing. Emit a string.
+  - `point`, `pie` (and `sunflower`, `volcano`, `manhattan`, read as scatters): a **string only**. A per-point list is the pre-4.0 shape -- maidr 4.10.0 joins such a list into one selector list and warns in the console; 4.x releases before it highlight nothing -- so join the entries with `", "` into one selector string yourself.
+  - `line`, `step`, `smooth`, `area`, `stacked_area`, `stacked_normalized_area`, `survival`, `bump`, `radar`, `polar_area`, `parallel_coordinates`, `roc`, `contour`: an array with **one selector per series**, in series order; a bare string counts as one series, so a string matching N paths for N series is declined. Each entry names the series' `<path>`/`<polyline>`/`<polygon>` (its vertices are the points) or one marker per point; a `contour` entry may name several paths, which are read as one level.
+  - `dodged_bar`, `stacked_bar`, `stacked_normalized_bar`, `mosaic`, `diverging_bar`: a **string** matching every segment, paired series by series by default -- see `domMapping` under the segmented types below when the chart is drawn category by category -- or a grid `selectors[series][category]` with one selector per cell that `querySelector` resolves to that one segment, `null` for a cell that was never drawn. A flat array of strings is the pre-4.0 shape: maidr 4.10.0 joins such a list into one selector list and warns in the console; 4.x releases before it highlight nothing.
+  - `heat`: a string matching every cell (row-major, top row first), or a grid `selectors[row][column]` with `null` for a cell that was not drawn. A string matching one raster `<image>` gets a transparent cell grid laid over it. A flat array of strings is the pre-4.0 shape: maidr 4.10.0 joins it into one selector list and warns in the console; 4.x releases before it highlight nothing.
+  - `boxen`, `ridgeline`, `dumbbell`, `error_bar`, `forest`, `gantt`, `hexbin`, `waterfall`, `word_cloud`, `gauge`, `alluvial`, `chord`, `sankey`, `network`, `choropleth`, `treemap`, `sunburst`, `icicle`, `tree`, `pack`: a string, or a list of strings whose matches are **concatenated**; the total must be exactly one element per item (per ridge for `ridgeline`, per point otherwise) or the highlight is declined. `gauge` uses the first match.
   - `box`, `violin_box`: one selector object per box (see the box section); `candlestick`: a string, a one-element array or a selector object.
   - Fewer matches than points is not skipped for a bar: the elements are assigned to the non-zero points in document order, so a selector that under-matches by one shifts every highlight after it onto the wrong bar. More matches than points is declined.
 
@@ -36,7 +37,7 @@ Authoritative source: https://maidr.ai/docs/SCHEMA.html (`src/type/grammar.ts` i
 
 Stable (build on these): `bar`, `box`, `candlestick`, `dodged_bar`, `heat`, `hist`, `line`, `pie`, `point`, `smooth`, `stacked_bar`, `stacked_normalized_bar`, `step`, `violin_box`, `violin_kde`.
 
-Experimental (may change in any release): `alluvial`, `area`, `boxen`, `bump`, `chord`, `choropleth`, `contour`, `diverging_bar`, `dot`, `dumbbell`, `error_bar`, `forest`, `funnel`, `gantt`, `gauge`, `hexbin`, `icicle`, `lollipop`, `manhattan`, `mosaic`, `network`, `pack`, `parallel_coordinates`, `polar_area`, `radar`, `ridgeline`, `sankey`, `stacked_area`, `stacked_normalized_area`, `sunburst`, `sunflower`, `survival`, `tree`, `treemap`, `volcano`, `waterfall`, `word_cloud`.
+Experimental (may change in any release): `alluvial`, `area`, `boxen`, `bump`, `chord`, `choropleth`, `contour`, `diverging_bar`, `dot`, `dumbbell`, `error_bar`, `forest`, `funnel`, `gantt`, `gauge`, `hexbin`, `icicle`, `lollipop`, `manhattan`, `mosaic`, `network`, `pack`, `parallel_coordinates`, `polar_area`, `radar`, `ridgeline`, `roc`, `rug`, `sankey`, `stacked_area`, `stacked_normalized_area`, `sunburst`, `sunflower`, `survival`, `tree`, `treemap`, `volcano`, `waterfall`, `word_cloud`.
 
 Never declare `candlestick_delta`; it is derived at runtime from a `candlestick` layer and a page that declares it fails to bind. Scatter is `point` (not `scatter`), histogram is `hist`, heatmap is `heat`.
 
@@ -104,7 +105,7 @@ Layer-level `"orientation": "vert"` or `"horz"`. Empty outlier arrays are fine.
 
 Readers move Left/Right across categories and Up/Down across fills; maidr adds summary and combined pseudo-layers itself.
 
-`selectors` for these is either one string matching every segment, or a grid the same shape as `data` -- `selectors[series][category]`, one selector per cell, each resolving with `querySelector` to that one segment, `null` where the chart drew nothing for the cell. A flat array of selectors is declined.
+`selectors` for these is either one string matching every segment, or a grid the same shape as `data` -- `selectors[series][category]`, one selector per cell, each resolving with `querySelector` to that one segment, `null` where the chart drew nothing for the cell. A flat array of selectors is the pre-4.0 shape: maidr 4.10.0 joins such a list into one selector list and warns in the console; 4.x releases before it highlight nothing, so do not emit one.
 
 With the string form maidr pairs the matched segments with the cells **series by series**: all of series 0's segments in document order, then series 1's, and so on. A chart drawn **category by category** -- every hand-written stacking loop, ggplot2, R's `barplot()` -- has to say so, or every segment after the first is outlined for another cell's value:
 
@@ -143,6 +144,17 @@ No `percentage` field (derived) and no `orientation`. `selectors` is a string, n
 ```
 
 A violin plot is two layers in one subplot: `violin_box` first, then `violin_kde`. Spec: https://maidr.ai/docs/VIOLIN_PLOT_SPEC.html.
+
+### Experimental types: the data container
+
+Only the container is listed here, because it is what `check_maidr_html.py` checks and what a wrong guess breaks; point fields beyond these may change between releases (see maidr's `docs/SCHEMA.md` for the release in use).
+
+| Container | Types |
+|---|---|
+| nested, one inner array per series or row, points `{x, y}` | `area`, `stacked_area`, `stacked_normalized_area`, `bump`, `radar`, `polar_area`, `parallel_coordinates`, `roc`, `contour`, `survival`, `ridgeline`, `hexbin` (points also carry `count`), `mosaic`, `diverging_bar` (points carry `z` or `fill`, as the segmented bars do) |
+| flat for one group, or nested with one array per group; points need `x` | `error_bar` (`y` optional), `forest` (`y` required) |
+| one object | `gauge` `{value, min, max}`, `dumbbell` `{points: [{x, start, end}, ...]}`, `gantt` `{points: [[{x, start, end}, ...], ...]}` with one inner array per lane |
+| flat array of point objects | every other type, e.g. `dot`, `lollipop`, `funnel`, `boxen`, `waterfall`, `rug` (`x`, or `y` when `orientation` is `"horz"`) |
 
 ## Multiple layers (overlaid charts, one panel)
 
