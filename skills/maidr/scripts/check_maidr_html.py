@@ -14,6 +14,8 @@ What is checked
     * maidr.js is loaded: a <script src> on jsDelivr/cdnjs/local disk, an inline loader chain,
       an inlined bundle, or a self-contained adapter bundle (Chart.js, amCharts).
     * Local script paths exist relative to the HTML file; maidr-math.css sits beside a local bundle.
+    * A local or inline maidr.js can reach the locale packs (window.maidrLocaleBaseUrl, a
+      locale-<code>.js script, or packs beside ./maidr.js); otherwise every reader hears English.
     * Some attachment method exists: `maidr` / `maidr-data` attribute JSON, a `window.maidr`
       global, a Plotly chart (auto-detected by maidr), or an adapter bundle.
     * Every attribute JSON parses and follows the MAIDR schema: id, subplots grid, layers with
@@ -22,6 +24,7 @@ What is checked
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 import re
@@ -179,7 +182,7 @@ def classify_src(src: str) -> str:
 
 def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
     found = {"core": [], "adapters": set(), "loader": False, "inlined": False, "plotly": False,
-             "global_var": False}
+             "global_var": False, "locale_source": False, "local_packs": False}
     for sc in col.scripts:
         src, text = sc["src"], sc["text"]
         if src:
@@ -202,6 +205,8 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
                         css = os.path.join(os.path.dirname(path), "maidr-math.css")
                         if not os.path.exists(css):
                             rep.info(f"no maidr-math.css beside {path}; only affects math formatting in AI-chat replies")
+                        if glob.glob(os.path.join(os.path.dirname(path), "locale-*.js")):
+                            found["local_packs"] = True
                 if kind == "other-cdn":
                     rep.warn(f"maidr.js loaded from an unrecognized host ({src}); jsDelivr and cdnjs are the supported CDNs")
             m = re.search(r"/dist/(" + "|".join(re.escape(a) for a in ADAPTERS) + r")\.m?js", src)
@@ -209,11 +214,20 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
                 found["adapters"].add(m.group(1))
                 if kind == "cdnjs":
                     rep.error(f"adapter bundle {src} requested from cdnjs, which mirrors only the core maidr.js; load adapters from jsDelivr")
+            if re.search(r"(?:^|/)locale-[a-z]{2}\.js$", src.split("?")[0]):
+                found["locale_source"] = True
             if "plotly" in src.lower() or "plot.ly" in src.lower():
                 found["plotly"] = True
         elif text:
-            if "cdn.jsdelivr.net/npm/maidr@" in text or "cdnjs.cloudflare.com/ajax/libs/maidr/" in text:
+            # a loader names the bundle itself; a maidrLocaleBaseUrl or maidrMathStylesheetUrl
+            # declaration names only its directory or another file in it
+            if re.search(r"cdn\.jsdelivr\.net/npm/maidr@[^/\s\"']+/dist/maidr(?:\.min)?\.js|cdnjs\.cloudflare\.com/ajax/libs/maidr/", text) \
+                    or ("cdn.jsdelivr.net/npm/maidr@" in text and "createElement" in text):
                 found["loader"] = True
+            # a declaration, or a pack pasted inline (it queues itself on globalThis.maidrLocales,
+            # which the bundle also names, so the bundle's own text is told apart by maidr-figure)
+            if re.search(r"maidrLocaleBaseUrl\s*=", text) or ("maidrLocales" in text and "maidr-figure" not in text):
+                found["locale_source"] = True
             if len(text) > 200_000 and "maidr-figure" in text:
                 found["inlined"] = True
             if re.search(r"Plotly\.(newPlot|react|plot)\s*\(", text):
@@ -751,7 +765,6 @@ def browser_check(path: str, rep: Report) -> None:
         if not exe:
             root = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
             if root and os.path.isdir(root):
-                import glob
                 found = sorted(glob.glob(os.path.join(root, "chromium-*", "chrome-linux", "chrome"))
                                + glob.glob(os.path.join(root, "chromium-*", "chrome-mac", "*", "*", "*", "Chromium")))
                 if found:
@@ -830,6 +843,22 @@ def main(argv: list[str]) -> int:
     else:
         srcs = ", ".join(f"{k}" for _, k in found["core"]) or ("inline loader" if found["loader"] else "inlined bundle" if found["inlined"] else "adapter bundle")
         rep.info(f"maidr.js source: {srcs}")
+    # Since 4.8.0 every language but English is a locale pack maidr.js fetches from beside its own
+    # URL. A bundle pasted inline has no URL, and a local ./maidr.js has no packs beside it unless
+    # someone put them there, so a Korean reader hears English with only a console warning.
+    local_core = [src for src, kind in found["core"] if kind == "local"]
+    if (local_core or found["inlined"]) and not (found["locale_source"] or found["local_packs"]):
+        if local_core:
+            fix = (f"run scripts/fetch_locale_packs.py on the folder holding {local_core[0]}, or load the "
+                   f"reader's locale-<code>.js with it")
+            how = f"from a relative path ({local_core[0]})"
+        else:
+            fix = (f"declare <script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "
+                   f"\"https://cdn.jsdelivr.net/npm/maidr@{MAIDR_VERSION}/dist/\";</script> before it, and for "
+                   f"an offline file paste the reader's locale-<code>.js too")
+            how = "as an inline bundle"
+        rep.warn(f"maidr.js is loaded {how} with no locale packs in reach, so readers whose language is "
+                 f"not English hear English: {fix}")
     if found["adapters"]:
         rep.info(f"adapter bundles: {', '.join(sorted(found['adapters']))}")
         thin = found["adapters"] - SELF_CONTAINED_ADAPTERS

@@ -74,6 +74,7 @@ skills/maidr/
   scripts/check_maidr_html.py  static validator for MAIDR-enabled HTML (optional headless browser check)
   scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/)
   scripts/fetch_dotpad_sdk.py  download the DotPad tactile-display SDK maidr.js is pinned to, for offline pages (not vendored: 14 MB)
+  scripts/fetch_locale_packs.py put maidr.js's non-English locale packs beside a local maidr.js (not vendored)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
   assets/candlestick.html      hand-authored candlestick, for when the plotting library cannot draw one
   assets/maidr.js              vendored maidr.js 4.11.0 for offline or firewalled use

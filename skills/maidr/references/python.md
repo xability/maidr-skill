@@ -85,13 +85,15 @@ import maidr
 path = pathlib.Path("chart.html")
 maidr.save_html(fig, str(path), use_cdn=True)
 html = path.read_text(encoding="utf-8")
-inline = "<script>" + maidr.read_bundled_js().replace("</script>", "<\\/script>") + "</script>"
+# an inline bundle has no URL to find its locale packs beside; name their directory so non-English readers are served online
+locales = '<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";</script>'
+inline = locales + "<script>" + maidr.read_bundled_js().replace("</script>", "<\\/script>") + "</script>"
 loader = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S)
 html = loader.sub(lambda m: inline, html, count=1)
 path.write_text(html, encoding="utf-8")   # about 1.5 MB, no lib/ folder, no network needed
 ```
 
-The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr-math.css";</script>` to `inline`.
+The declaration serves readers who are online; a file that must speak one known language offline also carries that language's pack (`locale-<code>.js`, see `javascript.md`) pasted in a second inline `<script>` after the bundle. The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr-math.css";</script>` to `inline`.
 
 Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.11.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 

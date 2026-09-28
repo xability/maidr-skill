@@ -19,6 +19,15 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 
 `data` order and DOM order disagree. Emit the JSON in the same order the marks are drawn (left to right, or the library's series order).
 
+## Announcements stay in English for a reader whose browser or Settings name another language
+
+maidr.js 4.8.0 and later carry only English; ko, ja, zh, es, de, fr, it, and hi are locale packs (`locale-<code>.js`) fetched from beside maidr.js. The console says which way it failed:
+
+- `[maidr] Cannot locate the locale pack for "ko"; add <script src="…/locale-ko.js"> or set window.maidrLocaleBaseUrl.` The bundle is pasted inline and has no URL. Put `<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";</script>` before it, and for an offline file paste the reader's pack too.
+- `[maidr] Could not load the locale pack at …/locale-ko.js; announcements stay in English.` The directory maidr.js came from has no packs: a vendored `./maidr.js` (run `python scripts/fetch_locale_packs.py` on its folder), or cdnjs, which mirrors none yet (switch to jsDelivr).
+
+Until a fetched pack arrives the first announcement is English; a page that loads the pack itself (`javascript.md`, Languages) speaks the language from the start.
+
 ## Numbers read as "1200.0" or with too many decimals
 
 Format on the axis: `axes.y.format = { "type": "number", "decimals": 0 }` (JS), `ax.yaxis.set_major_formatter("{x:,.0f}")` (matplotlib), `scale_y_continuous(labels = scales::label_comma())` (ggplot2). Never pre-format numbers into strings inside `data`.
