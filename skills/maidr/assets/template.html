@@ -8,8 +8,13 @@
       maidr.js loader with a fallback chain: jsDelivr -> cdnjs -> a local copy.
       maidr initializes even when its script arrives after DOMContentLoaded, so a
       late fallback still works. For an air-gapped page, copy assets/maidr.js and
-      assets/maidr-math.css next to this file (the local entry below finds them),
-      or paste the contents of maidr.js into an inline <script> and delete this loader.
+      assets/maidr-math.css next to this file (the local entry below finds them)
+      and run scripts/fetch_locale_packs.py on that folder, since a local copy
+      finds its non-English locale packs only beside itself. Or delete this loader
+      and paste the contents of maidr.js into an inline <script>, after
+        <script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";</script>
+      (an inline bundle has no URL to find the packs from). Do not set it for this
+      loader: it would override the packs beside whichever copy loads.
       Pin the version; "@latest" changes under the reader.
     -->
     <script>

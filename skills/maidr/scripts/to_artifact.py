@@ -10,7 +10,8 @@ and cannot read local files. This script makes a page depend on exactly one pinn
   * py-maidr's inline loader block (which injects the jsDelivr URL, plus a lib/ fallback in "auto" mode) is
     replaced by a plain <script src> tag; any remaining lib/ references are dropped.
   * --cdn cdnjs switches that tag to cdnjs (only the core file is mirrored there, which is all a py-maidr or
-    hand-authored page needs); the default keeps jsDelivr.
+    hand-authored page needs); the default keeps jsDelivr. cdnjs carries no locale packs yet
+    (cdnjs/packages#2205), so on cdnjs every reader hears English; keep jsDelivr unless only cdnjs is allowed.
   * --fragment emits only <title>, <style>, <script> and the body content, for hosts that wrap content in
     their own document shell (the Claude Code Artifact tool). Without it a full document is kept, which is
     what a claude.ai chat artifact takes.
@@ -27,7 +28,8 @@ import re
 import sys
 
 DEFAULT_VERSION = "4.11.0"
-LOADER = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S | re.I)
+# the script that loads the bundle, not a maidrLocaleBaseUrl or maidrMathStylesheetUrl declaration naming its directory
+LOADER = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@[^/\s\"']+/dist/maidr(?:\.min)?\.js(?:(?!</script>).)*?</script>", re.S | re.I)
 CORE_SRC = re.compile(r"<script\b[^>]*\bsrc=[\"'][^\"']*maidr(?:\.min)?\.js[\"'][^>]*>\s*</script>", re.I)
 LIB_REFS = re.compile(r"<(?:link|script)\b[^>]*(?:href|src)=[\"'][^\"']*lib/maidr[^\"']*[\"'][^>]*>(?:\s*</script>)?", re.I)
 

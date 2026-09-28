@@ -10,14 +10,32 @@ npm package `maidr` 4.11.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: ht
 | jsDelivr, `@latest` tag | `https://cdn.jsdelivr.net/npm/maidr@latest/dist/maidr.js`: avoid, jsDelivr caches the tag for up to a week, so readers can get a stale build |
 | cdnjs, pinned only | `<script src="https://cdnjs.cloudflare.com/ajax/libs/maidr/4.11.0/maidr.min.js"></script>` |
 | npm | `npm install maidr`; `import 'maidr'` for the UMD side-effect build, or `import { Maidr } from 'maidr/react'` |
-| Local file | `<script src="./maidr.js"></script>` with `maidr-math.css` in the same folder (both in this skill's `assets/`) |
-| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file. An inline bundle has no URL to find `maidr-math.css` from; if math in AI-chat replies should be styled, set `window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr-math.css"` (or a local path) in a script before it |
+| Local file | `<script src="./maidr.js"></script>` with `maidr-math.css` in the same folder (both in this skill's `assets/`), plus the locale packs from `python scripts/fetch_locale_packs.py <that folder>` (see Languages) |
+| Inline | Paste the contents of `assets/maidr.js` into a `<script>` block (1.5 MB) when the deliverable must be a single file, preceded by the `window.maidrLocaleBaseUrl` declaration under Languages. An inline bundle has no URL to find `maidr-math.css` from; if math in AI-chat replies should be styled, set `window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr-math.css"` (or a local path) in a script before it |
 
 - No stylesheet is required; maidr styles its own UI at runtime. `maidr.css` on the CDN is an empty placeholder. `maidr-math.css` (KaTeX) is fetched from the same directory as `maidr.js` only when an AI-chat answer contains math.
 - maidr runs on `DOMContentLoaded`, or immediately if the document has already loaded, so async or late loading works. A `MutationObserver` picks up `maidr` attributes and Plotly charts added later (single-page apps, notebooks).
 - `assets/template.html` carries a loader that tries jsDelivr, then cdnjs, then `./maidr.js`. Copy it when the reader's network is unknown.
 - Content-security policy: `script-src` needs `https://cdn.jsdelivr.net` and/or `https://cdnjs.cloudflare.com`, plus `'unsafe-inline'` if the page uses inline scripts. The AI chat also needs `connect-src` for the provider the reader picks (or `http://localhost:11434` for Ollama).
 - Only the core `maidr.js` is mirrored on cdnjs. Adapter bundles (`d3.js`, `chartjs.js`, ...) come from jsDelivr or npm.
+
+## Languages
+
+maidr.js speaks the reader's language (browser default, or the one chosen in Settings) in ko, ja, zh, es, de, fr, it, and hi as well as English. Since 4.8.0 only English is in `maidr.js`; each other language is a locale pack, `dist/locale-<code>.js`, which maidr.js fetches from the directory it was loaded from, or from `window.maidrLocaleBaseUrl` when that is set. A pack that cannot be found leaves announcements in English with one console warning (`[maidr] Cannot locate the locale pack ...` or `[maidr] Could not load the locale pack at ...`).
+
+| maidr.js from | Packs |
+|---|---|
+| jsDelivr | Beside it; nothing to do |
+| cdnjs | None yet (cdnjs/packages#2205): English only, so prefer jsDelivr for readers who may not read English |
+| `./maidr.js` | Run `python scripts/fetch_locale_packs.py <folder holding maidr.js>` (`--lang ko` for one) and ship the packs with it |
+| Inline bundle | Declare the directory before the bundle; it serves every reader who is online: |
+
+```html
+<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";</script>
+<script>/* contents of assets/maidr.js */</script>
+```
+
+A page that must speak a known language offline also carries that pack: a `<script src=".../locale-ko.js">` or its contents pasted inline, before or after the bundle (packs queue in `globalThis.maidrLocales` until maidr.js adopts them). A pack loaded by the page also makes the very first announcement Korean, rather than English until the fetched pack arrives. Set `maidrLocaleBaseUrl` only for an inline bundle: on a page loading maidr.js from cdnjs or from `./maidr.js` it overrides the packs beside that copy, and fails where jsDelivr is unreachable.
 
 ## A DotPad tactile display on an offline page
 
