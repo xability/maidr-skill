@@ -23,13 +23,16 @@ on:
     # Sent by maidr's release workflow the moment `npm publish` succeeds.
     # `client_payload.version` names the version just published, so the job fetches that
     # exact version rather than re-resolving `latest`, which sidesteps the window where the
-    # dist-tag has not propagated yet. A repository_dispatch runs this file as it is on the
-    # default branch, so a change to this trigger takes effect once it is on `main`.
+    # dist-tag has not propagated yet. The registry can take minutes longer to serve that
+    # version at all (18 for 4.11.0), so update-bundle.sh waits for it before fetching.
+    # A repository_dispatch runs this file as it is on the default branch, so a change to
+    # this trigger takes effect once it is on `main`.
     types: [maidr-released]
   schedule:
     # The backstop: the dispatch is one cross-repository hop that can be missed (an expired
-    # token, a release published outside CI), and a miss is silent because nothing here
-    # would run. The refresh is a no-op when the bundle is already current.
+    # token, a token whose repository list leaves this repository out, as it did for 4.11.0,
+    # a release published outside CI), and a miss is silent because nothing here would run.
+    # The refresh is a no-op when the bundle is already current.
     - cron: "17 16 * * *"   # daily, after maidr's Monday 15:00 UTC release
   workflow_dispatch:
     inputs:
