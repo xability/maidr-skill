@@ -20,7 +20,7 @@ name: update-bundle
 
 on:
   repository_dispatch:
-    # Sent by maidr's release workflow the moment `npm publish` succeeds.
+    # Sent by maidr's release workflow after it publishes to npm.
     # `client_payload.version` names the version just published, so the job fetches that
     # exact version rather than re-resolving `latest`, which sidesteps the window where the
     # dist-tag has not propagated yet. The registry can take minutes longer to serve that

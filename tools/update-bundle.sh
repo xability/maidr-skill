@@ -37,10 +37,11 @@ echo "vendored: $OLD  ->  target: $VER"
 
 # `npm publish` returns before the registry serves what it accepted: maidr 4.9.0 appeared about
 # ten minutes after maidr's publish step ended, and 4.11.0 eighteen (15:19:22 to 15:37:44 UTC).
-# maidr's release workflow dispatches the moment that step ends, and jsDelivr mirrors the
-# registry, so fetching straight away 404s and leaves the release to the daily run. So check
-# every RETRY_DELAY seconds, MAX_ATTEMPTS times: an hour by default, over three times the longest
-# lag seen. A version the registry already serves, `latest` included, passes the first check.
+# A dispatch or a manual run can arrive inside that window (maidr's release workflow sent 4.11.0's
+# the moment its publish step ended), and jsDelivr mirrors the registry, so fetching straight away
+# 404s and leaves the release to the daily run. So check every RETRY_DELAY seconds, MAX_ATTEMPTS
+# times: an hour by default, over three times the longest lag seen. A version the registry already
+# serves, `latest` included, passes the first check.
 # Every failure is retried, not only a 404, and nothing below runs until the version is served,
 # so giving up leaves the working tree as it was.
 attempt=1
