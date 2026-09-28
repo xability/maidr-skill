@@ -11,7 +11,7 @@ This repository distributes one Agent Skill, `skills/maidr`, that tells AI codin
 - `.claude-plugin/`: Claude Code plugin (`plugin.json`) and single-plugin marketplace (`marketplace.json`, `source: "./"`).
 - `tests/`: regression tests for `check_maidr_html.py` (standard-library `unittest`), with real binding output under `tests/fixtures/` and the script that regenerates it. They live outside `skills/maidr/` so installed copies do not carry them.
 - `evals/evals.json`: test prompts for exercising the skill with and without it installed.
-- `tools/update-bundle.sh`: refreshes the vendored bundle, copies the release's `dist/dotpad-sdk.json` over `assets/dotpad-sdk.json` when the release ships one, and rewrites version pins. It is idempotent —
+- `tools/update-bundle.sh`: refreshes the vendored bundle, copies the release's `dist/dotpad-sdk.json` over `assets/dotpad-sdk.json` when the release ships one, and rewrites version pins. It first waits, for up to an hour, until the npm registry serves the version it was asked for, because npm serves a release minutes after `npm publish` returns (18 for 4.11.0). It is idempotent —
   re-vendoring the release already recorded in `maidr-bundle.json` leaves the working tree clean, which
   is what keeps the `update-bundle` workflow (run by maidr's release dispatch and daily) from committing an
   empty refresh to `main`. `retrieved` therefore dates the vendored bytes, not the last run.
