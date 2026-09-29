@@ -1,6 +1,6 @@
 # maidr R package reference
 
-CRAN package `maidr`, version 0.4.x. Docs: https://r.maidr.ai. Source: https://github.com/xability/r-maidr. R >= 4.0. Imports ggplot2, htmlwidgets, htmltools, gridSVG, jsonlite, shiny, xml2, R6.
+CRAN package `maidr`, version 0.5.x. Docs: https://r.maidr.ai. Source: https://github.com/xability/r-maidr. R >= 4.0. Imports ggplot2, htmlwidgets, htmltools, svglite (>= 2.1.1), jsonlite, shiny, xml2, R6. Charts are exported to SVG with svglite; 0.4.x used gridSVG, and 0.5.0 writes the same element ids, so selectors built against either match.
 
 ## Install
 
@@ -22,6 +22,9 @@ packageVersion("maidr")
 | `render_maidr(expr)` | Shiny server renderer; `expr` returns a ggplot or draws base R graphics. |
 | `maidr_set_fallback(enabled, format, warning)`, `maidr_get_fallback()` | How unsupported plots are handled: default a static PNG with a warning; `format` is `"png"`, `"svg"`, or `"jpeg"`. |
 | `run_example(example = NULL, type = c("ggplot2", "base_r"))` | Built-in demos; `run_example()` lists them. |
+| `maidr_htmlwidget(widget, use_cdn = FALSE)` | Make a plotly (`plot_ly()`, `ggplotly()`), highcharter or echarts4r htmlwidget accessible; the chart is read in the browser once drawn. Pipe-friendly. 0.5.0 and later. |
+| `maidr_gantt()`, `maidr_roc()` | `geom_rect()` and `geom_path()` that declare a schedule or a ROC curve, read as the experimental `gantt` and `roc` types. 0.5.0 and later. |
+| `maidr_download_dotpad_sdk()` | Fetch the DotPad SDK once for offline documents; see below. 0.5.0 and later. |
 
 Nothing else exists. There is no `maidr::render()`, `maidr::maidr()`, or `maidr::accessible()`.
 
@@ -42,7 +45,7 @@ Nothing else exists. There is no `maidr::render()`, `maidr::maidr()`, or `maidr:
 | Heatmap | `geom_tile()` | `image()` |
 | Contour | experimental | `contour()` |
 | Smooth, density | `geom_smooth()`, `geom_density()` | `lines(density(x))` |
-| Candlestick | `tidyquant::geom_candlestick()` | `quantmod::chartSeries()` (OHLC only) |
+| Candlestick | `tidyquant::geom_candlestick()` | `quantmod::chartSeries()`, with its `addVo()` volume panel as a second, bar layer |
 
 Also supported: `facet_wrap()` and `facet_grid()`, patchwork combinations, `par(mfrow = ...)` panels, and layered plots such as a histogram with a density line or bars with a line.
 
@@ -111,11 +114,11 @@ options(
 
 ## Offline and CDN
 
-`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.4.0 ships maidr.js 3.69.0; the development build is refreshed with every maidr.js release); ship both, or pass `use_cdn = TRUE` for a single file that loads maidr.js from jsDelivr. In the development build (0.4.0.9000 and later) `use_cdn = TRUE` loads the latest maidr.js release, looked up once per R session, as py-maidr does; a failed lookup falls back to the bundled version. Pin it with `options(maidr.cdn_version = "bundled")` or a version such as `"4.11.0"`, or the `MAIDR_CDN_VERSION` environment variable; CRAN 0.4.0 always loads its bundled version. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
+`show()` and `save_html()` default to the bundled maidr.js, so output works offline. `save_html(p, "f.html")` writes `lib/maidr-<version>/` beside the file (CRAN 0.5.0 ships maidr.js 4.11.0, 0.4.0 shipped 3.69.0; the development build is refreshed with every maidr.js release); ship both, or pass `use_cdn = TRUE` for a single file that loads maidr.js from jsDelivr. From 0.5.0, `use_cdn = TRUE` loads the latest maidr.js release, looked up once per R session, as py-maidr does; a failed lookup falls back to the bundled version. Pin it with `options(maidr.cdn_version = "bundled")` or a version such as `"4.11.0"`, or the `MAIDR_CDN_VERSION` environment variable; 0.4.x always loads its bundled version. Widgets, knitr documents, and Shiny apps detect internet access (`curl::has_internet()`, cached five minutes) and inline the bundle when offline. The package never emits cdnjs URLs; edit the script `src` in the saved file if a content-security policy requires cdnjs.
 
 ### A DotPad tactile display offline
 
-An offline document still fetches the DotPad SDK from jsDelivr the first time a tactile display is connected (maidr.js does not bundle its 14 MB braille engine). Only needed when the reader has a Dot Pad. In the development build (0.4.0.9000 and later):
+An offline document still fetches the DotPad SDK from jsDelivr the first time a tactile display is connected (maidr.js does not bundle its 14 MB braille engine). Only needed when the reader has a Dot Pad. In 0.5.0 and later:
 
 ```r
 maidr_download_dotpad_sdk()                  # ~14 MB, once, into a per-user cache (option maidr.dotpad_sdk_dir or MAIDR_DOTPAD_SDK_DIR moves it)
@@ -128,9 +131,9 @@ save_html(p, "plot.html", use_cdn = FALSE)   # copies it to lib/dotpad-sdk-<vers
 
 1. Base R needs `show()` with no arguments after drawing. "No Base R plots detected" means nothing was recorded: draw after `library(maidr)` and check `getOption("maidr.base_r")`.
 2. Attach `quantmod` or `wordcloud` before `maidr`, or call `maidr::chartSeries()`; attached later, they mask maidr's wrappers and the chart is never recorded.
-3. `quantmod::chartSeries()` with volume or technical-analysis overlays falls back to a static image; pass OHLC without a Volume column or set `TA = NULL`.
+3. `quantmod::chartSeries()` reads its volume panel, `addVo()` (drawn by default when the data has a Volume column), as a second layer. Any other technical-analysis overlay (`addSMA()`, `addMACD()`, ...) falls back to a static image; drop it or set `TA = NULL`. Before 0.5.0 the volume panel fell back too.
 4. Violin plots are stable in ggplot2 only; base R `vioplot(y ~ g)` formula calls are not read.
-5. `matplot()` and `symbols()` can fail inside the SVG export and fall back with a warning.
+5. Before 0.5.0, `matplot()` and `symbols()` failed inside the gridSVG export and fell back with a warning; the svglite export in 0.5.0 renders them interactively.
 6. `library(maidr)` masks base graphics functions and `methods::show`. Behaviour is unchanged; call `methods::show(x)` for S4 objects and `maidr_off()` to restore plain plotting.
 7. ggplot2 3.x (S3) and 4.x (S7) are both supported.
 8. Knitting to PDF yields static images by design; render to HTML for accessibility.
