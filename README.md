@@ -95,6 +95,8 @@ plugin.json                    portable Agent Plugins manifest with the Codex / 
 assets/logo.svg                square MAIDR logo for the Codex / ChatGPT listing
 evals/evals.json               test prompts used to exercise the skill
 tools/update-bundle.sh         refresh the vendored bundle, the DotPad SDK pin, and version pins
+tools/set-version.py           write a release version into both manifests and SKILL.md (run by semantic-release)
+.releaserc.json                semantic-release configuration
 ```
 
 ## Verifying a chart yourself
@@ -124,7 +126,7 @@ The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records thei
 
 The `update-bundle` workflow runs it and commits the refresh straight to `main`: maidr's release workflow notifies this repository the moment a release reaches npm (a `maidr-released` repository dispatch), and a daily run catches a notification that never arrives. It then starts `validate` on `main`, because a push made with the workflow's own token starts no workflows.
 
-Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) looks up the latest release on npm and reports it as `maidr_js_version`, and the skill tells the agent to put that version in every URL; the vendored version is only the fallback when the lookup fails. The plugin manifests carry no `version`, so Claude Code uses the commit and an installed copy picks up every refresh.
+Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) looks up the latest release on npm and reports it as `maidr_js_version`, and the skill tells the agent to put that version in every URL; the vendored version is only the fallback when the lookup fails. The refresh is committed as a `fix`, so it cuts a patch release, and an installed plugin picks it up on its next update.
 
 ## Related projects
 

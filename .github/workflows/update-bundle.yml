@@ -89,7 +89,7 @@ jobs:
           fi
           git -c user.name="xabilitylab" \
               -c user.email="187909674+xabilitylab@users.noreply.github.com" \
-              commit -m "chore: vendor maidr.js ${VERSION}" \
+              commit -m "fix(bundle): vendor maidr.js ${VERSION}" \
               --author="xabilitylab <187909674+xabilitylab@users.noreply.github.com>"
           git push origin HEAD:main
           echo "changed=true" >> "$GITHUB_OUTPUT"
