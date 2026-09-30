@@ -1,5 +1,7 @@
 {
-  "branches": ["main"],
+  "branches": [
+    "main"
+  ],
   "tagFormat": "v${version}",
   "plugins": [
     [
@@ -10,9 +12,21 @@
           "breakingHeaderPattern": "^(\\w*)(?:\\((.*)\\))?!: (.*)$"
         },
         "releaseRules": [
-          { "type": "docs", "scope": "skill", "release": "patch" },
-          { "type": "refactor", "scope": "skill", "release": "patch" },
-          { "type": "style", "scope": "skill", "release": "patch" }
+          {
+            "type": "docs",
+            "scope": "skill",
+            "release": "patch"
+          },
+          {
+            "type": "refactor",
+            "scope": "skill",
+            "release": "patch"
+          },
+          {
+            "type": "style",
+            "scope": "skill",
+            "release": "patch"
+          }
         ]
       }
     ],
@@ -25,15 +39,40 @@
         }
       }
     ],
-    ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
-    ["@semantic-release/exec", { "prepareCmd": "python3 tools/set-version.py ${nextRelease.version}" }],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "python3 tools/set-version.py ${nextRelease.version} && python3 tools/package-plugin.py dist/maidr-plugin-${nextRelease.version}.zip"
+      }
+    ],
     [
       "@semantic-release/git",
       {
-        "assets": [".claude-plugin/plugin.json", "plugin.json", "skills/maidr/SKILL.md", "CHANGELOG.md"],
+        "assets": [
+          ".claude-plugin/plugin.json",
+          "plugin.json",
+          "skills/maidr/SKILL.md",
+          "CHANGELOG.md"
+        ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
-    "@semantic-release/github"
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/maidr-plugin-*.zip",
+            "label": "Plugin package for the OpenAI plugin directory"
+          }
+        ]
+      }
+    ]
   ]
 }

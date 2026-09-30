@@ -47,11 +47,11 @@ Or copy the skill directory by hand: `skills/maidr` -> `~/.claude/skills/maidr` 
 ### OpenAI Codex
 
 ```bash
-codex plugin marketplace add xability/maidr-skill
+codex plugin marketplace add xability/maidr-skill --ref release
 codex plugin add maidr@maidr-skill
 ```
 
-In the ChatGPT desktop app, the same marketplace then appears as a source in the Plugins Directory. `codex plugin marketplace upgrade maidr-skill` pulls the latest `main`.
+In the ChatGPT desktop app, the same marketplace then appears as a source in the Plugins Directory. `codex plugin marketplace upgrade maidr-skill` pulls the latest weekly release; leave out `--ref release` to follow `main` instead.
 
 To install the bare skill instead, ask Codex: `$skill-installer install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`, or run `npx skills add xability/maidr-skill --agent codex`. Manual: copy `skills/maidr` to `~/.codex/skills/maidr` (user) or `.agents/skills/maidr` (repository).
 
@@ -96,6 +96,7 @@ assets/logo.svg                square MAIDR logo for the Codex / ChatGPT listing
 evals/evals.json               test prompts used to exercise the skill
 tools/update-bundle.sh         refresh the vendored bundle, the DotPad SDK pin, and version pins
 tools/set-version.py           write a release version into both manifests and SKILL.md (run by semantic-release)
+tools/package-plugin.py        zip the plugin for the OpenAI plugin directory (attached to each GitHub release)
 .releaserc.json                semantic-release configuration
 ```
 
@@ -126,7 +127,7 @@ The script downloads `maidr.js` and `maidr-math.css` from jsDelivr, records thei
 
 The `update-bundle` workflow runs it and commits the refresh straight to `main`: maidr's release workflow notifies this repository the moment a release reaches npm (a `maidr-released` repository dispatch), and a daily run catches a notification that never arrives. It then starts `validate` on `main`, because a push made with the workflow's own token starts no workflows.
 
-Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) looks up the latest release on npm and reports it as `maidr_js_version`, and the skill tells the agent to put that version in every URL; the vendored version is only the fallback when the lookup fails. The refresh is committed as a `fix`, so it cuts a patch release, and an installed plugin picks it up on its next update.
+Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) looks up the latest release on npm and reports it as `maidr_js_version`, and the skill tells the agent to put that version in every URL; the vendored version is only the fallback when the lookup fails. The refresh is committed as a `fix`, so the next weekly release (Mondays 17:00 UTC, an hour after py-maidr's) is at least a patch, and an installed plugin picks it up on its next update.
 
 ## Related projects
 

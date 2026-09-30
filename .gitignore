@@ -7,3 +7,5 @@ Thumbs.db
 .venv/
 # Downloaded by skills/maidr/scripts/fetch_dotpad_sdk.py; never vendored (14 MB)
 dotpad-sdk/
+# Built by tools/package-plugin.py during a release
+dist/
