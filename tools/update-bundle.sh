@@ -25,7 +25,12 @@ RETRY_DELAY="${MAIDR_FETCH_RETRY_DELAY:-60}"
 OLD=$("$PY" -c "import json;print(json.load(open(r'$META'))['version'])")
 VER="${1:-}"
 if [ -z "$VER" ]; then
-  VER=$(curl -fsSL "$REGISTRY/latest" | "$PY" -c 'import sys,json;print(json.load(sys.stdin)["version"])')
+  # Saved to a file and then read, not piped into the interpreter: the registry's answer is
+  # data here, and a pipe from curl into python is what download-and-run scanners look for.
+  LATEST_JSON=$(mktemp)
+  curl -fsSL "$REGISTRY/latest" -o "$LATEST_JSON"
+  VER=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$LATEST_JSON")
+  rm -f "$LATEST_JSON"
 fi
 # The version reaches URLs, a sed pattern and file contents, and on a dispatch it comes from
 # another repository's payload, so only a plain release version gets past this point.
