@@ -28,9 +28,30 @@ jobs:
         run: |
           python -m json.tool .claude-plugin/plugin.json > /dev/null
           python -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python -m json.tool plugin.json > /dev/null
+          python -m json.tool .agents/plugins/marketplace.json > /dev/null
           python -m json.tool skills/maidr/assets/maidr-bundle.json > /dev/null
           python -m json.tool skills/maidr/assets/dotpad-sdk.json > /dev/null
           python -m json.tool evals/evals.json > /dev/null
+
+      - name: Claude and Codex manifests agree
+        run: |
+          python - <<'EOF'
+          import json, pathlib
+          claude = json.load(open(".claude-plugin/plugin.json"))
+          portable = json.load(open("plugin.json"))
+          for key in ("name", "description", "author", "license", "keywords"):
+              assert claude[key] == portable[key], f"plugin.json {key} differs from .claude-plugin/plugin.json"
+          ui = portable["extensions"]["com.openai"]["interface"]
+          assert len(ui["displayName"]) <= 30 and len(ui["shortDescription"]) <= 30, "listing name or subtitle over 30 characters"
+          assert all(len(p) <= 128 for p in ui["defaultPrompt"]) and len(ui["defaultPrompt"]) <= 3, "defaultPrompt too long"
+          for key in ("logo", "composerIcon"):
+              assert pathlib.Path(ui[key]).is_file(), f"{key} {ui[key]} is missing"
+          codex = json.load(open(".agents/plugins/marketplace.json"))
+          assert codex["name"] == json.load(open(".claude-plugin/marketplace.json"))["name"], "marketplace names differ"
+          assert [p["name"] for p in codex["plugins"]] == [portable["name"]], "Codex marketplace does not list the plugin"
+          print("manifests agree")
+          EOF
 
       - name: Template passes the HTML checker
         run: python skills/maidr/scripts/check_maidr_html.py skills/maidr/assets/template.html

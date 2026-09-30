@@ -46,7 +46,14 @@ Or copy the skill directory by hand: `skills/maidr` -> `~/.claude/skills/maidr` 
 
 ### OpenAI Codex
 
-Ask Codex: `$skill-installer install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`, or run `npx skills add xability/maidr-skill --agent codex`. Manual: copy `skills/maidr` to `~/.codex/skills/maidr` (user) or `.agents/skills/maidr` (repository).
+```bash
+codex plugin marketplace add xability/maidr-skill
+codex plugin add maidr@maidr-skill
+```
+
+In the ChatGPT desktop app, the same marketplace then appears as a source in the Plugins Directory. `codex plugin marketplace upgrade maidr-skill` pulls the latest `main`.
+
+To install the bare skill instead, ask Codex: `$skill-installer install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`, or run `npx skills add xability/maidr-skill --agent codex`. Manual: copy `skills/maidr` to `~/.codex/skills/maidr` (user) or `.agents/skills/maidr` (repository).
 
 ### Cursor, GitHub Copilot, Gemini CLI, and others
 
@@ -83,6 +90,9 @@ skills/maidr/
   assets/dotpad-sdk.json       version, commit, URLs, and SHA-256 of the DotPad SDK files fetch_dotpad_sdk.py downloads (copied from maidr.js's dist/dotpad-sdk.json)
   agents/openai.yaml           display metadata for Codex and ChatGPT
 .claude-plugin/                Claude Code plugin and marketplace manifests
+plugin.json                    portable Agent Plugins manifest with the Codex / ChatGPT listing (extensions.com.openai)
+.agents/plugins/marketplace.json  Codex marketplace
+assets/logo.svg                square MAIDR logo for the Codex / ChatGPT listing
 evals/evals.json               test prompts used to exercise the skill
 tools/update-bundle.sh         refresh the vendored bundle, the DotPad SDK pin, and version pins
 ```
