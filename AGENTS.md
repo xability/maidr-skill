@@ -23,6 +23,8 @@ Every API name, URL, option, and keyboard shortcut in the skill was checked agai
 
 Current pins: maidr.js 4.11.0, py-maidr 1.25.x, maidr R package 0.5.x. The maidr.js version string appears in `SKILL.md` (frontmatter and CDN URLs), every reference file, both detect scripts, `check_maidr_html.py`, `assets/template.html`, `assets/maidr-bundle.json`, and `README.md`; `tools/update-bundle.sh` rewrites all of them. The pinned version is the vendored release and a floor, not what pages load: `detect_env` reports the latest npm release as `maidr_js_version` and the skill tells agents to use it, and `check_maidr_html.py` warns only on a version older than the vendored one. The plugin's own version is separate: see Releases below.
 
+The README's "Network access and data" section is a disclosure that Anthropic's plugin directory scans on every new version: it names every host the scripts and the vendored maidr.js contact, and what is sent. When `update-bundle` vendors a release, check the section against it. `grep -oE 'https?://[A-Za-z0-9.:-]+' skills/maidr/assets/maidr.js | sort -u` lists the hosts in the bundle, and its `fetch(` and `import(` call sites show what goes to them. A version that sends data to a destination the README does not name cannot go live in the directory.
+
 ## Validate before committing
 
 ```bash

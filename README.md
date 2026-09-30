@@ -66,6 +66,52 @@ git clone https://github.com/xability/maidr-skill.git
 cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 ```
 
+## Network access and data
+
+The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It has no hooks, no MCP servers, and no background processes, and it needs no account or API key of its own. It collects no telemetry and sets no cookies, and nothing it does is sent to its authors or to Anthropic. This section lists everything an agent with the skill installed can run, fetch, or send, and what the chart pages it writes do when a reader opens them.
+
+### What the agent runs
+
+| Step | When | Connects to |
+|---|---|---|
+| `scripts/detect_env.sh` or `detect_env.ps1` | Before the first chart of a task | Reads the installed runtimes and the project's file names on this machine. Asks `registry.npmjs.org` for the latest maidr.js release, and sends HEAD requests to `cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, `pypi.org`, and `cloud.r-project.org` to see which are reachable. Nothing from the machine or the project is sent. |
+| `pip install maidr` or `uv add maidr` | Python route, when py-maidr is missing | `pypi.org` |
+| `install.packages("maidr")` | R route, when the package is missing | CRAN |
+| `npm install maidr` | JavaScript route, when the project already builds with npm | `registry.npmjs.org` |
+| `scripts/check_maidr_html.py` | After a chart is written | Nothing. With `--browser` (Playwright, installed by the user) it opens the local file in headless Chromium, which loads maidr.js from the CDN the page names. |
+| `scripts/to_artifact.py` | For a chart shown in a chat | Nothing; it rewrites a local file. |
+| `python -m http.server --bind 127.0.0.1` | To preview a page in a browser tool | Listens on localhost only. |
+| `scripts/fetch_dotpad_sdk.py`, `scripts/fetch_locale_packs.py` | Only when a page must drive a Dot Pad or show a non-English pack offline | `cdn.jsdelivr.net`. Each file is checked against a recorded SHA-256 and written to disk; the scripts never run what they download. |
+| Development builds and Quarto extensions | Only in the cases the references name: a development build, Quarto reveal.js slides, Observable Plot in Quarto | GitHub: `pip install git+https://github.com/xability/py-maidr.git`, `pak::pak("xability/r-maidr")`, `quarto add xability/maidr`, `quarto add mcanouil/quarto-revealjs-a11y` |
+
+`tools/update-bundle.sh` downloads from jsDelivr and the npm registry. Maintainers and this repository's `update-bundle` workflow run it; the skill does not ask an agent to.
+
+### What a chart page does when a reader opens it
+
+- It loads maidr.js from jsDelivr, from cdnjs when the agent chose that, or from the vendored copy when no CDN is reachable. maidr.js takes its math stylesheet and any locale pack from the same place. The CDN sees the reader's IP address and browser headers, as it does for any script tag.
+- Connecting a Dot Pad makes maidr.js import the vendor's SDK from `cdn.jsdelivr.net/gh/xability/dotpad-sdk-guide@<commit>/`. `fetch_dotpad_sdk.py` lets an offline page carry its own copy.
+- When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers three chart tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`) for an AI agent running in the reader's browser. This sends nothing anywhere; `<meta name="maidr-webmcp" content="off">` turns it off.
+- It keeps the reader's settings in the browser's `localStorage` under `maidr-settings`.
+
+### AI chat, only when the reader opens it
+
+The chat stays off until the reader enters their own API key, or an Ollama server address, in Settings. When the reader then asks a question, the page sends the chart image, the chart's MAIDR JSON (title, labels, values), the text for the current point, and the question straight from the reader's browser to the provider the reader chose:
+
+| Provider | Host |
+|---|---|
+| OpenAI | `api.openai.com` |
+| Anthropic | `api.anthropic.com` |
+| Google Gemini | `generativelanguage.googleapis.com` |
+| Ollama | the server address the reader enters (`http://localhost:11434` by default) |
+
+Entering a key also sends it to that provider's model-list endpoint, to check the key and list the models. The key is stored only in the reader's `localStorage`. Do not put data that must stay private in a chart whose readers will use the chat: the values leave the page when they ask a question.
+
+maidr.js also contains the address of a MAIDR-hosted relay, `maidr-service.azurewebsites.net`, which it uses only when a client token is present in its settings. This skill never sets one, and the Settings panel has no field for one, so no chart this skill produces reaches that host.
+
+### The vendored bundle
+
+`skills/maidr/assets/maidr.js` (minified) and `maidr-math.css` are unmodified copies of the npm release named in `assets/maidr-bundle.json`. CI compares each file's SHA-256 with the same file in that release on jsDelivr, so the copy can be checked byte for byte. The readable source is [xability/maidr](https://github.com/xability/maidr), at the tag `v` followed by the version in `assets/maidr-bundle.json`.
+
 ## What is inside
 
 ```text
