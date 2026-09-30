@@ -40,8 +40,11 @@ jobs:
           import json, pathlib
           claude = json.load(open(".claude-plugin/plugin.json"))
           portable = json.load(open("plugin.json"))
-          for key in ("name", "description", "author", "license", "keywords"):
+          for key in ("name", "version", "description", "author", "license", "keywords"):
               assert claude[key] == portable[key], f"plugin.json {key} differs from .claude-plugin/plugin.json"
+          import re
+          skill_version = re.search(r'(?m)^  version:\s*"([^"]*)"', open("skills/maidr/SKILL.md").read()).group(1)
+          assert claude["version"] == skill_version, "SKILL.md metadata.version differs from the manifests (tools/set-version.py writes all three)"
           ui = portable["extensions"]["com.openai"]["interface"]
           assert len(ui["displayName"]) <= 30 and len(ui["shortDescription"]) <= 30, "listing name or subtitle over 30 characters"
           assert all(len(p) <= 128 for p in ui["defaultPrompt"]) and len(ui["defaultPrompt"]) <= 3, "defaultPrompt too long"
@@ -124,3 +127,13 @@ jobs:
               print("\n".join(bad)); raise SystemExit("version pins disagree with maidr-bundle.json")
           print(f"all pins are {ver}")
           EOF
+
+  release:
+    # Only a green `main` releases; pull requests and other branches stop at validate.
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/release.yml
