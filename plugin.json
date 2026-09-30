@@ -25,7 +25,7 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "MAIDR Accessible Data Viz",
+        "displayName": "MAIDR Accessible Charts",
         "shortDescription": "Charts everyone can explore",
         "longDescription": "Whenever you ask for a chart, MAIDR keeps the visual exactly as designed and makes it explorable by blind and low-vision readers: arrow-key navigation through the data, screen-reader text, sonification, braille, and AI descriptions. The skill detects your environment and picks py-maidr (matplotlib, seaborn, Plotly, Altair), the maidr R package (ggplot2, base graphics), or maidr.js (D3, Chart.js, Highcharts, ECharts, Vega-Lite, hand-drawn SVG), then checks the resulting HTML with a bundled validator. The agent installs the binding it picks (pip install maidr or install.packages(\"maidr\")) when the project lacks it; pages load maidr.js from jsDelivr or cdnjs, with a vendored copy for offline use. The plugin bundles no MCP server or hooks.",
         "developerName": "xability",
