@@ -1,32 +1,51 @@
 name: release
 
-# Cuts a release from `main` with semantic-release (.releaserc.json): the version comes from
-# the Conventional Commits since the last `v*` tag, tools/set-version.py writes it into
-# .claude-plugin/plugin.json, plugin.json and SKILL.md, and the release commit, the tag, the
-# CHANGELOG.md entry and the GitHub release follow.
+# Cuts the week's release from `main` with semantic-release (.releaserc.json): the version
+# comes from the Conventional Commits since the last `v*` tag, tools/set-version.py writes it
+# into .claude-plugin/plugin.json, plugin.json and SKILL.md, and the release commit, the tag,
+# the CHANGELOG.md entry and the GitHub release follow.
+#
+# Weekly, one hour after the rest of the family: maidr publishes to npm on Mondays at 15:00
+# UTC and py-maidr at 16:00 UTC. By 17:00 update-bundle has vendored the new maidr.js (it runs
+# on maidr's release dispatch and daily at 16:17 UTC), so the week's skill release carries it.
 #
 # The version is Claude Code's update signal: an installed copy updates only when it changes.
 # So every commit that changes what an installed agent reads has to release, which is why
 # .releaserc.json also releases docs(skill) and refactor(skill), and why update-bundle
 # commits its refresh as fix(bundle).
 #
-# validate.yml calls this after its checks pass on `main`, whether a push or update-bundle's
-# dispatch started it, so nothing is released from a red `main`.
+# Each release then reaches the distribution channels:
+# - the `release` branch is moved to the release commit. Anthropic's plugin directory follows
+#   that branch, and Codex users who added the marketplace with `--ref release` get it on
+#   `codex plugin marketplace upgrade`;
+# - the GitHub release carries maidr-plugin-X.Y.Z.zip, the package the OpenAI plugin
+#   directory takes as an upload.
+# Claude Code users of this repository's own marketplace follow `main`, and get the release
+# because its version changed.
 
 on:
-  workflow_call:
+  schedule:
+    # Mondays 17:00 UTC. GitHub Actions cron is UTC and does not observe DST.
+    - cron: "0 17 * * 1"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
+  validate:
+    # Nothing is released from a red `main`.
+    uses: ./.github/workflows/validate.yml
+
   release:
+    needs: validate
     runs-on: ubuntu-latest
-    # Two green runs on `main` in a row must not release the same commits twice.
+    # A manual run during the scheduled one must not release the same commits twice.
     concurrency: release
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,3 +83,13 @@ jobs:
           -p @semantic-release/exec@7.1.0
           -p @semantic-release/git@11.0.1
           semantic-release
+
+      - name: Point the release branch at the latest release
+        # Also creates the branch on the first run, from the newest tag, so the channels that
+        # follow it have something to read before the first semantic-release release.
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          git push origin "refs/tags/$latest^{commit}:refs/heads/release"
+          echo "release branch -> $latest" >> "$GITHUB_STEP_SUMMARY"
