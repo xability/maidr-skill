@@ -94,7 +94,7 @@ The desktop app's built-in browser hands a page's WebMCP tools to ChatGPT Work a
 python -m http.server 8765 --bind 127.0.0.1    # in the folder holding chart.html
 ```
 
-Ask the reader to open `http://127.0.0.1:8765/chart.html` in the built-in browser; you work on the page they have open and cannot open it for them. **Site tools** in its address bar then lists maidr's three tools.
+Ask the reader to open `http://127.0.0.1:8765/chart.html` in the built-in browser: site tools come from the page they have open. **Site tools** in its address bar then lists maidr's three tools.
 - **Moving the reader:** read the point's `target` with `maidr_get_layer_data`, then pass it to `maidr_navigate`.
 - **"on-next-focus":** this answer means the reader is in the chat rather than the chart. Tell them they land on the point when they Tab back in.
 - **From Work's cloud sandbox:** that server is not on the reader's machine, so hand them the file instead.
