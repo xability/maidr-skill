@@ -46,6 +46,7 @@ R is only for R work. Never move a Python or JavaScript user to R, and never mov
 | claude.ai | The HTML page the binding produced. It surfaces as a card with Preview and Code tabs that renders the page live, and maidr is fully usable inside that preview | The product's own chart or visualize widget |
 | Claude Code | An **HTML artifact** whose content is the page itself | An `.html` file whose path is all the user gets |
 | ChatGPT Work | A **`visualize{"path": ...}` line** in the reply, naming a maidr fragment in `/workspace` (recipe below); the conversation renders that fragment live, with maidr running in it | Its chart widget, `genui{"charts_widget_v2": ...}`, which draws its own chart from your numbers |
+| The ChatGPT desktop app, when the reader wants you to answer from the chart or take them to a point in it | The **page itself, opened by the reader in the app's built-in browser**, where maidr's own tools reach you as site tools (recipe below) | A chart only inside the conversation, where you cannot reach maidr |
 | A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
 | A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
 
@@ -84,6 +85,26 @@ python scripts/to_artifact.py chart.html --visualize -o /workspace/revenue-by-qu
 ```
 
 Name the file with a short lowercase-hyphenated title, directly in `/workspace`. The script prints `visualize{"path":"/workspace/revenue-by-quarter.html"}`: put that line on its own line where the chart belongs in the reply, and otherwise follow the `visualize` skill for the reply. If the fragment would load something that surface blocks, or reaches 1 MB, the script exits non-zero instead. In a frame with that CSP and no storage, the chart takes focus from the page, the arrows announce, and braille and the shortcut help work. Prefer matplotlib or seaborn there, because their SVG scales down to a phone-width frame. Plotly and Bokeh charts work too: the script moves their library to the same file on jsDelivr. They keep the width their figure sets, though. Altair's Vega compiles expressions with `eval`, which that CSP may refuse. Tell the reader that the AI chat (`?`) cannot reach a provider from there and that settings may not be kept.
+
+#### ChatGPT desktop app: site tools
+
+The desktop app's built-in browser hands a page's WebMCP tools to ChatGPT Work and Codex as *site tools*. maidr.js 4.11.0 and later registers three on every chart page by default: `maidr_list_charts`, `maidr_get_layer_data` and `maidr_navigate`. So when the reader wants you to answer from the chart, or to take them to a point in it, give them the page to open there. Site tools ignore a page inside an iframe; py-maidr's `save_html()` puts the chart in the page itself. Serve its folder:
+
+```bash
+python -m http.server 8765 --bind 127.0.0.1    # in the folder holding chart.html
+```
+
+Ask the reader to open `http://127.0.0.1:8765/chart.html` in the built-in browser; you work on the page they have open and cannot open it for them. **Site tools** in its address bar then lists maidr's three tools.
+- **Moving the reader:** read the point's `target` with `maidr_get_layer_data`, then pass it to `maidr_navigate`.
+- **"on-next-focus":** this answer means the reader is in the chat rather than the chart. Tell them they land on the point when they Tab back in.
+- **From Work's cloud sandbox:** that server is not on the reader's machine, so hand them the file instead.
+
+Site tools need:
+- the latest desktop app;
+- GPT-5.6 Sol or GPT-6 Sol;
+- **Settings > Browser > Permissions > Enable site tools**.
+
+An Enterprise workspace also needs its admin's approval, and Edu workspaces do not have them. This route has not been tried in the app, and its docs do not say whether `127.0.0.1` or `file:` pages qualify. If maidr's tools do not appear, see `references/troubleshooting.md`.
 
 ### How maidr.js reaches the page (every binding ends here)
 

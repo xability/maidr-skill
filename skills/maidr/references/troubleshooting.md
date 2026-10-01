@@ -82,6 +82,18 @@ Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`;
 - **The chart is from Plotly or Bokeh.** Run the page through that script, which moves their library off cdn.plot.ly and cdn.bokeh.org.
 - **The chart is from Altair.** Vega needs `eval`, which the frame may refuse. Draw it with matplotlib or seaborn there.
 
+**ChatGPT desktop app: Site tools does not list maidr's tools.**
+
+- **The chart is inside an iframe.** Site tools read only the page itself. py-maidr's `save_html()` output qualifies; a notebook render, a chat artifact or a `visualize` fragment does not.
+- **maidr.js is older than 4.11.0**, the first release that registers the tools.
+- **The tools are switched off.** Either the page carries `<meta name="maidr-webmcp" content="off">`, or the reader unchecked **Browser AI Agent Access** under maidr's Settings > General.
+- **Site tools are off in the app.** Check three things:
+  - Settings > Browser > Permissions > Enable site tools is on.
+  - The model is GPT-5.6 Sol or GPT-6 Sol.
+  - In an Enterprise workspace, the admin has approved site tools.
+- **The page is not a secure context.** maidr registers nothing outside https, `localhost` or `127.0.0.1`, and local files.
+- **The browser refused the registration.** The console shows `[maidr] WebMCP: could not register the tool "maidr_list_charts" (…)`. Chrome's WebMCP refuses a document served with `Origin-Agent-Cluster: ?0`, and one in a cross-origin iframe without `allow="tools"`.
+
 ## The AI chat asks for a key
 
 Expected. MAIDR never ships with credentials; readers add their own OpenAI, Anthropic, or Gemini key under Settings (Ctrl+,), or point it at a local Ollama server (`http://localhost:11434`). Do not embed keys in the page.

@@ -27,6 +27,8 @@ Inside the artifact sandbox everything works except the AI chat (`?`), which can
 
 In ChatGPT Work the chart appears in the conversation the same way, through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into the fragment that surface takes.
 
+In the ChatGPT desktop app, the reader can also open the chart page in the app's built-in browser. maidr's own tools then reach ChatGPT Work and Codex as site tools, so the model can answer from the chart and move the reader through it. This has not been tried in the app yet.
+
 ## Install
 
 ### Any agent (recommended)

@@ -75,6 +75,20 @@
         "The fragment passes scripts/check_maidr_html.py with 0 errors",
         "The response tells the user how to navigate the chart (Tab, arrow keys, B/T/S)"
       ]
+    },
+    {
+      "id": 6,
+      "name": "chatgpt-desktop-site-tools",
+      "prompt": "I'm blind and I use the ChatGPT desktop app. Make an accessible bar chart of our quarterly revenue (Q1 120, Q2 200, Q3 150, Q4 280, USD thousands), then take me to the best quarter.",
+      "expected_output": "The agent draws the bar chart with matplotlib (title, axis labels with units), saves it with maidr.save_html(fig, ..., use_cdn=True), serves its folder with python -m http.server --bind 127.0.0.1, and asks the reader to open that address in the desktop app's built-in browser. With the page open, it finds Q4 with maidr_get_layer_data and moves the reader there with maidr_navigate. If that answers applied \"on-next-focus\", it tells the reader they land on Q4 when they Tab back into the chart.",
+      "files": [],
+      "assertions": [
+        "The chart is a page of its own (py-maidr save_html output), not a fragment, artifact or iframe",
+        "The agent asks the reader to open the page's 127.0.0.1 address in the built-in browser rather than claiming to open it itself",
+        "The agent moves the reader with maidr_navigate, using the target maidr_get_layer_data gave for Q4",
+        "An on-next-focus answer is explained to the reader, and focus is never said to have moved",
+        "The page passes scripts/check_maidr_html.py with 0 errors"
+      ]
     }
   ]
 }
