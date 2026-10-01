@@ -5,7 +5,7 @@ description: >-
 license: GPL-3.0-or-later
 metadata:
   author: xability
-  version: "0.2.0"
+  version: "0.2.1"
   maidr-js-version: "4.11.0"
   homepage: https://maidr.ai
   source: https://github.com/xability/maidr-skill
