@@ -33,6 +33,7 @@ DEFAULT_VERSION = "4.11.0"
 # the script that loads the bundle, not a maidrLocaleBaseUrl or maidrMathStylesheetUrl declaration naming its directory
 LOADER = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@[^/\s\"']+/dist/maidr(?:\.min)?\.js(?:(?!</script>).)*?</script>", re.S | re.I)
 CORE_SRC = re.compile(r"<script\b[^>]*\bsrc=[\"'][^\"']*maidr(?:\.min)?\.js[\"'][^>]*>\s*</script>", re.I)
+JSDELIVR_CORE = re.compile(r"https://cdn\.jsdelivr\.net/npm/maidr@[^/\s\"']+/dist/maidr(?:\.min)?\.js")
 LIB_REFS = re.compile(r"<(?:link|script)\b[^>]*(?:href|src)=[\"'][^\"']*lib/maidr[^\"']*[\"'][^>]*>(?:\s*</script>)?", re.I)
 # py-maidr's Plotly and Bokeh pages load the library from its own CDN, which the chat sandboxes block: claude.ai and
 # Claude Code artifacts admit jsDelivr's /npm/ paths but not cdn.plot.ly or cdn.bokeh.org. jsDelivr's npm mirror
@@ -79,16 +80,17 @@ def convert(html: str, host: str, title: str | None) -> tuple[str, str]:
         html = pattern.sub(repl, html)
     html = CORE_SRC.sub("", html)                 # drop static core tags first; one pinned tag is added below
     # py-maidr's Plotly and Bokeh pages put their loader inside the script that also carries the chart and its
-    # MAIDR JSON, so replacing that script would delete the chart. It is kept, with the tag ahead of it: its
-    # loader finds the tag on the page and loads nothing. A loader that is only a loader carries no JSON object.
+    # MAIDR JSON, so replacing that script would delete the chart. It is kept, with the tag ahead of it and its
+    # own URL switched to the tag's: its loader looks for a script with that URL, finds the tag on the page,
+    # and loads nothing. A loader that is only a loader carries no JSON object.
     parts, pos, n_loader = [], 0, 0
     for m in LOADER.finditer(html):
         parts.append(html[pos:m.start()])
         carries_chart = '{"' in m.group(0)
         if n_loader == 0:
             parts.append(tag + "\n" if carries_chart else tag)
-        if carries_chart:
-            parts.append(m.group(0))              # a further bare loader is dropped: it would double-load
+        if carries_chart:                         # a further bare loader is dropped: it would double-load
+            parts.append(JSDELIVR_CORE.sub(cdn_url(host, version), m.group(0)))
         n_loader += 1
         pos = m.end()
     html = "".join(parts) + html[pos:]

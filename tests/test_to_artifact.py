@@ -47,6 +47,15 @@ class LoaderTest(unittest.TestCase):
                 self.assertEqual(len(CORE_TAG.findall(out)), 1)
                 self.assertLess(CORE_TAG.search(out).start(), out.index(chart))
 
+    def test_a_kept_loader_looks_for_the_tag_on_either_cdn(self):
+        # Its `existing` check queries the URL it would load; naming another one would load maidr.js twice.
+        for host in ("jsdelivr", "cdnjs"):
+            for name in ("plotly_bar.html", "bokeh_bar.html"):
+                with self.subTest(host=host, fixture=name):
+                    out, version = to_artifact.convert(fixture(name), host, None)
+                    urls = set(re.findall(r"https://[^'\"\s]+/maidr(?:\.min)?\.js", out))
+                    self.assertEqual(urls, {to_artifact.cdn_url(host, version)})
+
     def test_plotly_and_bokeh_move_to_jsdelivr(self):
         # Artifact sandboxes admit jsDelivr's /npm/ paths but not cdn.plot.ly or cdn.bokeh.org.
         plotly, _ = to_artifact.convert(fixture("plotly_bar.html"), "jsdelivr", None)
