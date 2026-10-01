@@ -4,14 +4,14 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 
 ## The page loads but Tab never reaches the chart and nothing is announced
 
-- **maidr.js did not load.** Open the browser console. A blocked CDN shows a network error on the script URL. Switch to the other CDN (`cdnjs.cloudflare.com/ajax/libs/maidr/4.11.0/maidr.min.js`), or copy `assets/maidr.js` and `assets/maidr-math.css` next to the page and load `./maidr.js`, or use the loader chain from `assets/template.html`.
+- **maidr.js did not load.** Open the browser console. A blocked CDN shows a network error on the script URL. Switch to the other CDN (`cdnjs.cloudflare.com/ajax/libs/maidr/4.12.0/maidr.min.js`), or copy `assets/maidr.js` and `assets/maidr-math.css` next to the page and load `./maidr.js`, or use the loader chain from `assets/template.html`.
 - **The JSON does not parse.** Common causes: single quotes inside the JSON, a trailing comma, an unescaped apostrophe in a label (write `&#39;`), or the attribute wrapped in double quotes while the JSON also uses double quotes. The checker prints the character offset of the error.
 - **No attachment method matched.** The JSON must sit in a `maidr` (or `maidr-data`) attribute, or in `window.maidr` with `id` equal to the SVG's `id`. A plain `<script type="application/json">` block is not read.
 - **`axes` uses bare strings.** `"axes": { "x": "Day" }` is rejected; use `{ "x": { "label": "Day" } }`.
 - **Unknown or misspelled `type`.** Scatter is `point`, histogram is `hist`, heatmap is `heat`. `candlestick_delta` must never be declared.
 - **Empty `data` or wrong nesting.** `line`, `step`, `smooth`, and the grouped bar types need one inner array per series; `bar`, `point`, `hist`, `pie`, `box` are flat; `heat` is an object.
 
-## Navigation works but nothing highlights on the chart: `selectors` has a shape the layer's type does not read, or resolves to the wrong count. The shapes are per type (`schema.md`): a `bar`/`hist` string must match one element per point, and an array must have exactly one selector per point -- a one-element array on a seven-point bar is declined by 4.x releases before 4.11.0, which joins it into one selector and warns in the console; `point` and `pie` read a string only (4.11.0 joins a list the same way, older 4.x releases ignore it); a multi-series `line` needs one selector per series, not one string matching every path; a segmented layer takes one string or a `selectors[series][category]` grid, not a flat array (joined with a console warning from 4.11.0, declined by earlier 4.x releases), and a grid with one unresolvable cell is declined whole. Point at the marks (`rect`, `circle`, `path`), not their `<g>` group, unless the type says otherwise (a candlestick names one `<g>` per candle), and check the count
+## Navigation works but nothing highlights on the chart: `selectors` has a shape the layer's type does not read, or resolves to the wrong count. The shapes are per type (`schema.md`): a `bar`/`hist` string must match one element per point, and an array must have exactly one selector per point -- a one-element array on a seven-point bar is declined by 4.x releases before 4.12.0, which joins it into one selector and warns in the console; `point` and `pie` read a string only (4.12.0 joins a list the same way, older 4.x releases ignore it); a multi-series `line` needs one selector per series, not one string matching every path; a segmented layer takes one string or a `selectors[series][category]` grid, not a flat array (joined with a console warning from 4.12.0, declined by earlier 4.x releases), and a grid with one unresolvable cell is declined whole. Point at the marks (`rect`, `circle`, `path`), not their `<g>` group, unless the type says otherwise (a candlestick names one `<g>` per candle), and check the count
 
 `selectors` does not resolve to exactly one element per data point, in data order. Point at the marks (`rect`, `circle`, `path`), not their `<g>` group, and check the count with the checker (needs `beautifulsoup4`) or in the console: `document.querySelectorAll('#id rect.bar').length`.
 
@@ -23,7 +23,7 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 
 maidr.js 4.8.0 and later carry only English; ko, ja, zh, es, de, fr, it, and hi are locale packs (`locale-<code>.js`) fetched from beside maidr.js. The console says which way it failed:
 
-- `[maidr] Cannot locate the locale pack for "ko"; add <script src="…/locale-ko.js"> or set window.maidrLocaleBaseUrl.` The bundle is pasted inline and has no URL. Put `<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";</script>` before it, and for an offline file paste the reader's pack too.
+- `[maidr] Cannot locate the locale pack for "ko"; add <script src="…/locale-ko.js"> or set window.maidrLocaleBaseUrl.` The bundle is pasted inline and has no URL. Put `<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/";</script>` before it, and for an offline file paste the reader's pack too.
 - `[maidr] Could not load the locale pack at …/locale-ko.js; announcements stay in English.` The directory maidr.js came from has no packs: a vendored `./maidr.js` (run `python scripts/fetch_locale_packs.py` on its folder), or cdnjs, which mirrors none yet (switch to jsDelivr).
 
 Until a fetched pack arrives the first announcement is English; a page that loads the pack itself (`javascript.md`, Languages) speaks the language from the start.
@@ -85,7 +85,7 @@ Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`;
 **ChatGPT desktop app: Site tools does not list maidr's tools.**
 
 - **The chart is inside an iframe.** Site tools read only the page itself. py-maidr's `save_html()` output qualifies; a notebook render, a chat artifact or a `visualize` fragment does not.
-- **maidr.js is older than 4.11.0**, the first release that registers the tools.
+- **maidr.js is older than 4.12.0**, the first release that registers the tools.
 - **The tools are switched off.** Either the page carries `<meta name="maidr-webmcp" content="off">`, or the reader unchecked **Browser AI Agent Access** under maidr's Settings > General.
 - **Site tools are off in the app.** Check three things:
   - Settings > Browser > Permissions > Enable site tools is on.

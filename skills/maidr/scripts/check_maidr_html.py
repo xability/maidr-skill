@@ -31,7 +31,7 @@ import re
 import sys
 from html.parser import HTMLParser
 
-MAIDR_VERSION = "4.11.0"
+MAIDR_VERSION = "4.12.0"
 
 STABLE = {
     "bar", "box", "candlestick", "dodged_bar", "heat", "hist", "line", "pie", "point", "smooth",
@@ -77,7 +77,7 @@ POINT_FIELDS = {
 #   bar family: a string, or an array with exactly one selector per point (single-row data)
 #   point / pie: a string only
 #   heat: a string naming every cell (or one raster <image>), or a selectors[row][column] grid
-#   (a flat list of strings where these read a string is the pre-4.0 shape: 4.11.0 joins it and
+#   (a flat list of strings where these read a string is the pre-4.0 shape: 4.12.0 joins it and
 #   warns, older 4.x releases highlight nothing; the checker warns and checks the joined string)
 #   line family: an array with one selector per series; a bare string is one series. Each entry
 #                names the series' path/polyline/polygon, or one marker per point; a contour
@@ -437,7 +437,7 @@ def check_heat_selectors(selectors, data, where: str, soup, rep: Report) -> None
             rep.error(f"{where}: a heat layer takes one string or a selectors[row][column] grid; this list is neither and nothing is highlighted")
             return
         joined = ", ".join(selectors)
-        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a 'heat' layer reads one selector string or a grid; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.11.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a 'heat' layer reads one selector string or a grid; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.12.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
         selectors = joined
     if isinstance(selectors, list):
         if len(selectors) != rows or any(not isinstance(row, list) or len(row) != cols for row in selectors):
@@ -485,7 +485,7 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
 
     # A flat list of strings where the type reads one string -- any list on point/pie, a bar list
     # that is not one entry per point, a flat list on a segmented layer -- is the shape producers
-    # emitted for maidr.js before 4.0. maidr 4.11.0 joins it into one selector list and warns in
+    # emitted for maidr.js before 4.0. maidr 4.12.0 joins it into one selector list and warns in
     # the console (src/util/selectors.ts joinSelectorList, #1275); earlier 4.x releases read it as
     # nothing. So it is checked as the joined string, and flagged, since only a string is the
     # contract.
@@ -495,7 +495,7 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
                    or (layer_type in BAR_FAMILY and len(selectors) != n_points)))
     if legacy:
         joined = ", ".join(selectors)
-        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a '{layer_type}' layer reads one selector string; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.11.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
+        rep.warn(f"{where}: selectors is a list of {len(selectors)} string(s) but a '{layer_type}' layer reads one selector string; maidr {MAIDR_VERSION} joins the list and warns in the console, and 4.x releases before 4.12.0 highlight nothing -- emit the string instead: {json.dumps(joined)[:120]}")
         if layer_type in SEGMENTED and not (isinstance(dom_mapping, dict) and dom_mapping.get("order")):
             # a legacy segmented list over <rect> marks is walked category by category, as before #1135
             try:

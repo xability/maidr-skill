@@ -12,7 +12,7 @@ param([string]$Dir = ".")
 $ErrorActionPreference = "SilentlyContinue"
 # The vendored release (assets/maidr.js). Pages use the latest release on npm instead,
 # resolved below, and fall back to this one when the lookup fails or answers older.
-$MaidrJsVersion = "4.11.0"
+$MaidrJsVersion = "4.12.0"
 
 # ---------- Latest maidr.js release ----------
 # Asked once, from the npm registry's dist-tags. Only a plain X.Y.Z answer is used, and
