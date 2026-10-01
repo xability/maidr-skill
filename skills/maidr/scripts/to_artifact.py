@@ -20,9 +20,10 @@ pinned maidr.js <script src>:
     their own document shell (the Claude Code Artifact tool). Without it a full document is kept, which is
     what a claude.ai chat artifact takes.
   * --visualize emits the fragment ChatGPT Work's visualize surface takes: no <title>, everything inside one
-    root element with an id, the chart scaled down to the frame's width. It fails when a resource would
-    still come from a host outside that surface's CSP, or the fragment reaches 1 MB, and otherwise prints
-    the visualize{...} line the reply carries where the chart should appear.
+    root element with an id, the chart scaled down to the frame's width. It fails when the fragment would
+    load something from a host outside that surface's CSP or from a local path, when an inline script makes
+    a request (fetch, XHR, WebSocket), or when the fragment reaches 1 MB, and otherwise prints the
+    visualize{...} line the reply carries where the chart should appear.
 
 Only the standard library is used. Run scripts/check_maidr_html.py on the result afterwards.
 """
@@ -34,6 +35,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import urlsplit
 
 DEFAULT_VERSION = "4.11.0"
 # the script that loads the bundle, not a maidrLocaleBaseUrl or maidrMathStylesheetUrl declaration naming its directory
@@ -59,8 +61,21 @@ VISUALIZE_HOSTS = frozenset({
     "fonts.googleapis.com", "fonts.gstatic.com", "fonts.bunny.net",
 })
 VISUALIZE_LIMIT = 1_000_000
-RESOURCE_HOST = re.compile(
-    r"<(?:script|link|img|source|audio|video|iframe)\b[^>]*\b(?:src|href)=[\"']https?://([^/\"':]+)", re.I)
+# Everywhere a fragment can name something for the frame to load: a resource attribute on any element but <a>,
+# which navigates rather than loads; each candidate in a srcset; url() and @import in CSS, in <style> or a style
+# attribute. Inline code is checked for the request APIs the skill rules out ("Never use fetch, XHR,
+# WebSocket, or other API calls"). Script and style bodies are not markup, so tags are read with them emptied,
+# and a script whose type is not JavaScript (a JSON data island) is not code.
+TAG = re.compile(r"<([a-zA-Z][\w:-]*)\b([^>]*)>")
+BODY = re.compile(r"(<(script|style)\b[^>]*>).*?(</\2>)", re.S | re.I)
+SCRIPT = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
+SCRIPT_TYPE = re.compile(r"""\btype\s*=\s*["']?\s*([^"'\s>]+)""", re.I)
+JS_TYPES = frozenset({"module", "text/javascript", "application/javascript", "text/ecmascript"})
+RESOURCE_ATTR = re.compile(r"""(?<![\w:-])(src|href|xlink:href|srcset|poster|data)\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+STYLE_BLOCK = re.compile(r"<style\b[^>]*>(.*?)</style>", re.S | re.I)
+STYLE_ATTR = re.compile(r"""(?<![\w:-])style\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+CSS_URL = re.compile(r"""url\(\s*['"]?([^'")\s]+)|@import\s+['"]([^'"]+)""", re.I)
+REQUEST_API = re.compile(r"\b(fetch(?=\s*\()|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\b")
 
 
 def cdn_url(host: str, version: str) -> str:
@@ -146,8 +161,42 @@ def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
     style = (f"<style>#{root_id} svg[maidr], #{root_id} svg[maidr-data] "
              "{ max-width: 100%; height: auto; }</style>")
     out = f'<div id="{root_id}">\n{style}\n{body}</div>\n'
-    blocked = sorted({host.lower() for host in RESOURCE_HOST.findall(out)} - VISUALIZE_HOSTS)
-    return out, blocked
+    return out, visualize_problems(out)
+
+
+def visualize_problems(fragment_html: str) -> list[str]:
+    """What in a fragment the visualize surface would not load: other hosts, local files, requests."""
+    urls = []
+    markup = BODY.sub(r"\1\3", fragment_html)
+    for name, attrs in TAG.findall(markup):
+        if name.lower() == "a":
+            continue
+        for attr, double, single in RESOURCE_ATTR.findall(attrs):
+            value = double or single
+            if attr.lower() == "srcset":
+                urls += [candidate.split()[0] for candidate in value.split(",") if candidate.strip()]
+            else:
+                urls.append(value)
+    css = STYLE_BLOCK.findall(fragment_html) + [d or s for d, s in STYLE_ATTR.findall(markup)]
+    urls += [first or second for block in css for first, second in CSS_URL.findall(block)]
+    problems = set()
+    for url in (u.strip() for u in urls):
+        if not url or url.startswith(("#", "data:", "blob:", "about:")):
+            continue                              # in-page references and inline data load nothing from a host
+        parts = urlsplit("https:" + url if url.startswith("//") else url)
+        if parts.scheme in ("http", "https"):
+            host = (parts.hostname or "").lower()
+            if host not in VISUALIZE_HOSTS:
+                problems.add(f"{host} is outside the visualize CSP, so {url} will not load there")
+        else:
+            problems.add(f"{url} is a local path, and the visualize surface has no files beside the fragment")
+    for attrs, code in SCRIPT.findall(fragment_html):
+        kind = SCRIPT_TYPE.search(attrs)
+        if re.search(r"\bsrc\s*=", attrs, re.I) or (kind and kind.group(1).lower() not in JS_TYPES):
+            continue
+        for api in REQUEST_API.findall(code):
+            problems.add(f"an inline script uses {api}, which the visualize surface blocks")
+    return sorted(problems)
 
 
 def main(argv: list[str]) -> int:
@@ -164,10 +213,10 @@ def main(argv: list[str]) -> int:
         html = fh.read()
     out, version = convert(html, a.cdn, a.title)
     dest = a.output or re.sub(r"\.html?$", "", a.source) + "-artifact.html"
-    blocked: list[str] = []
+    problems: list[str] = []
     if a.visualize:
         stem = os.path.splitext(os.path.basename(dest))[0].lower()
-        out, blocked = visualize(out, "maidr-" + (re.sub(r"[^a-z0-9]+", "-", stem).strip("-") or "chart"))
+        out, problems = visualize(out, "maidr-" + (re.sub(r"[^a-z0-9]+", "-", stem).strip("-") or "chart"))
     elif a.fragment:
         out = fragment(out)
     with open(dest, "w", encoding="utf-8") as fh:
@@ -178,8 +227,6 @@ def main(argv: list[str]) -> int:
     print(f"next: python {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'check_maidr_html.py')} {dest}")
     if not a.visualize:
         return 0
-    problems = [f"{host} is outside the visualize CSP, so what the page loads from it will not load there"
-                for host in blocked]
     if size >= VISUALIZE_LIMIT:
         problems.append(f"the visualize surface takes fragments under {VISUALIZE_LIMIT:,} bytes; plot fewer points, "
                         "or set plt.rcParams['svg.fonttype'] = 'none' before drawing")

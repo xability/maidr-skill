@@ -151,7 +151,7 @@ Plotly and Bokeh pages carry their maidr.js loader inside the script that also d
 - It lets a matplotlib SVG scale down to a narrow frame.
 - It prints the `visualize{"path": ...}` line for the reply.
 
-The script exits non-zero instead if a resource would come from a host outside the CSP, or if the fragment reaches 1 MB. Vega, behind Altair charts, compiles expressions with `eval`, which that CSP may refuse, so prefer matplotlib or seaborn there.
+The script exits non-zero instead if the fragment would load anything from a host outside the CSP or from a local path, if an inline script makes a request, or if the fragment reaches 1 MB. Vega, behind Altair charts, compiles expressions with `eval`, which that CSP may refuse, so prefer matplotlib or seaborn there.
 
 ## Gotchas
 

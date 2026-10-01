@@ -115,6 +115,49 @@ class VisualizeTest(unittest.TestCase):
         self.assertIn("example.com", proc.stderr)
         self.assertNotIn("visualize{", proc.stdout)
 
+    def test_every_way_of_loading_from_a_blocked_host_fails(self):
+        cases = {
+            "css @import": '<style>@import url("https://blocked.example/chart.css");</style>',
+            "css url()": '<div style="background: url(https://blocked.example/bg.png)"></div>',
+            "srcset": '<img srcset="https://cdn.jsdelivr.net/npm/x/a.png 1x, https://blocked.example/b.png 2x">',
+            "svg image": '<svg><image href="https://blocked.example/i.png"/></svg>',
+            "protocol-relative": '<script src="//blocked.example/x.js"></script>',
+        }
+        for form, snippet in cases.items():
+            with self.subTest(form=form):
+                proc, _, _ = self.run_script(fixture("box.html").replace("</body>", snippet + "</body>"))
+                self.assertEqual(proc.returncode, 1)
+                self.assertIn("blocked.example", proc.stderr)
+                self.assertNotIn("visualize{", proc.stdout)
+
+    def test_requests_and_local_files_fail(self):
+        cases = {
+            "fetch": ("<script>fetch('/data.json')</script>", "fetch"),
+            "XMLHttpRequest": ("<script>new XMLHttpRequest()</script>", "XMLHttpRequest"),
+            "WebSocket": ("<script>new WebSocket('wss://blocked.example')</script>", "WebSocket"),
+            "local file": ('<script src="./chart-data.js"></script>', "./chart-data.js"),
+        }
+        for form, (snippet, needle) in cases.items():
+            with self.subTest(form=form):
+                proc, _, _ = self.run_script(fixture("box.html").replace("</body>", snippet + "</body>"))
+                self.assertEqual(proc.returncode, 1)
+                self.assertIn(needle, proc.stderr)
+
+    def test_links_and_in_page_references_pass(self):
+        # A link navigates rather than loads, and xlink:href="#id" points inside the page, as matplotlib's do.
+        page = fixture("box.html").replace(
+            "</body>", '<a href="https://example.com/about">About</a><svg><use xlink:href="#m1"/></svg></body>')
+        proc, _, _ = self.run_script(page)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_data_and_strings_inside_scripts_pass(self):
+        # A JSON data island is not code, and markup quoted inside a script is not a tag on the page.
+        snippet = ('<script type="application/json" id="d">{"step": "fetch the logs"}</script>'
+                   "<script>var tip = '<img src=\"https://example.com/i.png\">';</script>"
+                   '<img data-src="https://example.com/lazy.png" alt="">')
+        proc, _, _ = self.run_script(fixture("box.html").replace("</body>", snippet + "</body>"))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
     def test_a_fragment_of_1_mb_fails(self):
         page = fixture("box.html").replace("</svg>", "<!--" + "x" * 1_000_000 + "--></svg>", 1)
         proc, _, _ = self.run_script(page)
