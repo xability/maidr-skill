@@ -76,7 +76,7 @@ cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 
 ## Network access and data
 
-The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It has no hooks, no MCP servers, and no background processes, and it needs no account or API key of its own. It collects no telemetry and sets no cookies, and nothing it does is sent to its authors or to Anthropic. This section lists everything an agent with the skill installed can run, fetch, or send, and what the chart pages it writes do when a reader opens them.
+The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It has no hooks, no MCP servers, and no background processes, and it needs no account or API key of its own. It collects no telemetry and sets no cookies, and nothing it does is sent to its authors or to Anthropic. This section lists everything an agent with the skill installed can run, fetch, or send, and what the chart pages it writes do when a reader opens them. The same facts, as a policy, are in [PRIVACY.md](PRIVACY.md).
 
 ### What the agent runs
 
