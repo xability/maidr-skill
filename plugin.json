@@ -33,6 +33,7 @@
         "category": "Developer Tools",
         "websiteURL": "https://maidr.ai",
         "supportURL": "https://github.com/xability/maidr-skill/issues",
+        "privacyPolicyURL": "https://github.com/xability/maidr-skill/blob/main/PRIVACY.md",
         "defaultPrompt": [
           "Make this chart accessible with maidr.",
           "Plot this CSV as a bar chart that screen-reader users can explore.",
