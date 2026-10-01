@@ -143,6 +143,8 @@ maidr.save_html(fig, "chart.html", use_cdn=True)
 
 Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own, such as the Claude Code Artifact tool. In claude.ai, paste the full document as an HTML artifact. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
 
+Plotly and Bokeh pages carry their maidr.js loader inside the script that also draws the chart, so `to_artifact.py` keeps that script and puts the pinned tag ahead of it, where that loader finds it. They also load their library from cdn.plot.ly or cdn.bokeh.org, which the sandboxes block; the script switches it to the same file, byte for byte, on jsDelivr.
+
 ## Gotchas
 
 1. `MPLBACKEND` set to a GUI backend (TkAgg, QtAgg, MacOSX) stops `import maidr` from taking over `plt.show()`. Call `maidr.show(fig)` explicitly.

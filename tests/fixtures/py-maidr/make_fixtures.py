@@ -83,8 +83,27 @@ def box():
     return fig
 
 
+def plotly_bar():
+    # A Plotly figure: the page loads plotly.js from cdn.plot.ly, and its maidr.js loader sits inside the
+    # script that also carries the chart's MAIDR JSON.
+    import plotly.graph_objects as go
+
+    return go.Figure(go.Bar(x=["A", "B", "C"], y=[1, 3, 2]))
+
+
+def bokeh_bar():
+    # A Bokeh figure: the page loads BokehJS from cdn.bokeh.org, and its maidr.js loader sits inside the
+    # script that also embeds the Bokeh document.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["A", "B", "C"], title="Counts")
+    p.vbar(x=["A", "B", "C"], top=[1, 3, 2], width=0.5)
+    return p
+
+
 FIXTURES = {"empty_panel": empty_panel, "roc": roc, "hexbin": hexbin, "contour": contour,
-            "errorbar": errorbar, "gantt": gantt, "box": box}
+            "errorbar": errorbar, "gantt": gantt, "box": box,
+            "plotly_bar": plotly_bar, "bokeh_bar": bokeh_bar}
 
 for name in sys.argv[1:] or FIXTURES:
     maidr.save_html(FIXTURES[name](), file=os.path.join(OUT, f"{name}.html"))

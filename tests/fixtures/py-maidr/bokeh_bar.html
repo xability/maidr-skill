@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <script type="application/html-dependencies">maidr[4.11.0]</script>
+  </head>
+  <body>
+    <div>
+      <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.9.2.min.js"></script>
+      <script>Bokeh.set_log_level("info");</script>
+      <div id="maidr-bokeh-457424c2-ba48-4875-8beb-4bf61ae3a9ab">
+        <div id="maidr-bokeh-457424c2-ba48-4875-8beb-4bf61ae3a9ab-plot"></div>
+      </div>
+      <script type="text/javascript">(function() {
+    var item = {"target_id": null, "root_id": "p1006", "doc": {"version": "3.9.2", "title": "", "config": {"type": "object", "name": "DocumentConfig", "id": "p1051", "attributes": {"notifications": {"type": "object", "name": "Notifications", "id": "p1052"}}}, "roots": [{"type": "object", "name": "Figure", "id": "p1006", "attributes": {"x_range": {"type": "object", "name": "FactorRange", "id": "p1016", "attributes": {"factors": ["A", "B", "C"]}}, "y_range": {"type": "object", "name": "DataRange1d", "id": "p1008"}, "x_scale": {"type": "object", "name": "CategoricalScale", "id": "p1017"}, "y_scale": {"type": "object", "name": "LinearScale", "id": "p1018"}, "title": {"type": "object", "name": "Title", "id": "p1009", "attributes": {"text": "Counts"}}, "renderers": [{"type": "object", "name": "GlyphRenderer", "id": "p1048", "attributes": {"data_source": {"type": "object", "name": "ColumnDataSource", "id": "p1042", "attributes": {"selected": {"type": "object", "name": "Selection", "id": "p1043", "attributes": {"indices": [], "line_indices": []}}, "selection_policy": {"type": "object", "name": "UnionRenderers", "id": "p1044"}, "data": {"type": "map", "entries": [["x", ["A", "B", "C"]], ["top", [1, 3, 2]]]}}}, "view": {"type": "object", "name": "CDSView", "id": "p1049", "attributes": {"filter": {"type": "object", "name": "AllIndices", "id": "p1050"}}}, "glyph": {"type": "object", "name": "VBar", "id": "p1045", "attributes": {"x": {"type": "field", "field": "x"}, "width": {"type": "value", "value": 0.5}, "top": {"type": "field", "field": "top"}, "line_color": {"type": "value", "value": "#1f77b4"}, "fill_color": {"type": "value", "value": "#1f77b4"}}}, "nonselection_glyph": {"type": "object", "name": "VBar", "id": "p1046", "attributes": {"x": {"type": "field", "field": "x"}, "width": {"type": "value", "value": 0.5}, "top": {"type": "field", "field": "top"}, "line_color": {"type": "value", "value": "#1f77b4"}, "line_alpha": {"type": "value", "value": 0.1}, "fill_color": {"type": "value", "value": "#1f77b4"}, "fill_alpha": {"type": "value", "value": 0.1}, "hatch_alpha": {"type": "value", "value": 0.1}}}, "muted_glyph": {"type": "object", "name": "VBar", "id": "p1047", "attributes": {"x": {"type": "field", "field": "x"}, "width": {"type": "value", "value": 0.5}, "top": {"type": "field", "field": "top"}, "line_color": {"type": "value", "value": "#1f77b4"}, "line_alpha": {"type": "value", "value": 0.2}, "fill_color": {"type": "value", "value": "#1f77b4"}, "fill_alpha": {"type": "value", "value": 0.2}, "hatch_alpha": {"type": "value", "value": 0.2}}}}}], "toolbar": {"type": "object", "name": "Toolbar", "id": "p1015", "attributes": {"tools": [{"type": "object", "name": "PanTool", "id": "p1029"}, {"type": "object", "name": "WheelZoomTool", "id": "p1030", "attributes": {"renderers": "auto"}}, {"type": "object", "name": "BoxZoomTool", "id": "p1031", "attributes": {"overlay": {"type": "object", "name": "BoxAnnotation", "id": "p1032", "attributes": {"syncable": false, "line_color": "black", "line_alpha": 1.0, "line_width": 2, "line_dash": [4, 4], "fill_color": "lightgrey", "fill_alpha": 0.5, "level": "overlay", "visible": false, "left": {"type": "number", "value": "nan"}, "right": {"type": "number", "value": "nan"}, "top": {"type": "number", "value": "nan"}, "bottom": {"type": "number", "value": "nan"}, "left_units": "canvas", "right_units": "canvas", "top_units": "canvas", "bottom_units": "canvas", "handles": {"type": "object", "name": "BoxInteractionHandles", "id": "p1038", "attributes": {"all": {"type": "object", "name": "AreaVisuals", "id": "p1037", "attributes": {"fill_color": "white", "hover_fill_color": "lightgray"}}}}}}}}, {"type": "object", "name": "SaveTool", "id": "p1039"}, {"type": "object", "name": "ResetTool", "id": "p1040"}, {"type": "object", "name": "HelpTool", "id": "p1041"}]}}, "left": [{"type": "object", "name": "LinearAxis", "id": "p1024", "attributes": {"ticker": {"type": "object", "name": "BasicTicker", "id": "p1025", "attributes": {"mantissas": [1, 2, 5]}}, "formatter": {"type": "object", "name": "BasicTickFormatter", "id": "p1026"}, "major_label_policy": {"type": "object", "name": "AllLabels", "id": "p1027"}}}], "below": [{"type": "object", "name": "CategoricalAxis", "id": "p1019", "attributes": {"ticker": {"type": "object", "name": "CategoricalTicker", "id": "p1020"}, "formatter": {"type": "object", "name": "CategoricalTickFormatter", "id": "p1021"}, "major_label_policy": {"type": "object", "name": "AllLabels", "id": "p1022"}}}], "center": [{"type": "object", "name": "Grid", "id": "p1023", "attributes": {"axis": {"id": "p1019"}}}, {"type": "object", "name": "Grid", "id": "p1028", "attributes": {"dimension": 1, "axis": {"id": "p1024"}}}]}}]}, "version": "3.9.2"};
+    var schema = {"id": "43321b21-df23-4bef-9efc-352af3151178", "subplots": [[{"id": "d31f7990-ed36-4ea6-b0b8-7a7107dcbba1", "layers": [{"id": "99d8752f-acb1-4c21-b8f9-c570d41b4b1a", "type": "bar", "title": "Counts", "axes": {"x": {"label": "X"}, "y": {"label": "Y"}}, "data": [{"x": "A", "y": 1}, {"x": "B", "y": 3}, {"x": "C", "y": 2}], "orientation": "vert"}]}]]};
+    var highlight = {"99d8752f-acb1-4c21-b8f9-c570d41b4b1a": {"kind": "select", "grid": [[["p1048", 0], ["p1048", 1], ["p1048", 2]]]}};
+    var panels = [];
+    var wrapper = document.getElementById("maidr-bokeh-457424c2-ba48-4875-8beb-4bf61ae3a9ab");
+    var targetId = "maidr-bokeh-457424c2-ba48-4875-8beb-4bf61ae3a9ab-plot";
+    var started = Date.now();
+
+    function whenParsed(then) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', then);
+        } else {
+            then();
+        }
+    }
+
+    function whenBokeh(then) {
+        if (window.Bokeh && window.Bokeh.embed && window.Bokeh.embed.embed_item) {
+            then();
+        } else if (Date.now() - started < 30000) {
+            setTimeout(function() { whenBokeh(then); }, 50);
+        } else if (window.console) {
+            console.error('[maidr] BokehJS did not load, so the chart cannot be drawn.');
+        }
+    }
+
+    function bokehDocument() {
+        var docs = (window.Bokeh && window.Bokeh.documents) || [];
+        for (var i = docs.length - 1; i >= 0; i--) {
+            if (docs[i].get_model_by_id(item.root_id)) return docs[i];
+        }
+        return null;
+    }
+
+    // --- Highlight: MAIDR's onNavigate, answered in the Bokeh document. ---
+    function highlighter(doc) {
+        function model(id) { return doc.get_model_by_id(id); }
+        function sources() {
+            var out = [];
+            Object.keys(highlight).forEach(function(layerId) {
+                var entry = highlight[layerId];
+                var cells = entry.kind === 'points' ? entry.points
+                    : entry.kind === 'select'
+                        ? [].concat.apply([], entry.grid || entry.columns) : [];
+                cells.forEach(function(cell) {
+                    var r = cell && model(cell[0]);
+                    if (r && out.indexOf(r.data_source) < 0) out.push(r.data_source);
+                });
+            });
+            return out;
+        }
+        var selectable = sources();
+        function clear() {
+            selectable.forEach(function(source) {
+                if (source.selected.indices.length) source.selected.indices = [];
+            });
+            Object.keys(highlight).forEach(function(layerId) {
+                var entry = highlight[layerId];
+                var cursor = entry.kind === 'cursor' && model(entry.cursor);
+                if (cursor && cursor.data_source.data.x.length) {
+                    cursor.data_source.data = { x: [], y: [] };
+                }
+            });
+        }
+        // The marks MAIDR is on: a point cloud reports indices into its
+        // data, every other layer a row and column -- of which a candlestick's
+        // row is only the price being read, so its marks are keyed by column.
+        function cellsAt(entry, info) {
+            if (entry.points) {
+                return (info.pointIndices || []).map(function(i) {
+                    return entry.points[i];
+                }).filter(Boolean);
+            }
+            if (entry.columns) {
+                return (entry.columns[info.col] || []).filter(Boolean);
+            }
+            var row = entry.grid[info.row];
+            var cell = row && row[info.col];
+            return cell ? [cell] : [];
+        }
+        function onNavigate(info) {
+            clear();
+            if (!info) return;
+            var entry = highlight[info.layerId];
+            if (!entry) return;
+            var cells = cellsAt(entry, info);
+            if (!cells.length) return;
+            if (entry.kind === 'cursor') {
+                var cursor = model(entry.cursor);
+                if (cursor) {
+                    cursor.data_source.data = {
+                        x: cells.map(function(c) { return c[0]; }),
+                        y: cells.map(function(c) { return c[1]; })
+                    };
+                }
+                return;
+            }
+            var byRenderer = {};
+            cells.forEach(function(cell) {
+                (byRenderer[cell[0]] = byRenderer[cell[0]] || []).push(cell[1]);
+            });
+            Object.keys(byRenderer).forEach(function(id) {
+                var r = model(id);
+                if (r) r.data_source.selected.indices = byRenderer[id];
+            });
+        }
+        return { onNavigate: onNavigate, clear: clear };
+    }
+
+    // The callback cannot travel in maidr-data, which is JSON, so it is
+    // handed over through the live-data API once the chart has mounted:
+    // maidr.js builds the chart's controller from the data stored there on
+    // the next focus-in, and that is where onNavigate is wired.
+    function registerHighlight(doc) {
+        if (!doc || !Object.keys(highlight).length) return;
+        var hl = highlighter(doc);
+        var article = 'maidr-article-' + schema.id;
+        var full = Object.assign({}, schema, { onNavigate: hl.onNavigate });
+        function attempt() {
+            if (Date.now() - started > 2 * 30000) return;
+            if (!window.maidrLive || !document.getElementById(article)) {
+                setTimeout(attempt, 50);
+                return;
+            }
+            // The article is committed a frame before the chart registers
+            // itself for live data, in an effect.
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    if (!window.maidrLive.setData(full)) {
+                        setTimeout(attempt, 100);
+                        return;
+                    }
+                    // A reader who focused the chart before now has a
+                    // controller built without the callback, and maidr.js
+                    // builds another only on the next focus-in. A live
+                    // update is the one thing it swaps into a running
+                    // controller -- silently, keeping the reader's place --
+                    // so the data goes once more as one, then back as the
+                    // static chart it is for every later focus-in.
+                    var el = document.getElementById(article);
+                    if (el && el.contains(document.activeElement)) {
+                        window.maidrLive.setData(
+                            Object.assign({}, full, { live: true }));
+                        window.maidrLive.setData(full);
+                    }
+                });
+            });
+        }
+        attempt();
+        // MAIDR tears its controller down when focus leaves the chart and
+        // reports nothing, so the highlight is cleared here instead.
+        document.addEventListener('focusout', function() {
+            setTimeout(function() {
+                var el = document.getElementById(article);
+                if (el && !el.contains(document.activeElement)) hl.clear();
+            }, 0);
+        });
+    }
+
+    // --- Subplot geometry: see BokehMaidr._panels. ---
+    function placePanels(views) {
+        if (!panels.length || !views || typeof views.find_one_by_id !== 'function') {
+            return;
+        }
+        function measure() {
+            var boxes = panels.map(function(panel) {
+                var view = panel[1] && views.find_one_by_id(panel[1]);
+                return view && view.el ? view.el.getBoundingClientRect() : null;
+            });
+            var width = Math.max.apply(null, schema.subplots.map(function(row) {
+                return row.length;
+            }));
+            function near(i, sameRow) {
+                for (var j = 0; j < boxes.length; j++) {
+                    var alike = sameRow
+                        ? Math.floor(j / width) === Math.floor(i / width)
+                        : j % width === i % width;
+                    if (boxes[j] && alike) return boxes[j];
+                }
+                return null;
+            }
+            var origin = wrapper.getBoundingClientRect();
+            panels.forEach(function(panel, i) {
+                var rowBox = boxes[i] || near(i, true);
+                var colBox = boxes[i] || near(i, false);
+                if (!rowBox || !colBox) return;
+                var el = document.getElementById(panel[0]);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = panel[0];
+                    el.setAttribute('aria-hidden', 'true');
+                    wrapper.appendChild(el);
+                }
+                el.style.cssText = 'position:absolute;pointer-events:none;'
+                    + 'visibility:hidden;'
+                    + 'left:' + (colBox.left - origin.left - wrapper.clientLeft) + 'px;'
+                    + 'top:' + (rowBox.top - origin.top - wrapper.clientTop) + 'px;'
+                    + 'width:' + colBox.width + 'px;height:' + rowBox.height + 'px;';
+            });
+        }
+        if (getComputedStyle(wrapper).position === 'static') {
+            wrapper.style.position = 'relative';
+        }
+        measure();
+        // Kept current as the layout reflows; MAIDR measures on focus-in.
+        if (window.ResizeObserver) new ResizeObserver(measure).observe(wrapper);
+        document.addEventListener('focusin', measure, true);
+    }
+
+    function announce() {
+        wrapper.dispatchEvent(new CustomEvent('maidr:bindchart', { bubbles: true }));
+    }
+
+    function bind(views) {
+        if (!schema || !wrapper) return;
+        try {
+            placePanels(views);
+        } catch (error) {
+            if (window.console) {
+                console.warn('[maidr] could not measure the subplots:', error);
+            }
+        }
+        wrapper.setAttribute('maidr-data', JSON.stringify(schema));
+        if (window.maidrLive) {
+            announce();
+            registerHighlight(bokehDocument());
+            return;
+        }
+
+
+    function reportNoRuntime(why) {
+        console.error(
+            '[maidr] The chart loaded but its runtime did not: '
+            + why + '. The CDN was unreachable and the bundled '
+            + 'copy could not be resolved from inside this frame. '
+            + 'Re-render with use_cdn=False to inline the bundle, '
+            + 'which works without network access.'
+        );
+    }
+
+                    var existing = document.querySelector(
+                        'script[src="https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr.js"]'
+                    );
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/maidr.js';
+                        s.onerror = function() {
+                            window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.11.0/dist/";
+                            var fb = document.createElement('script');
+                            fb.src = 'lib/maidr-4.11.0/maidr.js';
+                            // The path resolves wherever the host serves the
+                            // copied bundle -- save_html, a Shiny app -- and
+                            // cannot inside a srcdoc iframe nobody serves
+                            // those files for. Without this the chart is an
+                            // image with no runtime and nothing said.
+                            fb.onerror = function() {
+                                reportNoRuntime(
+                                    'the bundled copy at lib/maidr-4.11.0/maidr.js '
+                                    + 'did not load'
+                                );
+                            };
+                            document.head.appendChild(fb);
+                        };
+                        document.head.appendChild(s);
+                    }
+                
+        // maidr.js reads maidr-data on its first scan only when the page
+        // holds no [maidr] chart, so beside a matplotlib or Plotly chart it
+        // passes this one by. Once it has run, a chart it did not mount --
+        // which it marks with data-maidr-value -- is announced to it.
+        (function whenRuntime() {
+            if (window.maidrLive) {
+                if (!wrapper.hasAttribute('data-maidr-value')) announce();
+            } else if (Date.now() - started < 2 * 30000) {
+                setTimeout(whenRuntime, 50);
+            }
+        })();
+        registerHighlight(bokehDocument());
+    }
+
+    whenParsed(function() {
+        whenBokeh(function() {
+            window.Bokeh.embed.embed_item(item, targetId).then(bind, function(error) {
+                if (window.console) console.error('[maidr] Bokeh could not draw the chart:', error);
+            });
+        });
+    });
+})();</script>
+    </div>
+  </body>
+</html>
