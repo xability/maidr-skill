@@ -80,7 +80,7 @@ Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`;
 - **The reply does not name the file.** It needs `visualize{"path":"/workspace/<title>.html"}` on a line of its own, with the absolute path of a file directly in `/workspace`.
 - **The file is a full page.** It has to be a fragment, with no `<!doctype>`, `<html>`, `<head>` or `<body>`, under 1 MB, loading only from jsDelivr, cdnjs, unpkg or esm.sh. `scripts/to_artifact.py --visualize` produces that, and exits non-zero when a page breaks one of those rules.
 - **The chart is from Plotly or Bokeh.** Run the page through that script, which moves their library off cdn.plot.ly and cdn.bokeh.org.
-- **The chart is from Altair.** Vega needs `eval`, which the frame may refuse. Draw it with matplotlib or seaborn there.
+- **The chart is from Altair.** Vega compiles its expressions to code at run time, which the frame may refuse. Draw it with matplotlib or seaborn there.
 
 **ChatGPT desktop app: Site tools does not list maidr's tools.**
 
