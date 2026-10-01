@@ -9,6 +9,8 @@ and cannot read local files. This script makes a page depend on exactly one pinn
 
   * py-maidr's inline loader block (which injects the jsDelivr URL, plus a lib/ fallback in "auto" mode) is
     replaced by a plain <script src> tag; any remaining lib/ references are dropped.
+  * plotly.js and BokehJS move from their own CDNs, which those sandboxes block, to the same files on
+    jsDelivr's npm mirror.
   * --cdn cdnjs switches that tag to cdnjs (only the core file is mirrored there, which is all a py-maidr or
     hand-authored page needs); the default keeps jsDelivr. cdnjs carries no locale packs yet
     (cdnjs/packages#2205), so on cdnjs every reader hears English; keep jsDelivr unless only cdnjs is allowed.
@@ -32,6 +34,16 @@ DEFAULT_VERSION = "4.11.0"
 LOADER = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@[^/\s\"']+/dist/maidr(?:\.min)?\.js(?:(?!</script>).)*?</script>", re.S | re.I)
 CORE_SRC = re.compile(r"<script\b[^>]*\bsrc=[\"'][^\"']*maidr(?:\.min)?\.js[\"'][^>]*>\s*</script>", re.I)
 LIB_REFS = re.compile(r"<(?:link|script)\b[^>]*(?:href|src)=[\"'][^\"']*lib/maidr[^\"']*[\"'][^>]*>(?:\s*</script>)?", re.I)
+# py-maidr's Plotly and Bokeh pages load the library from its own CDN, which the chat sandboxes block: claude.ai and
+# Claude Code artifacts admit jsDelivr's /npm/ paths but not cdn.plot.ly or cdn.bokeh.org. jsDelivr's npm mirror
+# serves the same files byte for byte (compared for plotly.js 3.5.0 and BokehJS 3.9.2, including the widgets,
+# tables, gl, mathjax and api extensions).
+MIRRORS = (
+    (re.compile(r"https://cdn\.plot\.ly/plotly-(\d+\.\d+\.\d+)\.min\.js"),
+     r"https://cdn.jsdelivr.net/npm/plotly.js-dist-min@\1/plotly.min.js"),
+    (re.compile(r"https://cdn\.bokeh\.org/bokeh/release/bokeh((?:-[a-z]+)?)-(\d+\.\d+\.\d+)\.min\.js"),
+     r"https://cdn.jsdelivr.net/npm/@bokeh/bokehjs@\2/build/js/bokeh\1.min.js"),
+)
 
 
 def cdn_url(host: str, version: str) -> str:
@@ -63,9 +75,23 @@ def convert(html: str, host: str, title: str | None) -> tuple[str, str]:
     m = re.search(r"maidr@(\d+\.\d+\.\d+)", html) or re.search(r"/libs/maidr/(\d+\.\d+\.\d+)/", html)
     version = m.group(1) if m else DEFAULT_VERSION
     tag = f'<script src="{cdn_url(host, version)}"></script>'
+    for pattern, repl in MIRRORS:
+        html = pattern.sub(repl, html)
     html = CORE_SRC.sub("", html)                 # drop static core tags first; one pinned tag is added below
-    html, n_loader = LOADER.subn(tag, html, count=1)
-    html = LOADER.sub("", html)                   # any further loader copies would double-load
+    # py-maidr's Plotly and Bokeh pages put their loader inside the script that also carries the chart and its
+    # MAIDR JSON, so replacing that script would delete the chart. It is kept, with the tag ahead of it: its
+    # loader finds the tag on the page and loads nothing. A loader that is only a loader carries no JSON object.
+    parts, pos, n_loader = [], 0, 0
+    for m in LOADER.finditer(html):
+        parts.append(html[pos:m.start()])
+        carries_chart = '{"' in m.group(0)
+        if n_loader == 0:
+            parts.append(tag + "\n" if carries_chart else tag)
+        if carries_chart:
+            parts.append(m.group(0))              # a further bare loader is dropped: it would double-load
+        n_loader += 1
+        pos = m.end()
+    html = "".join(parts) + html[pos:]
     if n_loader == 0:
         idx = html.lower().find("<svg")           # no loader to replace: put the tag before the first <svg>
         html = html[:idx] + tag + "\n" + html[idx:] if idx >= 0 else tag + "\n" + html
