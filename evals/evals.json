@@ -61,6 +61,20 @@
         "Does not rewrite the chart in Python or another library",
         "Explains how to verify (Tab to the chart, arrow keys)"
       ]
+    },
+    {
+      "id": 5,
+      "name": "chatgpt-work-inline-chart",
+      "prompt": "I'm in ChatGPT Work. Show me a bar chart of our quarterly revenue right here in the chat: Q1 120, Q2 200, Q3 150, Q4 280 (USD thousands). A colleague who uses a screen reader needs to explore it too.",
+      "expected_output": "The agent installs maidr if needed, draws the bar chart with matplotlib (title, axis labels with units), saves it with maidr.save_html(fig, ..., use_cdn=True), converts it with scripts/to_artifact.py --visualize into a fragment directly in /workspace, and puts the printed visualize{\"path\": ...} line on its own line in the reply, followed by the keyboard cheat sheet.",
+      "files": [],
+      "assertions": [
+        "The chart is written as an HTML fragment (no <!doctype>, <html>, <head> or <body>) to a .html file directly in /workspace",
+        "The reply carries a visualize{\"path\": ...} line naming that file, on a line of its own",
+        "The chart is not delivered through genui charts_widget_v2 or as a PNG alone",
+        "The fragment passes scripts/check_maidr_html.py with 0 errors",
+        "The response tells the user how to navigate the chart (Tab, arrow keys, B/T/S)"
+      ]
     }
   ]
 }
