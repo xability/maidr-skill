@@ -45,6 +45,7 @@ R is only for R work. Never move a Python or JavaScript user to R, and never mov
 |---|---|---|
 | claude.ai | The HTML page the binding produced. It surfaces as a card with Preview and Code tabs that renders the page live, and maidr is fully usable inside that preview | The product's own chart or visualize widget |
 | Claude Code | An **HTML artifact** whose content is the page itself | An `.html` file whose path is all the user gets |
+| ChatGPT Work | A **`visualize{"path": ...}` line** in the reply, naming a maidr fragment in `/workspace` (recipe below); the conversation renders that fragment live, with maidr running in it | Its chart widget, `genui{"charts_widget_v2": ...}`, which draws its own chart from your numbers |
 | A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
 | A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
 
@@ -52,7 +53,7 @@ In a chat, build the page as a single self-contained document, keep the MAIDR JS
 
 On claude.ai that card carries a Download button, which makes it look like a plain file, but its Preview tab is a live page: measured on a two-layer candlestick, the chart focuses, arrows move, and the reading is announced. So hand the card over and tell the reader to open the preview. Do not spend a second pass re-emitting the same HTML to make it look more embedded, which produced an identical card after nine minutes.
 
-**Never hand the chart to the product's own visualization widget instead.** A built-in chart, visualize, or analysis widget draws its own picture from your numbers and binds no maidr, so the reader gets an image with a one-line label and nothing to navigate. It is the easiest wrong turn to take in a chat, because the widget looks like the native way to show a chart. The maidr page is the chart; the widget is not a place to put it.
+**Never hand the chart to the product's own visualization widget instead.** A built-in chart, visualize, or analysis widget draws its own picture from your numbers and binds no maidr, so the reader gets an image with a one-line label and nothing to navigate. It is the easiest wrong turn to take in a chat, because the widget looks like the native way to show a chart. The maidr page is the chart; the widget is not a place to put it. The test is whether the surface draws the chart from your numbers or renders HTML you wrote. ChatGPT Work's `visualize` surface renders a fragment you wrote, so despite its name it is where the maidr fragment goes. Its `charts_widget_v2` is the widget to avoid.
 
 #### A chat product with a code sandbox (claude.ai)
 
@@ -67,6 +68,22 @@ maidr.save_html(fig, "chart.html", use_cdn=True)   # one file, one CDN script, n
 ```
 
 Then read `chart.html` and publish its contents as the HTML artifact. A bar chart lands near 27 KB and a candlestick near 39 KB, small enough to carry into an artifact whole; `plt.rcParams["svg.fonttype"] = "none"` shrinks it further. Where `scripts/to_artifact.py` is available, run it on the file first. If the sandbox cannot reach PyPI, fall back to hand-authored maidr.js and say so.
+
+#### ChatGPT Work
+
+Work's code sandbox reaches PyPI, so it takes the same py-maidr route; where an admin has narrowed its network so it cannot, hand-author the page (`references/javascript.md`) and convert that instead. Its `visualize` skill then shows an HTML fragment in the conversation: a file in `/workspace` that the reply names with a `visualize{...}` line. The fragment has strict rules: no document shell, one root element with an id, scripts only from jsDelivr, cdnjs, unpkg or esm.sh, no `fetch`, under 1 MB. `scripts/to_artifact.py --visualize` turns py-maidr output into one:
+
+```python
+plt.rcParams["svg.fonttype"] = "none"              # before drawing; keeps the fragment small
+# ... draw the figure ...
+maidr.save_html(fig, "chart.html", use_cdn=True)
+```
+
+```bash
+python scripts/to_artifact.py chart.html --visualize -o /workspace/revenue-by-quarter.html
+```
+
+Name the file with a short lowercase-hyphenated title, directly in `/workspace`. The script prints `visualize{"path":"/workspace/revenue-by-quarter.html"}`: put that line on its own line where the chart belongs in the reply, and otherwise follow the `visualize` skill for the reply. If the fragment would load something that surface blocks, or reaches 1 MB, the script exits non-zero instead. In a frame with that CSP and no storage, the chart takes focus from the page, the arrows announce, and braille and the shortcut help work. Prefer matplotlib or seaborn there, because their SVG scales down to a phone-width frame. Plotly and Bokeh charts work too: the script moves their library to the same file on jsDelivr. They keep the width their figure sets, though. Altair's Vega compiles expressions with `eval`, which that CSP may refuse. Tell the reader that the AI chat (`?`) cannot reach a provider from there and that settings may not be kept.
 
 ### How maidr.js reaches the page (every binding ends here)
 
@@ -107,7 +124,7 @@ maidr.save_html(fig, "revenue.html")       # standalone file; or maidr.show(fig)
 - `maidr.show(obj)` always renders accessibly. `plt.show()` does too after `import maidr`, unless `MPLBACKEND` names a non-inline backend. `maidr.render(obj)` returns an `htmltools` tag for Flask and similar servers. If a stacked bar chart drawn with `bottom=` is not recognized as stacked, register it with `maidr.stacked(ax)`.
 - Subplots from `plt.subplots(rows, cols)`, twin axes, seaborn `FacetGrid`/`PairGrid`/`JointGrid`, and overlaid layers are supported; pass the figure or the grid.
 - `save_html()` writes a `lib/maidr-<version>/` folder beside the HTML both with the default `use_cdn="auto"` (jsDelivr first, that folder as the in-browser fallback) and with `use_cdn=False` (folder only, for air-gapped readers). Ship the HTML alone for online readers, or HTML plus `lib/` otherwise. `use_cdn=True` gives one file that needs internet; for one file that also works offline, inline the bundle as shown in `references/python.md`.
-- Chat artifact (claude.ai, Claude Code): set `plt.rcParams["svg.fonttype"] = "none"` so the SVG stays small (about 12 KB instead of 27 KB), save with `use_cdn=True`, then run `python scripts/to_artifact.py chart.html -o artifact.html` to leave one pinned CDN script tag and no `lib/` reference; add `--fragment` when the host supplies its own document shell (the Claude Code Artifact tool). Paste the result as the artifact, and the reader explores the chart in the conversation.
+- Chat artifact (claude.ai, Claude Code): set `plt.rcParams["svg.fonttype"] = "none"` so the SVG stays small (about 12 KB instead of 27 KB), save with `use_cdn=True`, then run `python scripts/to_artifact.py chart.html -o artifact.html` to leave one pinned CDN script tag and no `lib/` reference; add `--fragment` when the host supplies its own document shell (the Claude Code Artifact tool). Paste the result as the artifact, and the reader explores the chart in the conversation. ChatGPT Work takes `--visualize` instead (see "ChatGPT Work" above).
 - Notebooks: `import maidr`, then draw. Quarto: `format: html` and `maidr.show(fig)` in the chunk. Shiny: `output_maidr()` with `@render_maidr`. Streamlit: `render_maidr(fig)`, always passing the figure. Details and gotchas: `references/python.md`.
 
 ## R: maidr package
@@ -171,7 +188,7 @@ Accessibility that is not verified is a claim, not a feature. Do as many of thes
 
 ## What to tell the user
 
-Give the file path (and the `lib/` folder if one was written), how to open it, and this cheat sheet: Tab or click to focus the chart; Arrow keys move between data points; **B** braille, **T** text, **S** sound, **R** review mode; **L** then **T**, **X**, or **Y** announces the title or an axis label; **PageUp/PageDown** switches overlaid layers; in a multi-panel figure the arrows first move between panels, **Enter** opens one and **Escape** returns. Four global shortcuts (on macOS, Command replaces Ctrl): **Ctrl+/** shows or hides the keyboard shortcut help, **Ctrl+Shift+P** opens the command palette listing every available command, **?** (Shift+/) opens the AI chat, and **Ctrl+,** opens Settings. The AI chat uses the reader's own API key or a local Ollama model entered in Settings; nothing is sent anywhere until the reader configures it.
+Give the file path (and the `lib/` folder if one was written) and how to open it, unless the chart is already in the conversation, then this cheat sheet: Tab or click to focus the chart; Arrow keys move between data points; **B** braille, **T** text, **S** sound, **R** review mode; **L** then **T**, **X**, or **Y** announces the title or an axis label; **PageUp/PageDown** switches overlaid layers; in a multi-panel figure the arrows first move between panels, **Enter** opens one and **Escape** returns. Four global shortcuts (on macOS, Command replaces Ctrl): **Ctrl+/** shows or hides the keyboard shortcut help, **Ctrl+Shift+P** opens the command palette listing every available command, **?** (Shift+/) opens the AI chat, and **Ctrl+,** opens Settings. The AI chat uses the reader's own API key or a local Ollama model entered in Settings; nothing is sent anywhere until the reader configures it.
 
 ## Principles
 

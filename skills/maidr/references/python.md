@@ -145,6 +145,14 @@ Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the lo
 
 Plotly and Bokeh pages carry their maidr.js loader inside the script that also draws the chart, so `to_artifact.py` keeps that script and puts the pinned tag ahead of it, where that loader finds it. They also load their library from cdn.plot.ly or cdn.bokeh.org, which the sandboxes block; the script switches it to the same file, byte for byte, on jsDelivr.
 
+**ChatGPT Work.** Its `visualize` skill renders an HTML fragment from `/workspace` in the conversation when the reply names it in a `visualize{...}` line. The CSP admits jsDelivr, cdnjs, unpkg and esm.sh and no `fetch`, and the fragment has to stay under 1 MB. `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html` makes that fragment:
+
+- It drops the document shell and the `<title>` and wraps everything in one root element with an id.
+- It lets a matplotlib SVG scale down to a narrow frame.
+- It prints the `visualize{"path": ...}` line for the reply.
+
+The script exits non-zero instead if a resource would come from a host outside the CSP, or if the fragment reaches 1 MB. Vega, behind Altair charts, compiles expressions with `eval`, which that CSP may refuse, so prefer matplotlib or seaborn there.
+
 ## Gotchas
 
 1. `MPLBACKEND` set to a GUI backend (TkAgg, QtAgg, MacOSX) stops `import maidr` from taking over `plt.show()`. Call `maidr.show(fig)` explicitly.

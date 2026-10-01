@@ -3,9 +3,11 @@
 
 Usage:
     python to_artifact.py chart.html [-o artifact.html] [--cdn jsdelivr|cdnjs] [--fragment] [--title NAME]
+    python to_artifact.py chart.html --visualize -o /workspace/<title>.html     # ChatGPT Work
 
-Chat products that render HTML (claude.ai and Claude Code artifacts) allow scripts only from a few CDN hosts
-and cannot read local files. This script makes a page depend on exactly one pinned maidr.js <script src>:
+Chat products that render HTML (claude.ai and Claude Code artifacts, ChatGPT Work's visualize surface) allow
+scripts only from a few CDN hosts and cannot read local files. This script makes a page depend on exactly one
+pinned maidr.js <script src>:
 
   * py-maidr's inline loader block (which injects the jsDelivr URL, plus a lib/ fallback in "auto" mode) is
     replaced by a plain <script src> tag; any remaining lib/ references are dropped.
@@ -17,6 +19,10 @@ and cannot read local files. This script makes a page depend on exactly one pinn
   * --fragment emits only <title>, <style>, <script> and the body content, for hosts that wrap content in
     their own document shell (the Claude Code Artifact tool). Without it a full document is kept, which is
     what a claude.ai chat artifact takes.
+  * --visualize emits the fragment ChatGPT Work's visualize surface takes: no <title>, everything inside one
+    root element with an id, the chart scaled down to the frame's width. It fails when a resource would
+    still come from a host outside that surface's CSP, or the fragment reaches 1 MB, and otherwise prints
+    the visualize{...} line the reply carries where the chart should appear.
 
 Only the standard library is used. Run scripts/check_maidr_html.py on the result afterwards.
 """
@@ -44,6 +50,16 @@ MIRRORS = (
     (re.compile(r"https://cdn\.bokeh\.org/bokeh/release/bokeh((?:-[a-z]+)?)-(\d+\.\d+\.\d+)\.min\.js"),
      r"https://cdn.jsdelivr.net/npm/@bokeh/bokehjs@\2/build/js/bokeh\1.min.js"),
 )
+# ChatGPT Work's visualize skill: "The CSP allows only cdnjs.cloudflare.com, esm.sh, cdn.jsdelivr.net,
+# unpkg.com, fonts.googleapis.com, fonts.gstatic.com, and fonts.bunny.net. Other origins are blocked and fail
+# silently", and "Keep visualizations under 1 MB".
+VISUALIZE_HOSTS = frozenset({
+    "cdnjs.cloudflare.com", "esm.sh", "cdn.jsdelivr.net", "unpkg.com",
+    "fonts.googleapis.com", "fonts.gstatic.com", "fonts.bunny.net",
+})
+VISUALIZE_LIMIT = 1_000_000
+RESOURCE_HOST = re.compile(
+    r"<(?:script|link|img|source|audio|video|iframe)\b[^>]*\b(?:src|href)=[\"']https?://([^/\"':]+)", re.I)
 
 
 def cdn_url(host: str, version: str) -> str:
@@ -117,25 +133,60 @@ def fragment(html: str) -> str:
     return "\n".join(k.strip() for k in keep) + "\n" + body_html.strip() + "\n"
 
 
+def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
+    """The fragment ChatGPT Work's visualize surface takes, and the hosts its CSP would still block.
+
+    That surface's contract asks for a fragment with no <title> and one root element with an id, sized to a
+    frame from 320px wide up. A matplotlib SVG has a fixed width, so it is allowed to scale down with the
+    frame; its viewBox keeps maidr's highlighting on the right marks.
+    """
+    body = re.sub(r"<title\b[^>]*>.*?</title>\s*", "", fragment(html), flags=re.S | re.I)
+    style = (f"<style>#{root_id} svg[maidr], #{root_id} svg[maidr-data] "
+             "{ max-width: 100%; height: auto; }</style>")
+    out = f'<div id="{root_id}">\n{style}\n{body}</div>\n'
+    blocked = sorted({host.lower() for host in RESOURCE_HOST.findall(out)} - VISUALIZE_HOSTS)
+    return out, blocked
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source")
     ap.add_argument("-o", "--output", help="output path (default: <source>-artifact.html)")
     ap.add_argument("--cdn", choices=["jsdelivr", "cdnjs"], default="jsdelivr")
     ap.add_argument("--fragment", action="store_true", help="emit title/style/script/body content only")
+    ap.add_argument("--visualize", action="store_true",
+                    help="ChatGPT Work: a fragment for its visualize surface; write it to /workspace/<title>.html")
     ap.add_argument("--title", help="artifact name; default: the page's <title>, else the chart title from the MAIDR JSON")
     a = ap.parse_args(argv)
     with open(a.source, encoding="utf-8") as fh:
         html = fh.read()
     out, version = convert(html, a.cdn, a.title)
-    if a.fragment:
-        out = fragment(out)
     dest = a.output or re.sub(r"\.html?$", "", a.source) + "-artifact.html"
+    blocked: list[str] = []
+    if a.visualize:
+        stem = os.path.splitext(os.path.basename(dest))[0].lower()
+        out, blocked = visualize(out, "maidr-" + (re.sub(r"[^a-z0-9]+", "-", stem).strip("-") or "chart"))
+    elif a.fragment:
+        out = fragment(out)
     with open(dest, "w", encoding="utf-8") as fh:
         fh.write(out)
-    print(f"wrote {dest} ({os.path.getsize(dest):,} bytes; maidr.js {version} from {a.cdn}"
-          f"{', fragment' if a.fragment else ', full document'})")
+    size = os.path.getsize(dest)
+    kind = "visualize fragment" if a.visualize else "fragment" if a.fragment else "full document"
+    print(f"wrote {dest} ({size:,} bytes; maidr.js {version} from {a.cdn}, {kind})")
     print(f"next: python {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'check_maidr_html.py')} {dest}")
+    if not a.visualize:
+        return 0
+    problems = [f"{host} is outside the visualize CSP, so what the page loads from it will not load there"
+                for host in blocked]
+    if size >= VISUALIZE_LIMIT:
+        problems.append(f"the visualize surface takes fragments under {VISUALIZE_LIMIT:,} bytes; plot fewer points, "
+                        "or set plt.rcParams['svg.fonttype'] = 'none' before drawing")
+    for problem in problems:
+        print(f"error: {problem}", file=sys.stderr)
+    if problems:
+        return 1
+    print("put this line, on its own, where the chart belongs in the reply:")
+    print("visualize" + json.dumps({"path": os.path.abspath(dest)}, separators=(",", ":")))
     return 0
 
 

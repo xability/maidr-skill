@@ -2,7 +2,7 @@
 
 An [Agent Skill](https://agentskills.io) that teaches AI coding agents to make every chart they create accessible with [MAIDR](https://maidr.ai) (Multimodal Access and Interactive Data Representation). The visual chart stays exactly as designed; blind and low-vision readers additionally get keyboard navigation, screen-reader text, sonification, braille, and AI descriptions.
 
-Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, Gemini CLI, and any other agent that reads the open `SKILL.md` format.
+Works with Claude Code, OpenAI Codex, ChatGPT Work, Cursor, GitHub Copilot, Gemini CLI, and any other agent that reads the open `SKILL.md` format.
 
 ## What the agent does once the skill is installed
 
@@ -24,6 +24,8 @@ Two public artifacts show what the skill produces when the chart is embedded in 
 - [matplotlib chart saved by py-maidr](https://claude.ai/code/artifact/056a2136-3cef-40b2-8d00-2d89cc6c4c6c): `maidr.save_html(fig, use_cdn=True)` reshaped by `scripts/to_artifact.py`.
 
 Inside the artifact sandbox everything works except the AI chat (`?`), which cannot reach a model provider from there; sound starts after the first click or Tab into the chart.
+
+In ChatGPT Work the chart appears in the conversation the same way, through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into the fragment that surface takes.
 
 ## Install
 
@@ -54,6 +56,10 @@ codex plugin add maidr@maidr-skill
 In the ChatGPT desktop app, the same marketplace then appears as a source in the Plugins Directory. `codex plugin marketplace upgrade maidr-skill` pulls the latest weekly release; leave out `--ref release` to follow `main` instead.
 
 To install the bare skill instead, ask Codex: `$skill-installer install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`, or run `npx skills add xability/maidr-skill --agent codex`. Manual: copy `skills/maidr` to `~/.codex/skills/maidr` (user) or `.agents/skills/maidr` (repository).
+
+### ChatGPT Work
+
+Ask ChatGPT Work: `install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`. Its built-in skill installer copies the skill into `$CODEX_HOME/skills`, and the skill is available from the next turn. Charts then appear in the conversation itself, through Work's `visualize` surface, rather than as files to download.
 
 ### Cursor, GitHub Copilot, Gemini CLI, and others
 
@@ -125,7 +131,7 @@ skills/maidr/
   scripts/detect_env.sh        environment probe (bash): runtimes, project signals, CDN reachability, verdict
   scripts/detect_env.ps1       the same probe for PowerShell
   scripts/check_maidr_html.py  static validator for MAIDR-enabled HTML (optional headless browser check)
-  scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/)
+  scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/) or a ChatGPT Work visualize fragment
   scripts/fetch_dotpad_sdk.py  download the DotPad tactile-display SDK maidr.js is pinned to, for offline pages (not vendored: 14 MB)
   scripts/fetch_locale_packs.py put maidr.js's non-English locale packs beside a local maidr.js (not vendored)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain

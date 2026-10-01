@@ -72,7 +72,15 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 
 ## Claude artifacts and other sandboxed pages
 
-Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`; local files and inline data URIs for scripts are blocked. Use a CDN URL (either host), keep the JSON inline in the attribute, and expect the AI chat to be unavailable unless the sandbox also permits the provider's API host. This is the way to embed an explorable chart directly in a claude.ai or Claude Code conversation instead of handing over a file; py-maidr output can be embedded the same way, since its loader points at jsDelivr. Other chat products that preview HTML (for example a ChatGPT canvas) have undocumented script policies: try the cdnjs tag first and fall back to a downloadable single file if the sandbox blocks it.
+Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`; local files and inline data URIs for scripts are blocked. Use a CDN URL (either host), keep the JSON inline in the attribute, and expect the AI chat to be unavailable unless the sandbox also permits the provider's API host. This is the way to embed an explorable chart directly in a claude.ai or Claude Code conversation instead of handing over a file; py-maidr output can be embedded the same way, since its loader points at jsDelivr. Other chat products that preview HTML have their own script policies: try the cdnjs tag first and fall back to a downloadable single file if the sandbox blocks it.
+
+**ChatGPT Work shows nothing, or a picture with no maidr.**
+
+- **The chart went to the chart widget.** Work's `genui{"charts_widget_v2": ...}` draws its own picture and binds nothing. The maidr fragment goes through `visualize` instead.
+- **The reply does not name the file.** It needs `visualize{"path":"/workspace/<title>.html"}` on a line of its own, with the absolute path of a file directly in `/workspace`.
+- **The file is a full page.** It has to be a fragment, with no `<!doctype>`, `<html>`, `<head>` or `<body>`, under 1 MB, loading only from jsDelivr, cdnjs, unpkg or esm.sh. `scripts/to_artifact.py --visualize` produces that, and exits non-zero when a page breaks one of those rules.
+- **The chart is from Plotly or Bokeh.** Run the page through that script, which moves their library off cdn.plot.ly and cdn.bokeh.org.
+- **The chart is from Altair.** Vega needs `eval`, which the frame may refuse. Draw it with matplotlib or seaborn there.
 
 ## The AI chat asks for a key
 
