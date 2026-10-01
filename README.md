@@ -98,7 +98,7 @@ The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It 
 
 - It loads maidr.js from jsDelivr, from cdnjs when the agent chose that, or from the vendored copy when no CDN is reachable. maidr.js takes its math stylesheet and any locale pack from the same place. The CDN sees the reader's IP address and browser headers, as it does for any script tag. A Plotly or Bokeh page passed through `scripts/to_artifact.py` loads plotly.js or BokehJS from jsDelivr as well, instead of from `cdn.plot.ly` or `cdn.bokeh.org`.
 - Connecting a Dot Pad makes maidr.js import the vendor's SDK from `cdn.jsdelivr.net/gh/xability/dotpad-sdk-guide@<commit>/`. `fetch_dotpad_sdk.py` lets an offline page carry its own copy.
-- When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers three chart tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`) for an AI agent running in the reader's browser. This sends nothing anywhere; `<meta name="maidr-webmcp" content="off">` turns it off.
+- When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers three chart tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`) for an AI agent running in the reader's browser. maidr.js itself sends nothing; an agent that calls the tools, such as ChatGPT in its desktop app's built-in browser, receives the chart's data, and that agent's provider handles it like anything else the agent reads. `<meta name="maidr-webmcp" content="off">` turns the tools off.
 - It keeps the reader's settings in the browser's `localStorage` under `maidr-settings`.
 
 ### AI chat, only when the reader opens it
