@@ -138,7 +138,7 @@ skills/maidr/
   scripts/fetch_locale_packs.py put maidr.js's non-English locale packs beside a local maidr.js (not vendored)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
   assets/candlestick.html      hand-authored candlestick, for when the plotting library cannot draw one
-  assets/maidr.js              vendored maidr.js 4.12.0 for offline or firewalled use
+  assets/maidr.js              vendored maidr.js 4.13.0 for offline or firewalled use
   assets/maidr-math.css        stylesheet maidr.js fetches beside itself for math in AI-chat replies
   assets/maidr-bundle.json     version, source URLs, and SHA-256 of the vendored files
   assets/dotpad-sdk.json       version, commit, URLs, and SHA-256 of the DotPad SDK files fetch_dotpad_sdk.py downloads (copied from maidr.js's dist/dotpad-sdk.json)

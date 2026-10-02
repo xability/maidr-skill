@@ -1,14 +1,14 @@
 {
   "name": "maidr",
-  "version": "4.12.0",
+  "version": "4.13.0",
   "license": "GPL-3.0-or-later",
-  "source": "https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/",
-  "registry": "https://registry.npmjs.org/maidr/4.12.0",
-  "retrieved": "2026-10-01",
+  "source": "https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/",
+  "registry": "https://registry.npmjs.org/maidr/4.13.0",
+  "retrieved": "2026-10-02",
   "files": {
     "maidr.js": {
-      "sha256": "a677747ea8a5dd026dd72e868e016215fd2c88bd87fb4d140e6822c1d44a5f62",
-      "bytes": 1868843
+      "sha256": "41c47eb7b4a6484a838eb6f822a1abf4f724d15c0b708849e62bcd3bd0bd6d22",
+      "bytes": 1874567
     },
     "maidr-math.css": {
       "sha256": "446d44f15ab6da203199838dd6a2d9554d7acfc4334950777423ff77cdc9ebe7",
@@ -16,7 +16,7 @@
     }
   },
   "cdn": {
-    "jsdelivr": "https://cdn.jsdelivr.net/npm/maidr@4.12.0/dist/maidr.js",
-    "cdnjs": "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.12.0/maidr.min.js"
+    "jsdelivr": "https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js",
+    "cdnjs": "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.13.0/maidr.min.js"
   }
 }

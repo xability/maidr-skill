@@ -14,7 +14,7 @@
 
 # The vendored release (assets/maidr.js). Pages use the latest release on npm instead,
 # resolved below, and fall back to this one when the lookup fails or answers older.
-MAIDR_JS_VERSION="4.12.0"
+MAIDR_JS_VERSION="4.13.0"
 DIR="${1:-.}"
 have() { command -v "$1" >/dev/null 2>&1; }
 json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r\n'; }
