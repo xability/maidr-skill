@@ -12,7 +12,7 @@
       and run scripts/fetch_locale_packs.py on that folder, since a local copy
       finds its non-English locale packs only beside itself. Or delete this loader
       and paste the contents of maidr.js into an inline <script>, after
-        <script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/";</script>
+        <script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/";</script>
       (an inline bundle has no URL to find the packs from). Do not set it for this
       loader: it would override the packs beside whichever copy loads.
       Pin the version; "@latest" changes under the reader.
@@ -20,8 +20,8 @@
     <script>
       (function () {
         var sources = [
-          "https://cdn.jsdelivr.net/npm/maidr@4.13.0/dist/maidr.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.13.0/maidr.min.js",
+          "https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/maidr/4.14.0/maidr.min.js",
           "./maidr.js"
         ];
         function load(i) {
