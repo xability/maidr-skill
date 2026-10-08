@@ -74,6 +74,18 @@ git clone https://github.com/xability/maidr-skill.git
 cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 ```
 
+## With maidr-mcp
+
+[maidr-mcp](https://github.com/xability/maidr-mcp) is maidr's MCP server. Its `show_chart` tool shows a maidr chart in a Claude or ChatGPT conversation from data alone, and its other tools let the model move the reader through that chart. The two can be installed together. The skill and the server's instructions give the model the same split, and both tell it to make each chart one way only:
+
+| The request | Goes to |
+|---|---|
+| A chart to see or explore in the conversation, of a type `show_chart` takes: bar (side by side or stacked), line, step, scatter, histogram, box, violin, heatmap, pie, candlestick | maidr-mcp's `show_chart`, and `update_chart` to change it |
+| Code, a file, a notebook, a web page or a report; any other chart type, several panels, or a styled chart | this skill |
+| Any chart in a terminal, or another host that shows no MCP Apps, where `show_chart` shows nothing | this skill |
+
+So in a chat product, connect maidr-mcp for charts in the conversation; in a coding agent, the skill is the one that matters. MCP servers added in the ChatGPT desktop app are shared with the Codex CLI and IDE extension, so Codex can see both there, and the same split applies. With maidr-mcp connected, the first two prompts under "Charts in a chat" below go to `show_chart`.
+
 ## Example prompts
 
 With the skill installed, ask for a chart the way you normally would; you do not have to mention MAIDR or accessibility. The agent picks the binding from the project and the environment. Each prompt below names the route and the maidr layer type the agent is expected to produce. Types marked *experimental* may change in any maidr release (see `references/schema.md`).
@@ -165,7 +177,7 @@ The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It 
 
 - It loads maidr.js from jsDelivr, from cdnjs when the agent chose that, or from the vendored copy when no CDN is reachable. maidr.js takes its math stylesheet and any locale pack from the same place. The CDN sees the reader's IP address and browser headers, as it does for any script tag. A Plotly or Bokeh page passed through `scripts/to_artifact.py` loads plotly.js or BokehJS from jsDelivr as well, instead of from `cdn.plot.ly` or `cdn.bokeh.org`.
 - Connecting a Dot Pad makes maidr.js import the vendor's SDK from `cdn.jsdelivr.net/gh/xability/dotpad-sdk-guide@<commit>/`. `fetch_dotpad_sdk.py` lets an offline page carry its own copy.
-- When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers three chart tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`) for an AI agent running in the reader's browser. maidr.js itself sends nothing; an agent that calls the tools, such as ChatGPT in its desktop app's built-in browser, receives the chart's data, and that agent's provider handles it like anything else the agent reads. `<meta name="maidr-webmcp" content="off">` turns the tools off.
+- When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers five tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`, `maidr_list_commands`, `maidr_run_command`) for an AI agent running in the reader's browser. maidr.js itself sends nothing. An agent that calls the tools, such as ChatGPT in its desktop app's built-in browser, receives the chart's data, where the reader is in the chart and their reading modes (text, sound, braille and the like), and can move them or run one of their commands, as their own keys would. It never receives their settings or API keys. That agent's provider handles what it receives like anything else the agent reads. `<meta name="maidr-webmcp" content="off">` turns the tools off.
 - It keeps the reader's settings in the browser's `localStorage` under `maidr-settings`.
 
 ### AI chat, only when the reader opens it
