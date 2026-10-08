@@ -38,11 +38,12 @@ STABLE = {
     "stacked_bar", "stacked_normalized_bar", "step", "violin_box", "violin_kde",
 }
 EXPERIMENTAL = {
-    "alluvial", "area", "boxen", "bump", "chord", "choropleth", "contour", "diverging_bar", "dot",
-    "dumbbell", "error_bar", "forest", "funnel", "gantt", "gauge", "hexbin", "icicle", "lollipop",
-    "manhattan", "mosaic", "network", "pack", "parallel_coordinates", "polar_area", "radar",
-    "ridgeline", "roc", "rug", "sankey", "stacked_area", "stacked_normalized_area", "sunburst",
-    "sunflower", "survival", "tree", "treemap", "volcano", "waterfall", "word_cloud",
+    "alluvial", "area", "boxen", "bump", "chord", "choropleth", "contour", "directed_graph",
+    "diverging_bar", "dot", "dumbbell", "error_bar", "forest", "funnel", "gantt", "gauge", "hexbin",
+    "icicle", "lollipop", "manhattan", "mosaic", "network", "pack", "parallel_coordinates",
+    "percentile_band", "polar_area", "pr_curve", "radar", "ridgeline", "roc", "rug", "sankey",
+    "stacked_area", "stacked_normalized_area", "sunburst", "sunflower", "survival", "tree",
+    "treemap", "volcano", "waterfall", "word_cloud",
 }
 KNOWN = STABLE | EXPERIMENTAL
 # data container shape by trace type, as each maidr.js 4.x trace class casts `layer.data`
@@ -51,7 +52,7 @@ KNOWN = STABLE | EXPERIMENTAL
 #           their subclasses, and the violin, ridgeline and hexbin rows
 NESTED = {"line", "step", "smooth", "dodged_bar", "stacked_bar", "stacked_normalized_bar",
           "violin_kde", "area", "stacked_area", "stacked_normalized_area", "roc",
-          "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival",
+          "pr_curve", "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival",
           "ridgeline", "hexbin", "mosaic", "diverging_bar"}
 #   either: flat for one group, or nested with one array per group (errorBar.ts toGroups)
 EITHER = {"error_bar", "forest"}
@@ -69,6 +70,7 @@ POINT_FIELDS = {
     "violin_box": {"min", "q1", "q2", "q3", "max"}, "candlestick": {"value", "open", "high", "low", "close"},
     "error_bar": {"x"}, "forest": {"x", "y"}, "dumbbell": {"x", "start", "end"},
     "gantt": {"x", "start", "end"}, "hexbin": {"x", "y", "count"},
+    "directed_graph": {"id"}, "percentile_band": {"x", "quantiles"},
 }
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
@@ -85,15 +87,19 @@ POINT_FIELDS = {
 #   segmented: a string (paired series-major unless domMapping.order is "column"), or a
 #              selectors[series][category] grid with null for undrawn cells
 #   concatenated: a string, or a list of strings each resolved and the matches concatenated; the
-#                 total must be exactly one element per item (a gauge uses its first match)
+#                 total must be exactly one element per item (a gauge uses its first match; a
+#                 directed graph, one per declared node)
+#   percentile_band: one selector per quantile (a line each), or one per band, outermost first,
+#                    plus optionally the median's line; only the shape is checked
+#                    (src/model/percentileBand.ts)
 BAR_FAMILY = {"bar", "hist", "dot", "lollipop", "funnel"}
 STRING_ONLY = {"point", "pie", "sunflower", "volcano", "manhattan"}
 LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc",
-               "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"}
+               "pr_curve", "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"}
 SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
 CONCATENATED = {"boxen", "ridgeline", "dumbbell", "error_bar", "forest", "gantt", "hexbin",
                 "waterfall", "word_cloud", "gauge", "alluvial", "chord", "sankey", "network",
-                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack"}
+                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack", "directed_graph"}
 # adapters whose bundle already contains the maidr core (their docs load no separate maidr.js)
 SELF_CONTAINED_ADAPTERS = {"chartjs", "amcharts", "recharts", "victory", "react"}
 ADAPTERS = {"d3", "chartjs", "highcharts", "echarts", "vegalite", "recharts", "victory", "amcharts",
@@ -514,6 +520,12 @@ def check_selectors(selectors, n_points: int, layer_type: str, where: str, soup,
 
     if layer_type in LINE_FAMILY and soup is not None and isinstance(selectors, (str, list)):
         check_line_selectors(selectors, data, where, soup, rep, layer_type)
+        return
+
+    if layer_type == "percentile_band":
+        entries = [selectors] if isinstance(selectors, str) else selectors
+        if not (isinstance(entries, list) and entries and all(isinstance(e, str) for e in entries)):
+            rep.error(f"{where}: type 'percentile_band' reads selectors as a string or a list of strings (one per quantile, or one per band); this shape is declined and nothing is highlighted")
         return
 
     if layer_type == "heat":

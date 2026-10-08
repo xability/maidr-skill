@@ -74,6 +74,73 @@ git clone https://github.com/xability/maidr-skill.git
 cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 ```
 
+## Example prompts
+
+With the skill installed, ask for a chart the way you normally would; you do not have to mention MAIDR or accessibility. The agent picks the binding from the project and the environment. Each prompt below names the route and the maidr layer type the agent is expected to produce. Types marked *experimental* may change in any maidr release (see `references/schema.md`).
+
+### Data analysis in Python
+
+| Scenario | Prompt | Route and type |
+| --- | --- | --- |
+| Exploring a dataset | "Load `penguins.csv` and plot flipper length against body mass, coloured by species." | py-maidr, seaborn, `point` |
+| Sales report | "Make a bar chart of total revenue per region from `sales.xlsx` and save it as `revenue.html`." | py-maidr, `bar` |
+| Comparing groups | "Show a grouped bar chart of average test scores by school and year." | py-maidr, `dodged_bar` |
+| Composition | "Stack monthly energy use by source (gas, solar, wind) for 2025, and a second chart normalised to 100%." | py-maidr, `stacked_bar`, `stacked_normalized_bar` |
+| Time series | "Plot daily closing prices of the three tickers in `prices.csv` as lines over the last year." | py-maidr, `line` |
+| Distributions | "Histogram of trip durations in `trips.parquet` with 30 bins." | py-maidr, `hist` |
+| Experiment results | "Box plots of reaction time by condition, then the same data as violin plots." | py-maidr, `box`, `violin_box` + `violin_kde` |
+| Correlations | "Draw a correlation heatmap of the numeric columns, with the values printed in the cells." | py-maidr, `heat` |
+| Regression | "Scatter of advertising spend against sales with a fitted regression line." | py-maidr, seaborn `regplot`, `point` + `smooth` |
+| Finance | "Candlestick chart of BTC's daily OHLC for the last 60 days." | py-maidr, mplfinance, `candlestick` |
+| Faceting | "One line chart per country in a 2 x 3 grid, sharing the y axis." | py-maidr, multi-panel `subplots` |
+| Machine learning | "Plot the ROC curves of my three classifiers with their AUC in the legend." | py-maidr, `roc` (*experimental*) |
+| Notebooks | "In this Jupyter notebook, make every chart from here on accessible." | py-maidr, `import maidr` before plotting |
+
+### R and Quarto
+
+| Scenario | Prompt | Route and type |
+| --- | --- | --- |
+| ggplot2 | "Using ggplot2, plot `mpg` highway mileage by class as a bar chart of means." | maidr R package, `bar` |
+| Statistical report | "In `report.qmd`, add a scatter of `displ` against `hwy` with a `geom_smooth` line." | maidr R package, `point` + `smooth` |
+| Teaching | "Make a histogram and a box plot of `faithful$eruptions` for my intro statistics slides." | maidr R package, `hist`, `box` |
+| Dashboards | "Add an accessible line chart of `economics$unemploy` to this Shiny app." | maidr R package, Shiny output |
+| Base graphics | "Use base R `barplot()` to show the `VADeaths` table as stacked bars." | maidr R package, `stacked_bar` |
+
+### JavaScript and the web
+
+| Scenario | Prompt | Route and type |
+| --- | --- | --- |
+| A web page | "Add a D3 bar chart of monthly signups to `index.html`." | maidr.js, D3 adapter, `bar` |
+| A dashboard | "Build a React dashboard with a Recharts line chart of traffic and a pie chart of devices." | maidr.js, Recharts adapter, `line`, `pie` |
+| Existing chart | "This page already has a Chart.js chart. Make it accessible without changing how it looks." | maidr.js, Chart.js adapter |
+| Declarative specs | "Turn this Vega-Lite spec into a page with an accessible scatter plot." | maidr.js, Vega-Lite adapter, `point` |
+| Hand-drawn SVG | "I drew this SVG step chart by hand; wire it up so screen-reader users can explore it." | maidr.js, hand-written MAIDR JSON, `step` |
+
+### Charts in a chat, with no Python or R
+
+| Scenario | Prompt | Route and type |
+| --- | --- | --- |
+| Quick look | "Show me a bar chart of these numbers right here in the chat: apples 12, pears 7, plums 15." | maidr.js in an artifact, `bar` |
+| Explaining a concept | "Draw a normal distribution and a right-skewed one so I can hear the difference." | maidr.js, `line` |
+| Planning | "Make a timeline of this project's four phases from the dates below." | maidr.js, `gantt` (*experimental*) |
+| Funnel metrics | "Show our signup funnel: visited 10,000, signed up 2,400, activated 900, paid 210." | maidr.js, `funnel` (*experimental*) |
+| Hierarchies | "Show this department budget as a treemap." | maidr.js, `treemap` (*experimental*) |
+
+### Checking and fixing
+
+- "Check `chart.html` and tell me what a screen-reader user would miss." The agent runs `scripts/check_maidr_html.py` and fixes what it reports.
+- "The highlight does not move when I press the arrow keys. Why?" The agent follows `references/troubleshooting.md`: usually a selector that matches the wrong number of elements.
+- "Our firewall blocks jsDelivr. Make this page work offline." The agent switches to cdnjs or the vendored `assets/maidr.js`.
+- "Show the chart in Korean." The agent loads maidr.js's Korean locale pack beside the bundle.
+- "My reader uses a Dot Pad. Make sure this chart works on it." The agent fetches the pinned Dot Pad SDK for an offline page.
+
+### Whole conversations
+
+- **A blind student's homework.** "I'm a screen-reader user. Plot these 40 exam scores as a histogram, tell me which keys to press to explore it, and whether the distribution is skewed."
+- **A research paper.** "For each figure in `analysis.py`, keep the visual exactly as it is but also save an accessible HTML version next to the PNG."
+- **A data journalist.** "Make an accessible line chart of rent prices in five cities since 2010 for our article, and a short alt text to go with it."
+- **An accessibility review.** "Go through every chart in this repository, make each one accessible with MAIDR, and list what you changed."
+
 ## Network access and data
 
 The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It has no hooks, no MCP servers, and no background processes, and it needs no account or API key of its own. It collects no telemetry and sets no cookies, and nothing it does is sent to its authors or to Anthropic. This section lists everything an agent with the skill installed can run, fetch, or send, and what the chart pages it writes do when a reader opens them. The same facts, as a policy, are in [PRIVACY.md](PRIVACY.md).
