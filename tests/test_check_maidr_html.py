@@ -174,7 +174,7 @@ class DataShapeTest(CheckerCase):
 
     def test_nested_types(self):
         # LineTrace / StepTrace / SegmentedTrace subclasses, and the violin, ridgeline and hexbin rows
-        for type_ in ("bump", "radar", "polar_area", "parallel_coordinates", "roc", "survival"):
+        for type_ in ("bump", "radar", "polar_area", "parallel_coordinates", "roc", "pr_curve", "survival"):
             self.assertAccepted(type_, [SERIES, SERIES])
         self.assertAccepted("contour", [[{"x": 1, "y": 1, "level": 1}, {"x": 2, "y": 1, "level": 1}]])
         self.assertAccepted("ridgeline", [[{"x": 1, "y": 0.2}], [{"x": 1, "y": 0.3}]])
@@ -213,6 +213,16 @@ class DataShapeTest(CheckerCase):
         for type_, data, needle in cases:
             with self.subTest(type=type_, data=data):
                 self.assertErrorMentions(self.check_doc(figure([{"layers": [layer(type_, data)]}])), needle)
+
+    def test_maidr_4_14_types(self):
+        # percentileBand.ts reads {x, quantiles} per x; directedGraph.ts one {id, inputs} per node
+        band = [{"x": 1, "quantiles": [{"level": 0, "value": -1}, {"level": 0.5, "value": 0}, {"level": 1, "value": 1}]}]
+        self.assertAccepted("percentile_band", band)
+        self.assertAccepted("directed_graph", [{"id": "in"}, {"id": "dense", "inputs": ["in"]}])
+        result = self.check_doc(figure([{"layers": [layer("percentile_band", [{"x": 1}])]}]))
+        self.assertErrorMentions(result, "missing ['quantiles']")
+        result = self.check_doc(figure([{"layers": [layer("directed_graph", [{"label": "a"}])]}]))
+        self.assertErrorMentions(result, "missing ['id']")
 
     def test_flat_types_still_reject_nested_data(self):
         result = self.check_doc(figure([{"layers": [layer("bar", [[{"x": "A", "y": 1}]])]}]))
