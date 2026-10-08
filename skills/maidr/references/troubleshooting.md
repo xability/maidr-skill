@@ -85,7 +85,7 @@ Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`;
 **ChatGPT desktop app: Site tools does not list maidr's tools.**
 
 - **The chart is inside an iframe.** Site tools read only the page itself. py-maidr's `save_html()` output qualifies; a notebook render, a chat artifact or a `visualize` fragment does not.
-- **maidr.js is older than 4.14.0**, the first release that registers the tools.
+- **maidr.js is older than 4.11.0**, the first release that registers the tools; `maidr_list_commands` and `maidr_run_command` came in 4.12.0.
 - **The tools are switched off.** Either the page carries `<meta name="maidr-webmcp" content="off">`, or the reader unchecked **Browser AI Agent Access** under maidr's Settings > General.
 - **Site tools are off in the app.** Check three things:
   - Settings > Browser > Permissions > Enable site tools is on.

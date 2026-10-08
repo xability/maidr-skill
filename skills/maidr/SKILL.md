@@ -104,15 +104,16 @@ Name the file with a short lowercase-hyphenated title, directly in `/workspace`.
 
 #### ChatGPT desktop app: site tools
 
-The desktop app's built-in browser hands a page's WebMCP tools to ChatGPT Work and Codex as *site tools*. maidr.js 4.14.0 and later registers three on every chart page by default: `maidr_list_charts`, `maidr_get_layer_data` and `maidr_navigate`. So when the reader wants you to answer from the chart, or to take them to a point in it, give them the page to open there. Site tools ignore a page inside an iframe; py-maidr's `save_html()` puts the chart in the page itself. Serve its folder:
+The desktop app's built-in browser hands a page's WebMCP tools to ChatGPT Work and Codex as *site tools*. Since 4.12.0, maidr.js registers five on every chart page by default: `maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`, `maidr_list_commands` and `maidr_run_command`. So when the reader wants you to answer from the chart, take them to a point in it, or run one of its commands for them, give them the page to open there. Site tools ignore a page inside an iframe; py-maidr's `save_html()` puts the chart in the page itself. Serve its folder:
 
 ```bash
 python -m http.server 8765 --bind 127.0.0.1    # in the folder holding chart.html
 ```
 
-Ask the reader to open `http://127.0.0.1:8765/chart.html` in the built-in browser: site tools come from the page they have open. **Site tools** in its address bar then lists maidr's three tools.
+Ask the reader to open `http://127.0.0.1:8765/chart.html` in the built-in browser: site tools come from the page they have open. **Site tools** in its address bar then lists maidr's five tools.
 - **Moving the reader:** read the point's `target` with `maidr_get_layer_data`, then pass it to `maidr_navigate`.
-- **"on-next-focus":** this answer means the reader is in the chat rather than the chart. Tell them they land on the point when they Tab back in.
+- **Running a command for them** (braille on or off, play the chart): `maidr_list_commands` lists their commands, the keys for each, which ones you can run, and their current modes. Pass one you can run to `maidr_run_command`, and tell them its keys for next time.
+- **"on-next-focus":** this answer means the reader is in the chat rather than the chart. Tell them the move or command happens when they Tab back in.
 - **From Work's cloud sandbox:** that server is not on the reader's machine, so hand them the file instead.
 
 Site tools need:
