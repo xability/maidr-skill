@@ -89,6 +89,47 @@
         "An on-next-focus answer is explained to the reader, and focus is never said to have moved",
         "The page passes scripts/check_maidr_html.py with 0 errors"
       ]
+    },
+    {
+      "id": 7,
+      "name": "maidr-mcp-connected-chart-in-chat",
+      "prompt": "I've connected maidr-mcp in Claude. I'm blind: show me our quarterly revenue here as a chart I can explore. Q1 120, Q2 200, Q3 150, Q4 280 (USD thousands).",
+      "expected_output": "Run in a Claude or ChatGPT conversation with maidr-mcp connected, so show_chart is among the tools. A bar chart to explore in the conversation is show_chart's job, so the agent calls show_chart once with a bar chart of the four quarters, a title and axis labels with the unit, and tells the reader how to explore it. It builds no page, artifact or fragment of the same chart.",
+      "files": [],
+      "assertions": [
+        "show_chart is called exactly once, with type bar and the four quarters",
+        "No HTML page, artifact or visualize fragment of the same chart is produced",
+        "The chart has a title and both axis labels, the y label with its unit",
+        "The response tells the reader how to explore the chart (Tab, arrow keys)"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "maidr-mcp-connected-code-request",
+      "prompt": "maidr-mcp is connected here. I have monthly_sales.csv with columns month and revenue (12 rows, Jan-Dec 2025). Write analysis.py to draw a line chart of revenue by month with matplotlib and save it as an HTML file next to it. Python is installed.",
+      "expected_output": "Run with maidr-mcp connected, so show_chart is among the tools. The user wants code and a file, which show_chart cannot give, so the agent follows the skill: a Python script that imports maidr, draws the line chart with a title and labelled axes, and calls maidr.save_html. It does not call show_chart.",
+      "files": [
+        "fixtures/monthly_sales.csv"
+      ],
+      "assertions": [
+        "show_chart is not called",
+        "The Python code imports maidr and calls maidr.save_html (not an invented API)",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors",
+        "The chart has a title, an x-axis label and a y-axis label"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "maidr-mcp-connected-panels-in-chat",
+      "prompt": "I've connected maidr-mcp in Claude. Show me monthly sales for our four regions here, one line chart per region in a 2 x 2 grid. January to April, in thousand units: North 10, 12, 15, 14; South 8, 9, 11, 13; East 12, 11, 10, 12; West 5, 7, 9, 12.",
+      "expected_output": "Run in a Claude conversation with maidr-mcp connected, so show_chart is among the tools. show_chart draws one chart, not a grid of panels, so the agent follows the skill: py-maidr in the code sandbox with plt.subplots(2, 2), delivered as the HTML page, which maidr reads as one figure with four panels. It does not also call show_chart for the same data.",
+      "files": [],
+      "assertions": [
+        "show_chart is not called for this chart",
+        "The figure has four panels, one per region, each with a title and labelled axes",
+        "The page passes scripts/check_maidr_html.py with 0 errors",
+        "The response tells the reader how to move between panels (arrows, Enter, Escape)"
+      ]
     }
   ]
 }

@@ -74,6 +74,18 @@ git clone https://github.com/xability/maidr-skill.git
 cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 ```
 
+## With maidr-mcp
+
+[maidr-mcp](https://github.com/xability/maidr-mcp) is maidr's MCP server. Its `show_chart` tool shows a maidr chart in a Claude or ChatGPT conversation from data alone, and its other tools let the model move the reader through that chart. The two can be installed together. The skill and the server's instructions give the model the same split, and both tell it to make each chart one way only:
+
+| The request | Goes to |
+|---|---|
+| A chart to see or explore in the conversation, of a type `show_chart` takes: bar (side by side or stacked), line, step, scatter, histogram, box, violin, heatmap, pie, candlestick | maidr-mcp's `show_chart`, and `update_chart` to change it |
+| Code, a file, a notebook, a web page or a report; any other chart type, several panels, or a styled chart | this skill |
+| Any chart in a terminal, or another host that shows no MCP Apps, where `show_chart` shows nothing | this skill |
+
+So in a chat product, connect maidr-mcp for charts in the conversation; in a coding agent, the skill is the one that matters. MCP servers added in the ChatGPT desktop app are shared with the Codex CLI and IDE extension, so Codex can see both there, and the same split applies. With maidr-mcp connected, the first two prompts under "Charts in a chat" below go to `show_chart`.
+
 ## Example prompts
 
 With the skill installed, ask for a chart the way you normally would; you do not have to mention MAIDR or accessibility. The agent picks the binding from the project and the environment. Each prompt below names the route and the maidr layer type the agent is expected to produce. Types marked *experimental* may change in any maidr release (see `references/schema.md`).
