@@ -164,3 +164,4 @@ The script exits non-zero instead if the fragment would load anything from a hos
 7. seaborn older than 0.13 raises a clear version error at import; upgrade seaborn.
 8. Generated HTML embeds the JSON as a `maidr` attribute on the SVG; validate it with `scripts/check_maidr_html.py out.html`.
 9. Inside the py-maidr repository itself, run examples with `uv run python script.py`.
+10. To stop the chart highlighting on hover, pass `hover_mode="off"` (or `"click"`) to `show`, `render`, `save_html` or the Shiny/Streamlit/Gradio helpers (py-maidr after 1.26.0; needs maidr.js after 4.14.0, which `use_cdn=True` loads). It writes the schema's `hoverMode`, the chart's starting Hover Mode; a reader who changed the setting keeps theirs. Any other value raises `ValueError`; Altair charts warn and ignore it.
