@@ -110,6 +110,8 @@ options(
 )
 ```
 
+`options(maidr.hover_mode = "off")` (or `"click"`), or `hover_mode =` on `show()`, `save_html()`, `render_maidr()` and `maidr_htmlwidget()`, sets the chart's starting Hover Mode, written as the schema's `hoverMode`, so the pointer no longer highlights on hover; a reader who changed the setting keeps theirs. Development version after 0.5.0 only, and it needs maidr.js after 4.14.0: the bundled 4.14.0 ignores it, so use `use_cdn = TRUE` until the bundle is refreshed. Not for plotly widgets.
+
 `RSTUDIO=1` decides Viewer versus browser. The CDN and DotPad settings below also read environment variables.
 
 ## Offline and CDN
