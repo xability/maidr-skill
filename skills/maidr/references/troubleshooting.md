@@ -26,7 +26,7 @@ maidr.js 4.8.0 and later carry only English; ko, ja, zh, es, de, fr, it, and hi 
 
 - `[maidr] Cannot locate the locale pack for "ko"; add <script src="…/locale-ko.js"> or set window.maidrLocaleBaseUrl.` The bundle is pasted inline and has no URL. Put `<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/";</script>` before it, and for an offline file paste the reader's pack too.
 - `[maidr] Could not load the locale pack at …/locale-ko.js; announcements stay in English.` The directory maidr.js came from has no packs: a vendored `./maidr.js` (run `python scripts/fetch_locale_packs.py` on its folder), or cdnjs, which mirrors none yet (switch to jsDelivr).
-- No `[maidr]` message, and the page has require.js (Quarto's Jupyter output does): packs up to 4.14.0 were UMD and never register on such a page, whether maidr.js fetched the pack or a `<script>` tag loaded it. Raise the pin to the current release.
+- No `[maidr]` message, and the page has require.js (Quarto's Jupyter output does): packs up to 4.14.0 were UMD and never register on such a page, whether maidr.js fetched the pack or a `<script>` tag loaded it. Instead the console shows `Mismatched anonymous define() module: function(){var e={"common.missing":...` as an uncaught error: at once for a pack a `<script>` tag loaded, and from the page's next `require()` for one maidr.js fetched. Raise the pin to the current release.
 
 Until a fetched pack arrives the first announcement is English; a page that loads the pack itself (`javascript.md`, Languages) speaks the language from the start.
 
@@ -71,7 +71,7 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 - The adapter was loaded from cdnjs; adapters exist only on jsDelivr and npm.
 - `maidr.js` was not loaded before a thin adapter (D3, Highcharts, ECharts, Vega-Lite, Google Charts, Frappe, Observable, Tableau, AnyChart need it; Chart.js and amCharts bundles are self-contained).
 - The bind call ran before the chart finished rendering; call it after the library's render or ready callback.
-- The page has require.js (Quarto's Jupyter output does) and the adapter is 4.14.0 or older. Those adapter bundles were UMD: by a script tag on such a page they never set their global, so the bind call fails with `maidrD3 is not defined` (or `maidrHighcharts`, ...) and the console shows `Mismatched anonymous define() module`. Raise the pin to the current release, for `maidr.js` too.
+- The page has require.js (Quarto's Jupyter output does) and the adapter is 4.14.0 or older. Up to 4.14.0 an adapter's UMD wrapper called `define()` instead of setting its global when the page had an AMD loader, so by a script tag on such a page it never set its global, so the bind call fails with `maidrD3 is not defined` (or `maidrHighcharts`, ...) and the console shows `Mismatched anonymous define() module`. Raise the pin to the current release, for `maidr.js` too.
 
 ## Claude artifacts and other sandboxed pages
 
