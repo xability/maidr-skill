@@ -86,9 +86,11 @@ class TreeTest(unittest.TestCase):
                 self.assertEqual(stale, [], f"{rel}: pins left behind")
                 # The vendored version is gone except where declared as history.
                 self.assertEqual(pins.unclassified(after, VERSION, rel), [], rel)
-                # Every other version, the history among them, is exactly where it was.
-                self.assertEqual([v for v in ANY_VERSION.findall(old) if v != VERSION],
-                                 [v for v in ANY_VERSION.findall(after) if v != NEXT], rel)
+                # Every other version, the history among them, is exactly where it was: only a
+                # pin became NEXT, and a declared phrase naming VERSION still names it.
+                self.assertNotIn(NEXT, old, rel)
+                self.assertEqual(ANY_VERSION.findall(old),
+                                 [VERSION if v == NEXT else v for v in ANY_VERSION.findall(after)], rel)
                 # And the version is the only thing that changed.
                 self.assertEqual(after.replace(NEXT, VERSION), old, rel)
             for rel, phrase in pins.HISTORY:
@@ -106,7 +108,9 @@ class TreeTest(unittest.TestCase):
             copy_tree(tmp)
             schema = os.path.join(tmp, "skills", "maidr", "references", "schema.md")
             with open(schema, "a", encoding="utf-8") as fh:
-                fh.write(f"\nA new key (maidr.js {VERSION} and later).\n")
+                # Worded so that no HISTORY entry can cover it: a declared "maidr.js X and later"
+                # would, once X is vendored, and this test would then pass a tree it should not.
+                fh.write(f"\nzz undeclared test sentence {VERSION} zz\n")
             before = read(schema)
             env = dict(os.environ, MAIDR_NPM_REGISTRY="http://127.0.0.1:9/maidr",
                        MAIDR_FETCH_MAX_ATTEMPTS="1", MAIDR_FETCH_RETRY_DELAY="0")
@@ -174,7 +178,7 @@ class TreeTest(unittest.TestCase):
             copy_tree(tmp)
             schema = os.path.join(tmp, "skills", "maidr", "references", "schema.md")
             with open(schema, "a", encoding="utf-8") as fh:
-                fh.write(f"\n`newKey` needs `maidr@{VERSION}` or later.\n")
+                fh.write(f"\nzz undeclared test sentence maidr@{VERSION} zz\n")
             before = read(schema)
             env = dict(os.environ, MAIDR_NPM_REGISTRY="http://127.0.0.1:9/maidr",
                        MAIDR_FETCH_MAX_ATTEMPTS="1", MAIDR_FETCH_RETRY_DELAY="0")
