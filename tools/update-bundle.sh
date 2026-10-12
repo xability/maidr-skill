@@ -3,8 +3,9 @@
 #
 # Usage: tools/update-bundle.sh [VERSION]      (default: the "latest" dist-tag on npm)
 # Requires curl and python3. Downloads from jsDelivr (a mirror of the npm tarball), records
-# SHA-256 digests in skills/maidr/assets/maidr-bundle.json, and replaces the previous version
-# string everywhere it is pinned. Prints a warning if cdnjs has not mirrored the version yet.
+# SHA-256 digests in skills/maidr/assets/maidr-bundle.json, and rewrites the previous version where
+# it is pinned (tools/pin_versions.py), leaving statements about past releases alone. Prints a
+# warning if cdnjs has not mirrored the version yet.
 # Also copies the release's dist/dotpad-sdk.json (the DotPad SDK pin maidr.js is built against)
 # over skills/maidr/assets/dotpad-sdk.json when the release ships one; otherwise the asset is
 # left alone and the script says so.
@@ -34,6 +35,11 @@ if ! printf '%s' "$VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
   exit 1
 fi
 echo "vendored: $OLD  ->  target: $VER"
+
+# Only the pins move to the new release; a sentence such as "hoverMode needs maidr.js after 4.14.0"
+# keeps its version. tools/pin_versions.py tells the two apart, and refuses when the tree names the
+# vendored version in a form it does not know, so check that before waiting on the registry.
+"$PY" "$ROOT/tools/pin_versions.py" check "$OLD"
 
 # `npm publish` returns before the registry serves what it accepted: maidr 4.9.0 appeared about
 # ten minutes after maidr's publish step ended, and 4.11.0 eighteen (15:19:22 to 15:37:44 UTC).
@@ -103,13 +109,7 @@ with open(meta_path, "w") as fh:
 EOF
 
 if [ "$OLD" != "$VER" ]; then
-  OLD_RE=$(printf '%s' "$OLD" | sed 's/\./\\./g')
-  grep -rl --exclude-dir=__pycache__ --exclude=maidr.js --exclude=maidr-math.css --exclude=maidr-bundle.json "$OLD" \
-    "$ROOT/skills/maidr" "$ROOT/README.md" "$ROOT/AGENTS.md" 2>/dev/null \
-    | while IFS= read -r file; do
-        sed -i "s/\b${OLD_RE}\b/${VER}/g" "$file"
-        echo "pinned $VER in ${file#$ROOT/}"
-      done
+  "$PY" "$ROOT/tools/pin_versions.py" rewrite "$OLD" "$VER"
 fi
 rm -rf "$TMP"
 echo "done: maidr $VER vendored"
