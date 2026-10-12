@@ -5,6 +5,7 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 ## The page loads but Tab never reaches the chart and nothing is announced
 
 - **maidr.js did not load.** Open the browser console. A blocked CDN shows a network error on the script URL. Switch to the other CDN (`cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`), or copy `assets/maidr.js` and `assets/maidr-math.css` next to the page and load `./maidr.js`, or use the loader chain from `assets/template.html`.
+- **The page has require.js and maidr.js is 4.14.0 or older.** Quarto adds require.js to Jupyter output. Up to 4.14.0 maidr.js was UMD: a `<script>` tag on such a page never starts it, and the console shows `Mismatched anonymous define() module` from the page's next `require()`. Raise the pin (`javascript.md`, Loading maidr.js).
 - **The JSON does not parse.** Common causes: single quotes inside the JSON, a trailing comma, an unescaped apostrophe in a label (write `&#39;`), or the attribute wrapped in double quotes while the JSON also uses double quotes. The checker prints the character offset of the error.
 - **No attachment method matched.** The JSON must sit in a `maidr` (or `maidr-data`) attribute, or in `window.maidr` with `id` equal to the SVG's `id`. A plain `<script type="application/json">` block is not read.
 - **`axes` uses bare strings.** `"axes": { "x": "Day" }` is rejected; use `{ "x": { "label": "Day" } }`.
@@ -25,6 +26,7 @@ maidr.js 4.8.0 and later carry only English; ko, ja, zh, es, de, fr, it, and hi 
 
 - `[maidr] Cannot locate the locale pack for "ko"; add <script src="…/locale-ko.js"> or set window.maidrLocaleBaseUrl.` The bundle is pasted inline and has no URL. Put `<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/";</script>` before it, and for an offline file paste the reader's pack too.
 - `[maidr] Could not load the locale pack at …/locale-ko.js; announcements stay in English.` The directory maidr.js came from has no packs: a vendored `./maidr.js` (run `python scripts/fetch_locale_packs.py` on its folder), or cdnjs, which mirrors none yet (switch to jsDelivr).
+- No `[maidr]` message, and the page has require.js (Quarto's Jupyter output does): packs up to 4.14.0 were UMD and never register on such a page, whether maidr.js fetched the pack or a `<script>` tag loaded it. Raise the pin to the current release.
 
 Until a fetched pack arrives the first announcement is English; a page that loads the pack itself (`javascript.md`, Languages) speaks the language from the start.
 
@@ -69,6 +71,7 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 - The adapter was loaded from cdnjs; adapters exist only on jsDelivr and npm.
 - `maidr.js` was not loaded before a thin adapter (D3, Highcharts, ECharts, Vega-Lite, Google Charts, Frappe, Observable, Tableau, AnyChart need it; Chart.js and amCharts bundles are self-contained).
 - The bind call ran before the chart finished rendering; call it after the library's render or ready callback.
+- The page has require.js (Quarto's Jupyter output does) and the adapter is 4.14.0 or older. Those adapter bundles were UMD: by a script tag on such a page they never set their global, so the bind call fails with `maidrD3 is not defined` (or `maidrHighcharts`, ...) and the console shows `Mismatched anonymous define() module`. Raise the pin to the current release, for `maidr.js` too.
 
 ## Claude artifacts and other sandboxed pages
 
