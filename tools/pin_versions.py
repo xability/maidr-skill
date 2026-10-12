@@ -34,7 +34,8 @@ SKIP_DIRS = {"__pycache__"}
 # Each form names the vendored release; "{v}" stands for the version. Add a form here when a new
 # place pins the release, rather than writing the version where only a person can tell it apart.
 PINS = (
-    "maidr@{v}",                        # jsDelivr URLs (SKILL.md, references, assets)
+    "npm/maidr@{v}/",                   # jsDelivr URLs (SKILL.md, references, assets); not a bare
+                                        # "maidr@{v}", which a sentence about a release can use too
     "/libs/maidr/{v}/",                 # cdnjs URLs
     'maidr-js-version: "{v}"',          # SKILL.md frontmatter
     'MAIDR_VERSION = "{v}"',            # scripts/check_maidr_html.py

@@ -39,7 +39,7 @@ pins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pins)
 
 # The pin check in .github/workflows/validate.yml, verbatim.
-VALIDATE_PINS = re.compile(r"maidr@(\d+\.\d+\.\d+)|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"")
+VALIDATE_PINS = re.compile(r"npm/maidr@(\d+\.\d+\.\d+)/|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"")
 ANY_VERSION = re.compile(r"(?<![0-9.])\d+\.\d+\.\d+(?![0-9])(?!\.[0-9])")
 
 
@@ -112,6 +112,24 @@ class TreeTest(unittest.TestCase):
             self.assertEqual(read(schema), before)
 
 
+    def test_update_bundle_refuses_a_bare_package_spec_naming_the_pin(self):
+        # "maidr@VERSION" outside a jsDelivr URL is a statement about a release, not a pin.
+        with tempfile.TemporaryDirectory() as tmp:
+            copy_tree(tmp)
+            schema = os.path.join(tmp, "skills", "maidr", "references", "schema.md")
+            with open(schema, "a", encoding="utf-8") as fh:
+                fh.write(f"\n`newKey` needs `maidr@{VERSION}` or later.\n")
+            before = read(schema)
+            env = dict(os.environ, MAIDR_NPM_REGISTRY="http://127.0.0.1:9/maidr",
+                       MAIDR_FETCH_MAX_ATTEMPTS="1", MAIDR_FETCH_RETRY_DELAY="0")
+            out = subprocess.run(["bash", os.path.join(tmp, "tools", "update-bundle.sh"), NEXT],
+                                 capture_output=True, text=True, env=env, timeout=60)
+            self.assertNotEqual(out.returncode, 0)
+            self.assertIn("neither a pin nor declared history", out.stdout + out.stderr)
+            self.assertNotIn("registry", out.stderr)
+            self.assertEqual(read(schema), before)
+
+
 class UnitTest(unittest.TestCase):
     TEXT = ('<script src="https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js"></script>\n'
             "`hoverMode` needs maidr.js 4.15.0 or later; 4.14.0 ignores it. Not 4.15.01 or 14.15.0.\n")
@@ -132,13 +150,25 @@ class UnitTest(unittest.TestCase):
         self.assertEqual(pins.unclassified(self.TEXT, "4.15.0", "y.md", history=history),
                          [self.TEXT.index("4.15.0 or later")])
 
+    def test_a_bare_package_spec_is_history_not_a_pin(self):
+        # Only a jsDelivr URL pins with "maidr@": "maidr@4.15.0 or later" in a sentence is about a
+        # release, so it must be reported rather than moved to the next one by a refresh.
+        text = ("`hoverMode` needs `maidr@4.15.0` or later.\n"
+                "<script src=\"https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js\"></script>\n")
+        self.assertEqual(pins.unclassified(text, "4.15.0", "x.md", history=()),
+                         [text.index("4.15.0` or later")])
+        out = pins.rewrite_text(text, "4.15.0", "4.16.0")
+        self.assertIn("needs `maidr@4.15.0` or later", out)
+        self.assertIn("npm/maidr@4.16.0/dist", out)
+        self.assertEqual([m.group(1) for m in VALIDATE_PINS.finditer(out)], ["4.16.0"])
+
     def test_a_declared_phrase_that_is_gone_or_holds_a_pin_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             os.makedirs(os.path.join(tmp, "skills", "maidr"))
             with open(os.path.join(tmp, "README.md"), "w", encoding="utf-8") as fh:
-                fh.write("Load maidr@4.15.0 here.\n")
+                fh.write("Load https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js here.\n")
             found = pins.problems("4.15.0", root=tmp, history=(("README.md", "gone"),
-                                                                 ("README.md", "Load maidr@4.15.0")))
+                                                                 ("README.md", "Load https://cdn.jsdelivr.net/npm/maidr@4.15.0/")))
             self.assertEqual(len(found), 2, found)
             self.assertIn("not found", found[0])
             self.assertIn("contains a pin form", found[1])

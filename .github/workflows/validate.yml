@@ -121,7 +121,7 @@ jobs:
               if path.is_dir() or path.suffix in {".css"} or path.name == "maidr.js":
                   continue
               text = path.read_text(encoding="utf-8", errors="ignore")
-              for m in re.finditer(r"maidr@(\d+\.\d+\.\d+)|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"", text):
+              for m in re.finditer(r"npm/maidr@(\d+\.\d+\.\d+)/|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"", text):
                   found = next(g for g in m.groups() if g)
                   if found != ver:
                       bad.append(f"{path}: {m.group(0)}")
