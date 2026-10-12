@@ -13,9 +13,11 @@ pinned maidr.js <script src>:
     replaced by a plain <script src> tag; any remaining lib/ references are dropped.
   * plotly.js and BokehJS move from their own CDNs, which those sandboxes block, to the same files on
     jsDelivr's npm mirror.
-  * --cdn cdnjs switches that tag to cdnjs (only the core file is mirrored there, which is all a py-maidr or
-    hand-authored page needs); the default keeps jsDelivr. cdnjs carries no locale packs yet
-    (cdnjs/packages#2205), so on cdnjs every reader hears English; keep jsDelivr unless only cdnjs is allowed.
+  * --cdn cdnjs switches that tag to cdnjs (the core file is mirrored there, which is all a py-maidr or
+    hand-authored page needs, and the locale packs for 4.12.0 and later); the default keeps jsDelivr.
+    cdnjs mirrors a release some time after npm publishes it, so the newest one can 404 there for a
+    while (https://api.cdnjs.com/libraries/maidr?fields=version names the newest it has); keep jsDelivr
+    unless only cdnjs is allowed.
   * --fragment emits only <title>, <style>, <script> and the body content, for hosts that wrap content in
     their own document shell (the Claude Code Artifact tool). Without it a full document is kept, which is
     what a claude.ai chat artifact takes.

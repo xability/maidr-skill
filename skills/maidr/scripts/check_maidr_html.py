@@ -219,7 +219,7 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
             if m:
                 found["adapters"].add(m.group(1))
                 if kind == "cdnjs":
-                    rep.error(f"adapter bundle {src} requested from cdnjs, which mirrors only the core maidr.js; load adapters from jsDelivr")
+                    rep.error(f"adapter bundle {src} requested from cdnjs, which mirrors no adapter bundles; load adapters from jsDelivr")
             if re.search(r"(?:^|/)locale-[a-z]{2}\.js$", src.split("?")[0]):
                 found["locale_source"] = True
             if "plotly" in src.lower() or "plot.ly" in src.lower():

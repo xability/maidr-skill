@@ -18,7 +18,7 @@ npm package `maidr` 4.15.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: ht
 - `dist/maidr.js` is a classic script, an IIFE with no exports: a `<script src>`, an inline `<script>` or `import 'maidr'` runs it, with nothing to call. On a page with an AMD loader, such as the require.js Quarto adds to Jupyter output, it runs all the same and only then registers with the loader, as the module `maidr` (anonymously when require.js itself loads it), resolving to `undefined`; the page's own `require()` is unaffected. Releases 3.3.1 to 4.14.0 built it as UMD instead. require.js loading that file itself ran it, but a `<script>` tag on a page with require.js never started it: no chart, and the page's next `require()` threw `Mismatched anonymous define() module`. Up to 4.14.0 the locale packs (since 4.8.0) and the adapter bundles (`d3.js`, `chartjs.js`, ...) had the same AMD branch: on a page with an AMD loader they called `define()` instead of registering the pack or setting the adapter's global, so by a script tag on such a page a pack never registered (announcements stayed in English) and an adapter never set its global (`maidrD3 is not defined`). In releases after 4.14.0 a pack is an IIFE like `maidr.js`, and an adapter keeps its CommonJS-or-global wrapper; both register the pack or set the global first and only then register with the loader. On a page with require.js, raise a pin of 4.14.0 or older.
 - `assets/template.html` carries a loader that tries jsDelivr, then cdnjs, then `./maidr.js`. Copy it when the reader's network is unknown.
 - Content-security policy: `script-src` needs `https://cdn.jsdelivr.net` and/or `https://cdnjs.cloudflare.com`, plus `'unsafe-inline'` if the page uses inline scripts. The AI chat also needs `connect-src` for the provider the reader picks (or `http://localhost:11434` for Ollama).
-- Only the core `maidr.js` is mirrored on cdnjs. Adapter bundles (`d3.js`, `chartjs.js`, ...) come from jsDelivr or npm.
+- cdnjs mirrors the core `maidr.js` (and, for 4.12.0 and later, the locale packs), never the adapter bundles (`d3.js`, `chartjs.js`, ...), which come from jsDelivr or npm. It mirrors a release some time after npm publishes it, so a cdnjs URL for the newest release, the one in these examples included, can 404 for a while; `https://api.cdnjs.com/libraries/maidr?fields=version` names the newest version it has.
 
 ## Languages
 
@@ -27,7 +27,7 @@ maidr.js speaks the reader's language (browser default, or the one chosen in Set
 | maidr.js from | Packs |
 |---|---|
 | jsDelivr | Beside it; nothing to do |
-| cdnjs | None yet (cdnjs/packages#2205): English only, so prefer jsDelivr for readers who may not read English |
+| cdnjs | Beside it for 4.12.0 and later; 4.8.0 to 4.11.0 have none there (English only), and a release cdnjs has not mirrored yet has no maidr.js there either, so prefer jsDelivr for readers who may not read English |
 | `./maidr.js` | Run `python scripts/fetch_locale_packs.py <folder holding maidr.js>` (`--lang ko` for one) and ship the packs with it |
 | Inline bundle | Declare the directory before the bundle; it serves every reader who is online: |
 
