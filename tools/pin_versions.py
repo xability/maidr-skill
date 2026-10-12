@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rewrite the maidr.js version pins, and nothing else that names a version.
 
-    python3 tools/pin_versions.py check VERSION
+    python3 tools/pin_versions.py check VERSION [NEXT]
     python3 tools/pin_versions.py rewrite OLD NEW
 
 tools/update-bundle.sh runs `rewrite` once it has vendored NEW. It used to replace every exact
@@ -13,9 +13,18 @@ which name the vendored release by construction: a CDN URL, a constant, a headin
 
 Every other occurrence of the vendored version must be history, declared in HISTORY, or the
 command refuses before it writes anything, so a new pin in an unknown form, or a history statement
-that happens to name the vendored release, is a decision for a person rather than a guess. `check`
-runs the same classification without writing; tests/test_pin_versions.py runs it on the tree and
-fails when anything is left over.
+that happens to name the vendored release, is a decision for a person rather than a guess.
+
+A version newer than the vendored one must be declared too. "newKey (maidr.js 4.16.0 and later)",
+written while 4.15.0 is vendored, names no pin and passes the rule above, but once 4.16.0 is
+vendored it is an undeclared mention of the pin: the tests fail on main, the weekly release that
+waits on them stops, and the next refresh refuses to run. So it is reported now, while the person
+who wrote it can declare it. `check VERSION NEXT`, which update-bundle.sh runs before it fetches
+NEXT, also reports every NEXT that is neither a pin form nor declared, whichever way the version
+moves.
+
+`check` runs the same classification without writing; tests/test_pin_versions.py runs it on the
+tree and fails when anything is left over.
 """
 from __future__ import annotations
 
@@ -27,8 +36,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Where pins live: the skill and the two top-level documents that name the vendored release.
 SCAN = ("skills/maidr", "README.md", "AGENTS.md")
-# Files that are the release itself, or that update-bundle.sh writes on its own.
-SKIP_FILES = {"maidr.js", "maidr-math.css", "maidr-bundle.json"}
+# Files that are the release itself, or that update-bundle.sh writes on its own (dotpad-sdk.json is
+# the release's copy, and names the DotPad SDK's versions, which are no business of this check).
+SKIP_FILES = {"maidr.js", "maidr-math.css", "maidr-bundle.json", "dotpad-sdk.json"}
 SKIP_DIRS = {"__pycache__"}
 
 # Each form names the vendored release; "{v}" stands for the version. Add a form here when a new
@@ -52,11 +62,21 @@ PINS = (
     "Current pins: maidr.js {v},",      # AGENTS.md
 )
 
-# Statements about a past release that name the vendored version, as (path, exact phrase). They
-# are never rewritten. A phrase that names another version needs no entry: only the vendored
-# version is ever rewritten. Prefer naming the release by what it is about ("after 4.14.0",
-# "4.10.0 and later"), which does not change when the pin does.
+# Statements that name the vendored version, or a version newer than it, as (path, exact phrase).
+# They are never rewritten, so an entry naming a future release keeps it once that release is
+# vendored. A phrase that names an older version needs no entry: only the vendored version is
+# ever rewritten. Prefer naming the release by what it is about ("after 4.14.0", "4.10.0 and
+# later"), which does not change when the pin does, and a feature not yet released by the release
+# before it ("after 4.15.0") rather than by one that does not exist yet. A newer version that is
+# not maidr.js's (a browser's, say) is declared here as well, since the check cannot tell them
+# apart.
 HISTORY: tuple[tuple[str, str], ...] = ()
+
+ANY_VERSION = re.compile(r"(?<![0-9.])[0-9]+\.[0-9]+\.[0-9]+(?![0-9])(?!\.[0-9])")
+
+
+def _key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def _version_re(version: str) -> str:
@@ -86,6 +106,20 @@ def history_spans(text: str, rel: str, history=None) -> list[tuple[int, int]]:
     return spans
 
 
+def _declared(start: int, end: int, hist: list[tuple[int, int]]) -> bool:
+    return any(h_start <= start and end <= h_end for h_start, h_end in hist)
+
+
+def newer(text: str, version: str, rel: str = "", history=None) -> list[int]:
+    """Offsets of versions newer than `version` that are not inside a declared history phrase.
+
+    A pin form does not excuse one: a pin names the vendored release, never a newer one.
+    """
+    hist = history_spans(text, rel, history)
+    return [m.start() for m in ANY_VERSION.finditer(text)
+            if _key(m.group()) > _key(version) and not _declared(*m.span(), hist)]
+
+
 def unclassified(text: str, version: str, rel: str = "", history=None) -> list[int]:
     """Offsets of `version` that are neither a pin nor inside a declared history phrase."""
     pins = pin_spans(text, version)
@@ -94,7 +128,7 @@ def unclassified(text: str, version: str, rel: str = "", history=None) -> list[i
     for m in re.finditer(_version_re(version), text):
         if m.span() in pins:
             continue
-        if any(start <= m.start() and m.end() <= end for start, end in hist):
+        if _declared(*m.span(), hist):
             continue
         out.append(m.start())
     return out
@@ -131,19 +165,36 @@ def _read(path: str) -> str | None:
         return None
 
 
-def problems(version: str, root: str = ROOT, history=None) -> list[str]:
-    """Every occurrence of `version` that is not a pin, and every declared phrase that is gone."""
+def problems(version: str, root: str = ROOT, history=None, target: str | None = None) -> list[str]:
+    """Every occurrence of `version` that is not a pin, every undeclared version newer than it,
+    every undeclared non-pin `target` (the release a refresh is about to vendor), and every
+    declared phrase that is gone."""
     out = []
     history = HISTORY if history is None else history
+
+    def report(rel: str, text: str, offset: int, found: str, why: str) -> None:
+        line = text.count("\n", 0, offset) + 1
+        col = offset - (text.rfind("\n", 0, offset) + 1)
+        snippet = text[max(0, offset - 50):offset + len(found) + 30].replace("\n", " ")
+        out.append(f"{rel}:{line}:{col + 1}: {found} {why}: ...{snippet}...")
+
     for rel, path in files(root):
         text = _read(path)
         if text is None:
             continue
+        seen = set()
         for offset in unclassified(text, version, rel, history):
-            line = text.count("\n", 0, offset) + 1
-            col = offset - (text.rfind("\n", 0, offset) + 1)
-            snippet = text[max(0, offset - 50):offset + len(version) + 30].replace("\n", " ")
-            out.append(f"{rel}:{line}:{col + 1}: {version} is neither a pin nor declared history: ...{snippet}...")
+            seen.add(offset)
+            report(rel, text, offset, version, "is neither a pin nor declared history")
+        for offset in newer(text, version, rel, history):
+            seen.add(offset)
+            found = ANY_VERSION.match(text, offset).group()
+            report(rel, text, offset, found, f"is newer than the vendored {version} and not declared history")
+        if target is not None and target != version:
+            for offset in unclassified(text, target, rel, history):
+                if offset not in seen:
+                    report(rel, text, offset, target,
+                           "is the release being vendored, and is neither a pin nor declared history")
     for rel, phrase in history:
         path = os.path.join(root, rel)
         text = _read(path) if os.path.isfile(path) else None
@@ -172,21 +223,23 @@ def rewrite(old: str, new: str, root: str = ROOT) -> list[str]:
 
 
 HINT = ("Each place that names the vendored release must use a form in PINS (tools/pin_versions.py), "
-        "and a statement about a past release that names this version must be declared in HISTORY "
+        "and a statement that names this version, or a newer one, must be declared in HISTORY "
         "there; otherwise a refresh would either miss the pin or rewrite the history.")
 
 
 def main(argv: list[str]) -> int:
     version = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
-    if len(argv) == 2 and argv[0] == "check" and version.match(argv[1]):
-        found = problems(argv[1])
-        print("\n".join(found) if found else f"every {argv[1]} is a pin or declared history")
+    if len(argv) in (2, 3) and argv[0] == "check" and all(version.match(v) for v in argv[1:]):
+        found = problems(argv[1], target=argv[2] if len(argv) == 3 else None)
+        print("\n".join(found) if found else
+              f"every {' and '.join(dict.fromkeys(argv[1:]))} is a pin or declared history, "
+              f"and no newer version is undeclared")
         if found:
             print(HINT, file=sys.stderr)
         return 1 if found else 0
     if len(argv) == 3 and argv[0] == "rewrite" and version.match(argv[1]) and version.match(argv[2]):
         old, new = argv[1:]
-        found = problems(old)
+        found = problems(old, target=new)
         if found:
             print("\n".join(found), file=sys.stderr)
             print(f"not rewriting {old}: {HINT}", file=sys.stderr)

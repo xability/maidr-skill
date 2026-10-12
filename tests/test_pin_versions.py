@@ -58,6 +58,12 @@ class TreeTest(unittest.TestCase):
         found = pins.problems(VERSION)
         self.assertEqual(found, [], "\n".join(found + ["", pins.HINT]))
 
+    def test_no_version_newer_than_the_vendored_one_is_undeclared(self):
+        found = [f"{rel}: {pins.ANY_VERSION.match(text, o).group()}"
+                 for rel, path in pins.files() if (text := pins._read(path)) is not None
+                 for o in pins.newer(text, VERSION, rel)]
+        self.assertEqual(found, [], pins.HINT)
+
     def test_check_command_passes_on_the_tree(self):
         out = subprocess.run([sys.executable, TOOL, "check", VERSION], capture_output=True, text=True)
         self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
@@ -112,6 +118,56 @@ class TreeTest(unittest.TestCase):
             self.assertEqual(read(schema), before)
 
 
+    def test_update_bundle_refuses_before_fetching_when_a_statement_names_the_next_release(self):
+        # Written while VERSION is vendored, this names no pin, so it used to pass every check;
+        # vendored, NEXT made it an undeclared mention of the pin, and main went red.
+        with tempfile.TemporaryDirectory() as tmp:
+            copy_tree(tmp)
+            schema = os.path.join(tmp, "skills", "maidr", "references", "schema.md")
+            with open(schema, "a", encoding="utf-8") as fh:
+                fh.write(f"\n`newKey` (maidr.js {NEXT} and later) does a new thing.\n")
+            before = read(schema)
+            check = subprocess.run([sys.executable, os.path.join(tmp, "tools", "pin_versions.py"), "check", VERSION],
+                                   capture_output=True, text=True)
+            self.assertNotEqual(check.returncode, 0)
+            self.assertIn(f"{NEXT} is newer than the vendored {VERSION}", check.stdout)
+            env = dict(os.environ, MAIDR_NPM_REGISTRY="http://127.0.0.1:9/maidr",
+                       MAIDR_FETCH_MAX_ATTEMPTS="1", MAIDR_FETCH_RETRY_DELAY="0")
+            out = subprocess.run(["bash", os.path.join(tmp, "tools", "update-bundle.sh"), NEXT],
+                                 capture_output=True, text=True, env=env, timeout=60)
+            self.assertNotEqual(out.returncode, 0)
+            self.assertIn(f"{NEXT} is newer than the vendored {VERSION}", out.stdout + out.stderr)
+            self.assertNotIn("registry", out.stderr)   # it stopped before the first check
+            self.assertEqual(read(schema), before)
+
+    def test_update_bundle_refuses_before_fetching_when_an_older_target_is_named(self):
+        # Moving the pin back to a release the prose names would leave that prose naming the pin.
+        with tempfile.TemporaryDirectory() as tmp:
+            copy_tree(tmp)
+            schema = os.path.join(tmp, "skills", "maidr", "references", "schema.md")
+            with open(schema, "a", encoding="utf-8") as fh:
+                fh.write("\n`oldKey` was dropped after 1.2.3.\n")
+            env = dict(os.environ, MAIDR_NPM_REGISTRY="http://127.0.0.1:9/maidr",
+                       MAIDR_FETCH_MAX_ATTEMPTS="1", MAIDR_FETCH_RETRY_DELAY="0")
+            out = subprocess.run(["bash", os.path.join(tmp, "tools", "update-bundle.sh"), "1.2.3"],
+                                 capture_output=True, text=True, env=env, timeout=60)
+            self.assertNotEqual(out.returncode, 0)
+            self.assertIn("1.2.3 is the release being vendored", out.stdout + out.stderr)
+            self.assertNotIn("registry", out.stderr)
+
+    def test_a_declared_statement_about_the_next_release_survives_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copy_tree(tmp)
+            rel = "skills/maidr/references/schema.md"
+            phrase = f"maidr.js {NEXT} and later"
+            with open(os.path.join(tmp, rel), "a", encoding="utf-8") as fh:
+                fh.write(f"\n`newKey` ({phrase}) does a new thing.\n")
+            history = pins.HISTORY + ((rel, phrase),)
+            self.assertEqual(pins.problems(VERSION, root=tmp, history=history, target=NEXT), [])
+            pins.rewrite(VERSION, NEXT, root=tmp)
+            self.assertIn(f"`newKey` ({phrase})", read(os.path.join(tmp, rel)))
+            self.assertEqual(pins.problems(NEXT, root=tmp, history=history), [])
+
     def test_update_bundle_refuses_a_bare_package_spec_naming_the_pin(self):
         # "maidr@VERSION" outside a jsDelivr URL is a statement about a release, not a pin.
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,6 +187,15 @@ class TreeTest(unittest.TestCase):
 
 
 class UnitTest(unittest.TestCase):
+    def test_a_newer_version_is_reported_unless_declared(self):
+        text = "`newKey` (maidr.js 4.16.0 and later); 4.14.0 and 4.15.0 and 3.99.0 and 14.0.1.\n"
+        self.assertEqual([text[o:o + 6] for o in pins.newer(text, "4.15.0", "x.md", history=())],
+                         ["4.16.0", "14.0.1"])
+        history = (("x.md", "maidr.js 4.16.0 and later"), ("x.md", "and 14.0.1"))
+        self.assertEqual(pins.newer(text, "4.15.0", "x.md", history=history), [])
+        # A pin form does not excuse a newer version: pins name the vendored release.
+        self.assertEqual(len(pins.newer("npm/maidr@4.16.0/dist", "4.15.0", "x.md", history=())), 1)
+
     TEXT = ('<script src="https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js"></script>\n'
             "`hoverMode` needs maidr.js 4.15.0 or later; 4.14.0 ignores it. Not 4.15.01 or 14.15.0.\n")
 

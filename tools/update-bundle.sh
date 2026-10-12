@@ -38,8 +38,11 @@ echo "vendored: $OLD  ->  target: $VER"
 
 # Only the pins move to the new release; a sentence such as "hoverMode needs maidr.js after 4.14.0"
 # keeps its version. tools/pin_versions.py tells the two apart, and refuses when the tree names the
-# vendored version in a form it does not know, so check that before waiting on the registry.
-"$PY" "$ROOT/tools/pin_versions.py" check "$OLD"
+# vendored version in a form it does not know, names a newer version without declaring it, or
+# names $VER other than as a pin: "newKey (maidr.js 4.16.0 and later)" passes every check while
+# 4.15.0 is vendored, and is an undeclared mention of the pin from the moment 4.16.0 is, which
+# turns main red and stops the weekly release. So check all three before waiting on the registry.
+"$PY" "$ROOT/tools/pin_versions.py" check "$OLD" "$VER"
 
 # `npm publish` returns before the registry serves what it accepted: maidr 4.9.0 appeared about
 # ten minutes after maidr's publish step ended, and 4.11.0 eighteen (15:19:22 to 15:37:44 UTC).
