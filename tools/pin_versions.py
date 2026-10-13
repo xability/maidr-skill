@@ -66,10 +66,12 @@ PINS = (
 # They are never rewritten, so an entry naming a future release keeps it once that release is
 # vendored. A phrase that names an older version needs no entry: only the vendored version is
 # ever rewritten. Prefer naming the release by what it is about ("after 4.14.0", "4.10.0 and
-# later"), which does not change when the pin does, and a feature not yet released by the release
-# before it ("after 4.15.0") rather than by one that does not exist yet. A newer version that is
-# not maidr.js's (a browser's, say) is declared here as well, since the check cannot tell them
-# apart.
+# later"), which does not change when the pin does. A feature not yet released needs an entry
+# however it is written: while 4.N is vendored, "after 4.N" names the vendored release and
+# "4.N+1 and later" a newer one. Prefer "after 4.N", which stays true whichever release ships the
+# feature, where "4.N+1 and later" is wrong if the feature slips to a later one. A newer version
+# that is not maidr.js's (a browser's, say) is declared here as well, since the check cannot tell
+# them apart.
 HISTORY: tuple[tuple[str, str], ...] = ()
 
 ANY_VERSION = re.compile(r"(?<![0-9.])[0-9]+\.[0-9]+\.[0-9]+(?![0-9])(?!\.[0-9])")
