@@ -90,14 +90,14 @@ locales = '<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "htt
 inline = locales + "<script>" + maidr.read_bundled_js().replace("</script>", "<\\/script>") + "</script>"
 loader = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S)
 html = loader.sub(lambda m: inline, html, count=1)
-path.write_text(html, encoding="utf-8")   # about 1.5 MB, no lib/ folder, no network needed
+path.write_text(html, encoding="utf-8")   # py-maidr's bundled maidr.js inline (well over 1 MB): no lib/ folder, no network needed
 ```
 
 The declaration serves readers who are online; a file that must speak one known language offline also carries that language's pack (`locale-<code>.js`, see `javascript.md`) pasted in a second inline `<script>` after the bundle. The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr-math.css";</script>` to `inline`.
 
 Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.15.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 
-py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`, or use `use_cdn=False`.
+py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`, or use `use_cdn=False`. cdnjs mirrors a release some time after npm publishes it, so that URL can 404 for a while: check it before relying on it. While it 404s, use `use_cdn=False` rather than the older release cdnjs does have (`https://api.cdnjs.com/libraries/maidr?fields=version` names it): the UMD releases never start on a page with require.js, which Quarto adds to Jupyter output (see the require.js bullet in `troubleshooting.md`).
 
 ### A DotPad tactile display offline
 
@@ -164,4 +164,4 @@ The script exits non-zero instead if the fragment would load anything from a hos
 7. seaborn older than 0.13 raises a clear version error at import; upgrade seaborn.
 8. Generated HTML embeds the JSON as a `maidr` attribute on the SVG; validate it with `scripts/check_maidr_html.py out.html`.
 9. Inside the py-maidr repository itself, run examples with `uv run python script.py`.
-10. To stop the chart highlighting on hover, pass `hover_mode="off"` (or `"click"`) to `show`, `render`, `save_html` or the Shiny/Streamlit/Gradio helpers (py-maidr after 1.26.0; needs maidr.js after 4.15.0, which `use_cdn=True` loads). It writes the schema's `hoverMode`, the chart's starting Hover Mode; a reader who changed the setting keeps theirs. Any other value raises `ValueError`; Altair charts warn and ignore it.
+10. To stop the chart highlighting on hover, pass `hover_mode="off"` (or `"click"`) to `show`, `render`, `save_html` or the Shiny/Streamlit/Gradio helpers (py-maidr after 1.26.0; needs maidr.js after 4.14.0, which `use_cdn=True` loads). It writes the schema's `hoverMode`, the chart's starting Hover Mode; a reader who changed the setting keeps theirs. Any other value raises `ValueError`; Altair charts warn and ignore it.
