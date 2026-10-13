@@ -5,33 +5,25 @@ Usage:
     python to_artifact.py chart.html [-o artifact.html] [--cdn jsdelivr|cdnjs] [--fragment] [--title NAME]
     python to_artifact.py chart.html --visualize -o /workspace/<title>.html     # ChatGPT Work
 
-Chat products that render HTML (claude.ai and Claude Code artifacts, ChatGPT Work's visualize surface) allow
-scripts only from a few CDN hosts and cannot read local files. This script makes a page depend on exactly one
-pinned maidr.js <script src>:
-
-  * py-maidr's inline loader block (which injects the jsDelivr URL, plus a lib/ fallback in "auto" mode) is
-    replaced by a plain <script src> tag; any remaining lib/ references are dropped.
-  * plotly.js and BokehJS move from their own CDNs, which those sandboxes block, to the same files on
-    jsDelivr's npm mirror.
-  * --cdn cdnjs switches that tag to cdnjs (the core file is mirrored there, which is all a py-maidr or
-    hand-authored page needs, and the locale packs for 4.12.0 and later); the default keeps jsDelivr.
-    cdnjs mirrors a release some time after npm publishes it, so the newest one can 404 there for a
-    while (https://api.cdnjs.com/libraries/maidr?fields=version names the newest it has); keep jsDelivr
-    unless only cdnjs is allowed.
-  * --fragment emits only <title>, <style>, <script> and the body content, for hosts that wrap content in
-    their own document shell (the Claude Code Artifact tool). Without it a full document is kept, which is
-    what a claude.ai chat artifact takes.
-  * --visualize emits the fragment ChatGPT Work's visualize surface takes: no <title>, everything inside one
-    root element with an id, the chart scaled down to the frame's width. It fails when the fragment would
-    load something from a host outside that surface's CSP or from a local path, when an inline script makes
-    a request (fetch, XHR, WebSocket), or when the fragment reaches 1 MB, and otherwise prints the
-    visualize{...} line the reply carries where the chart should appear.
+The default and --fragment paths retain pinned CDN scripts for Claude artifacts.
+--visualize instead embeds the verified vendored runtime as gzip/base64, decoded with
+DecompressionStream and run as an inline script. It requires no browser network or
+blob URLs, uses English and private in-memory settings, and includes math layout CSS
+without large embedded fonts. Other external dependencies are rejected: prefer a
+matplotlib/seaborn SVG. The fragment must remain strictly under 1,000,000 UTF-8 bytes.
 
 Only the standard library is used. Run scripts/check_maidr_html.py on the result afterwards.
 """
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
+import hashlib
+import io
+import zlib
+from pathlib import Path
+from html.parser import HTMLParser
 import html as _html
 import json
 import os
@@ -55,13 +47,7 @@ MIRRORS = (
     (re.compile(r"https://cdn\.bokeh\.org/bokeh/release/bokeh((?:-[a-z]+)?)-(\d+\.\d+\.\d+)\.min\.js"),
      r"https://cdn.jsdelivr.net/npm/@bokeh/bokehjs@\2/build/js/bokeh\1.min.js"),
 )
-# ChatGPT Work's visualize skill: "The CSP allows only cdnjs.cloudflare.com, esm.sh, cdn.jsdelivr.net,
-# unpkg.com, fonts.googleapis.com, fonts.gstatic.com, and fonts.bunny.net. Other origins are blocked and fail
-# silently", and "Keep visualizations under 1 MB".
-VISUALIZE_HOSTS = frozenset({
-    "cdnjs.cloudflare.com", "esm.sh", "cdn.jsdelivr.net", "unpkg.com",
-    "fonts.googleapis.com", "fonts.gstatic.com", "fonts.bunny.net",
-})
+# The observed Work CSP allows inline/blob scripts, not third-party CDNs.
 VISUALIZE_LIMIT = 1_000_000
 # Everywhere a fragment can name something for the frame to load: a resource attribute on any element but <a>,
 # which navigates rather than loads; each candidate in a srcset; url() and @import in CSS, in <style> or a style
@@ -152,44 +138,160 @@ def fragment(html: str) -> str:
     return "\n".join(k.strip() for k in keep) + "\n" + body_html.strip() + "\n"
 
 
-def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
-    """The fragment ChatGPT Work's visualize surface takes, and the hosts its CSP would still block.
+BUNDLE_MARKER = "maidr-visualize-gzip-v1"
+ASSETS = Path(__file__).resolve().parent.parent / "assets"
+BOOTSTRAP = r'''(async function () {
+  const boot = document.currentScript;
+  const root = boot.parentElement;
+  const status = root.querySelector('[data-maidr-status]');
+  try {
+    if (typeof DecompressionStream !== 'function') throw new Error('This browser lacks gzip decompression.');
+    const payload = JSON.parse(root.querySelector('[data-maidr-payload]').textContent);
+    async function unpack(part) {
+      const bytes = Uint8Array.from(atob(part.gzip), c => c.charCodeAt(0));
+      const raw = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+      if (raw.byteLength !== part.bytes) throw new Error('Bundled resource size mismatch.');
+      return new TextDecoder('utf-8', {fatal: true}).decode(raw);
+    }
+    const css = document.createElement('style');
+    css.textContent = await unpack(payload.css);
+    root.appendChild(css);
+    // MAIDR recognizes this sentinel and does not try to load its math stylesheet.
+    const math = document.createElement('link');
+    math.setAttribute('data-maidr-math', '');
+    root.appendChild(math);
+    const runtime = document.createElement('script');
+    // A lexical, in-memory storage shim only for the bundled runtime. No page globals
+    // or persisted user preferences are changed, even in an opaque-origin frame.
+    runtime.textContent = '(function(){const values = new Map([["maidr-settings", \'{"general":{"language":"en"}}\']]);' +
+      'const localStorage = {getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,String(v)),removeItem:k=>values.delete(k)};\n' +
+      await unpack(payload.runtime) + '\n})();';
+    root.appendChild(runtime);
+    const deadline = Date.now() + 10000;
+    while (!root.querySelector('article[id^="maidr-article-"] [tabindex="0"]')) {
+      if (Date.now() > deadline) throw new Error('MAIDR did not attach to the chart.');
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    root.dataset.maidrState = 'ready';
+    status.remove();
+  } catch (error) {
+    root.dataset.maidrState = 'error';
+    status.setAttribute('role', 'alert');
+    status.textContent = 'Accessible chart could not start: ' + error.message +
+      ' Open the standalone MAIDR HTML in a current browser; the static picture is not keyboard-accessible.';
+  }
+})();'''
 
-    That surface's contract asks for a fragment with no <title> and one root element with an id, sized to a
-    frame from 320px wide up. A matplotlib SVG has a fixed width, so it is allowed to scale down with the
-    frame; its viewBox keeps maidr's highlighting on the right marks.
-    """
+
+def bundled_payload() -> dict:
+    """Read only verified, vendored assets. Conversion never downloads executable code."""
+    try:
+        manifest = json.loads((ASSETS / "maidr-bundle.json").read_text(encoding="utf-8"))
+        payload = {"format": BUNDLE_MARKER, "version": manifest["version"]}
+        for key, filename in (("runtime", "maidr.js"), ("css", "maidr-math.css")):
+            raw = (ASSETS / filename).read_bytes()
+            digest = hashlib.sha256(raw).hexdigest()
+            expected = manifest["files"][filename]
+            if not raw or len(raw) != expected["bytes"] or digest != expected["sha256"]:
+                raise ValueError(f"vendored {filename} does not match maidr-bundle.json; reinstall the skill")
+            text = raw.decode("utf-8")
+            if key == "css" and any(not (u or v).startswith("data:") for u, v in CSS_URL.findall(text)):
+                raise ValueError("vendored math CSS has external dependencies; reinstall the skill")
+            if key == "css":
+                # KaTeX font payloads exceed the Work budget; retain layout CSS.
+                raw = re.sub(r"@font-face\s*\{[^}]*\}", "", text).encode("utf-8")
+                digest = hashlib.sha256(raw).hexdigest()
+            payload[key] = {"bytes": len(raw), "sha256": digest,
+                            "gzip": base64.b64encode(gzip.compress(raw, mtime=0)).decode("ascii")}
+        return payload
+    except (OSError, KeyError, TypeError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read vendored MAIDR assets: {exc}; reinstall the skill") from exc
+
+
+def validate_bundle(payload_text: str, bootstrap_text: str) -> dict:
+    """Validate the actual encoded resources AND exact loader, never just a marker."""
+    if bootstrap_text.strip() != BOOTSTRAP:
+        raise ValueError("missing or modified MAIDR gzip bootstrap")
+    try:
+        payload = json.loads(payload_text)
+        expected = bundled_payload()
+        if payload["format"] != BUNDLE_MARKER or payload["version"] != expected["version"]:
+            raise ValueError("unsupported MAIDR gzip bundle format/version")
+        for key in ("runtime", "css"):
+            part = payload[key]
+            reference = expected[key]
+            if part["bytes"] != reference["bytes"] or part["sha256"] != reference["sha256"]:
+                raise ValueError(f"MAIDR bundled {key} metadata does not match vendored assets")
+            packed = base64.b64decode(part["gzip"], validate=True)
+            with gzip.GzipFile(fileobj=io.BytesIO(packed)) as stream:
+                raw = stream.read(reference["bytes"] + 1)
+            if len(raw) != reference["bytes"] or hashlib.sha256(raw).hexdigest() != reference["sha256"]:
+                raise ValueError(f"MAIDR bundled {key} payload is corrupt")
+        return payload
+    except (KeyError, TypeError, OSError, EOFError, ValueError, zlib.error) as exc:
+        raise ValueError(f"invalid MAIDR gzip bundle: {exc}") from exc
+
+
+def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
+    """Self-contained Work fragment. Claude's converter/fragment paths are unchanged."""
+    # Check before extracting the body: fragment() intentionally drops head <link>s.
+    html = CORE_SRC.sub("", html)
+    html = re.sub(r'<link\b[^>]*href=["\'][^"\']*maidr-math\.css["\'][^>]*>', '', html, flags=re.I)
+    problems = visualize_problems(html)
     body = re.sub(r"<title\b[^>]*>.*?</title>\s*", "", fragment(html), flags=re.S | re.I)
     style = (f"<style>#{root_id} svg[maidr], #{root_id} svg[maidr-data] "
              "{ max-width: 100%; height: auto; }</style>")
-    out = f'<div id="{root_id}">\n{style}\n{body}</div>\n'
-    return out, visualize_problems(out)
+    try:
+        payload = bundled_payload()
+    except ValueError as exc:
+        return "", problems + [str(exc)]
+    out = (f'<div id="{_html.escape(root_id, quote=True)}">\n{style}\n{body}'
+           '<p data-maidr-status role="status">Loading accessible chart...</p>\n'
+           f'<script type="application/json" data-maidr-payload="{BUNDLE_MARKER}">'
+           + json.dumps(payload, separators=(",", ":")) + '</script>\n'
+           f'<script data-maidr-bootstrap="{BUNDLE_MARKER}">{BOOTSTRAP}</script>\n</div>\n')
+    if len(out.encode("utf-8")) >= VISUALIZE_LIMIT:
+        problems.append(f"the visualize surface takes fragments under {VISUALIZE_LIMIT:,} bytes; plot fewer points, "
+                        "or set plt.rcParams['svg.fonttype'] = 'none' before drawing")
+    return out, problems
 
 
 def visualize_problems(fragment_html: str) -> list[str]:
     """What in a fragment the visualize surface would not load: other hosts, local files, requests."""
     urls = []
-    markup = BODY.sub(r"\1\3", fragment_html)
-    for name, attrs in TAG.findall(markup):
-        if name.lower() == "a":
-            continue
-        for attr, double, single in RESOURCE_ATTR.findall(attrs):
-            value = double or single
-            if attr.lower() == "srcset":
-                urls += [candidate.split()[0] for candidate in value.split(",") if candidate.strip()]
-            else:
-                urls.append(value)
-    css = STYLE_BLOCK.findall(fragment_html) + [d or s for d, s in STYLE_ATTR.findall(markup)]
-    urls += [first or second for block in css for first, second in CSS_URL.findall(block)]
     problems = set()
+    markup = BODY.sub(r"\1\3", fragment_html)
+    class Resources(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.styles = []
+        def handle_starttag(self, name, attrs):
+            for attr, value in attrs:
+                if not value:
+                    continue
+                if attr == "style":
+                    self.styles.append(value)
+                if name == "a":
+                    continue
+                if (name == "script" and attr == "src") or (name == "link" and attr == "href"):
+                    problems.add(f"external script/style dependency {value} cannot run in visualize; use a self-contained matplotlib/seaborn SVG instead")
+                if attr == "srcset":
+                    urls.extend(c.split()[0] for c in value.split(",") if c.strip())
+                elif attr in ("src", "href", "xlink:href", "poster", "data"):
+                    urls.append(value)
+        handle_startendtag = handle_starttag
+    resources = Resources()
+    resources.feed(markup)
+    css = STYLE_BLOCK.findall(fragment_html) + resources.styles
+    urls += [first or second for block in css for first, second in CSS_URL.findall(block)]
     for url in (u.strip() for u in urls):
         if not url or url.startswith(("#", "data:", "blob:", "about:")):
             continue                              # in-page references and inline data load nothing from a host
         parts = urlsplit("https:" + url if url.startswith("//") else url)
         if parts.scheme in ("http", "https"):
             host = (parts.hostname or "").lower()
-            if host not in VISUALIZE_HOSTS:
-                problems.add(f"{host} is outside the visualize CSP, so {url} will not load there")
+            if host:
+                problems.add(f"{host} is blocked by the visualize CSP, so {url} will not load there; use a self-contained matplotlib/seaborn SVG instead")
         else:
             problems.add(f"{url} is a local path, and the visualize surface has no files beside the fragment")
     for attrs, code in SCRIPT.findall(fragment_html):
@@ -198,6 +300,12 @@ def visualize_problems(fragment_html: str) -> list[str]:
             continue
         for api in REQUEST_API.findall(code):
             problems.add(f"an inline script uses {api}, which the visualize surface blocks")
+        if re.search(r"\bimport\s*(?:\(|[\w*{])|\bimportScripts\s*\(", code):
+            problems.add("module imports cannot load under the visualize CSP; use a self-contained matplotlib/seaborn SVG instead")
+        if re.search(r"createElement\s*\(\s*['\"](?:script|link)['\"]", code):
+            # Only this module's exact bootstrap is allowed to inject its encoded resources.
+            if code.strip() != BOOTSTRAP:
+                problems.add("dynamic script/style dependencies cannot be bundled; use a self-contained matplotlib/seaborn SVG instead")
     return sorted(problems)
 
 
@@ -211,8 +319,12 @@ def main(argv: list[str]) -> int:
                     help="ChatGPT Work: a fragment for its visualize surface; write it to /workspace/<title>.html")
     ap.add_argument("--title", help="artifact name; default: the page's <title>, else the chart title from the MAIDR JSON")
     a = ap.parse_args(argv)
-    with open(a.source, encoding="utf-8") as fh:
-        html = fh.read()
+    try:
+        with open(a.source, encoding="utf-8") as fh:
+            html = fh.read()
+    except (OSError, UnicodeError) as exc:
+        print(f"error: cannot read source {a.source}: {exc}", file=sys.stderr)
+        return 1
     out, version = convert(html, a.cdn, a.title)
     dest = a.output or re.sub(r"\.html?$", "", a.source) + "-artifact.html"
     problems: list[str] = []
@@ -221,11 +333,18 @@ def main(argv: list[str]) -> int:
         out, problems = visualize(out, "maidr-" + (re.sub(r"[^a-z0-9]+", "-", stem).strip("-") or "chart"))
     elif a.fragment:
         out = fragment(out)
+    if problems:
+        for problem in problems:
+            print(f"error: {problem}", file=sys.stderr)
+        return 1
     with open(dest, "w", encoding="utf-8") as fh:
         fh.write(out)
     size = os.path.getsize(dest)
     kind = "visualize fragment" if a.visualize else "fragment" if a.fragment else "full document"
-    print(f"wrote {dest} ({size:,} bytes; maidr.js {version} from {a.cdn}, {kind})")
+    origin = "vendored gzip/base64 (offline, English)" if a.visualize else a.cdn
+    if a.visualize:
+        version = bundled_payload()["version"]
+    print(f"wrote {dest} ({size:,} bytes; maidr.js {version} from {origin}, {kind})")
     print(f"next: python {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'check_maidr_html.py')} {dest}")
     if not a.visualize:
         return 0

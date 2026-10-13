@@ -145,13 +145,13 @@ Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the lo
 
 Plotly and Bokeh pages carry their maidr.js loader inside the script that also draws the chart, so `to_artifact.py` keeps that script and puts the pinned tag ahead of it, where that loader finds it. They also load their library from cdn.plot.ly or cdn.bokeh.org, which the sandboxes block; the script switches it to the same file, byte for byte, on jsDelivr.
 
-**ChatGPT Work.** Its `visualize` skill renders an HTML fragment from `/workspace` in the conversation when the reply names it in a `visualize{...}` line. The CSP admits jsDelivr, cdnjs, unpkg and esm.sh and no `fetch`, and the fragment has to stay under 1 MB. `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html` makes that fragment:
+**ChatGPT Work.** Its `visualize` skill renders an HTML fragment from `/workspace` in the conversation when the reply names it in a `visualize{...}` line. Production CSP blocks all external CDN scripts and has `connect-src 'none'`; the fragment remains capped below 1 MB. Always use `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html`, even for a simple hand-authored chart. Do not handcraft a CDN-only fragment.
 
 - It drops the document shell and the `<title>` and wraps everything in one root element with an id.
-- It lets a matplotlib SVG scale down to a narrow frame.
-- It prints the `visualize{"path": ...}` line for the reply.
+- It bundles the roughly 752 KB base64 gzip of `assets/maidr.js`, uses modern `DecompressionStream` to restore it, and assigns it to an inline script's `textContent` inside a scoped IIFE. It uses no `eval`, blob, or network runtime; browsers without `DecompressionStream` get an accessible failure notice.
+- It includes the math layout CSS but omits embedded math font faces to fit the budget, lets a matplotlib SVG scale down to a narrow frame, and prints the `visualize{"path": ...}` line for the reply.
 
-The script exits non-zero instead if the fragment would load anything from a host outside the CSP or from a local path, if an inline script makes a request, or if the fragment reaches 1 MB. Vega, behind Altair charts, compiles its expressions to code at run time, which that CSP may refuse, so prefer matplotlib or seaborn there.
+The script exits non-zero with an actionable fallback if the package would exceed 1 MB or if external Plotly, Bokeh, or Altair/Vega dependencies cannot be safely packaged. Prefer matplotlib, seaborn, or plain SVG. Work output initially has English runtime UI messages, while chart labels and data retain the user's text; settings are session-local and not persisted, and AI chat has no network access. Validate in the actual Work frame: Tab must land on MAIDR's focus target, which switches to `role="application"`, and arrow keys must announce a point. The static checker alone cannot prove that the Work runtime initialized; do not tell a reader to Tab into an uninitialized image.
 
 ## Gotchas
 

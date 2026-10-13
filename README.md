@@ -13,7 +13,7 @@ Whenever a user asks for a chart, plot, or visualization, the agent:
    - **JavaScript page or app** (D3, Chart.js, Highcharts, ECharts, Vega-Lite, Plotly.js, React chart libraries, hand-drawn SVG) -> [`maidr.js`](https://maidr.ai) with that library's adapter.
    - **Otherwise, Python available**, including a chat product's own code sandbox (claude.ai, ChatGPT Work) -> [`py-maidr`](https://py.maidr.ai) (`pip install maidr`).
    - **Python genuinely cannot run** (no interpreter and no sandbox, or a static HTML page that must open anywhere) -> `maidr.js` with hand-authored MAIDR JSON.
-2. Loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable.
+2. For non-Work pages, loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable. For ChatGPT Work, always uses `scripts/to_artifact.py --visualize` to package the vendored runtime without an external script.
 3. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
 
 ## See it in a chat
@@ -25,7 +25,7 @@ Two public artifacts show what the skill produces when the chart is embedded in 
 
 Inside the artifact sandbox everything works except the AI chat (`?`), which cannot reach a model provider from there; sound starts after the first click or Tab into the chart.
 
-In ChatGPT Work the chart appears in the conversation the same way, through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into the fragment that surface takes.
+In ChatGPT Work the chart appears in the conversation through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into a self-contained fragment that restores the MAIDR runtime with `DecompressionStream` and inline script text, so it works under Work's no-external-script CSP without eval, blob, or network runtime.
 
 In the ChatGPT desktop app, the reader can also open the chart page in the app's built-in browser. maidr's own tools then reach ChatGPT Work and Codex as site tools, so the model can answer from the chart and move the reader through it. This has not been tried in the app yet.
 
@@ -169,7 +169,7 @@ The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It 
 | `install.packages("maidr")` | R route, when the package is missing | CRAN |
 | `npm install maidr` | JavaScript route, when the project already builds with npm | `registry.npmjs.org` |
 | `scripts/check_maidr_html.py` | After a chart is written | Nothing. With `--browser` (Playwright, installed by the user) it opens the local file in headless Chromium, which loads maidr.js from the CDN the page names. |
-| `scripts/to_artifact.py` | For a chart shown in a chat | Nothing; it rewrites a local file. |
+| `scripts/to_artifact.py` | For a chart shown in a chat | Nothing; it rewrites a local file. With `--visualize`, it packages Work output with the vendored MAIDR runtime rather than an external CDN, using `DecompressionStream` and inline script text rather than eval or blob URLs. |
 | `python -m http.server --bind 127.0.0.1` | To preview a page in a browser tool | Listens on localhost only. |
 | `scripts/fetch_dotpad_sdk.py`, `scripts/fetch_locale_packs.py` | Only when a page must drive a Dot Pad or show a non-English pack offline | `cdn.jsdelivr.net`. Each file is checked against a recorded SHA-256 and written to disk; the scripts never run what they download. |
 | Development builds and Quarto extensions | Only in the cases the references name: a development build, Quarto reveal.js slides, Observable Plot in Quarto | GitHub: `pip install git+https://github.com/xability/py-maidr.git`, `pak::pak("xability/r-maidr")`, `quarto add xability/maidr`, `quarto add mcanouil/quarto-revealjs-a11y` |
@@ -178,14 +178,14 @@ The plugin is instructions, helper scripts, and a vendored copy of maidr.js. It 
 
 ### What a chart page does when a reader opens it
 
-- It loads maidr.js from jsDelivr, from cdnjs when the agent chose that, or from the vendored copy when no CDN is reachable. maidr.js takes its math stylesheet and any locale pack from the same place. The CDN sees the reader's IP address and browser headers, as it does for any script tag. A Plotly or Bokeh page passed through `scripts/to_artifact.py` loads plotly.js or BokehJS from jsDelivr as well, instead of from `cdn.plot.ly` or `cdn.bokeh.org`.
+- Outside ChatGPT Work, it loads maidr.js from jsDelivr, from cdnjs when the agent chose that, or from the vendored copy when no CDN is reachable. maidr.js takes its math stylesheet and any locale pack from the same place. The CDN sees the reader's IP address and browser headers, as it does for any script tag. For Claude artifacts and other non-Work chat output, a Plotly or Bokeh page passed through `scripts/to_artifact.py` loads plotly.js or BokehJS from jsDelivr instead of `cdn.plot.ly` or `cdn.bokeh.org`. Work output cannot use either external runtime; its converter gives an actionable fallback when one cannot be safely packaged, and otherwise has no runtime network requests.
 - Connecting a Dot Pad makes maidr.js import the vendor's SDK from `cdn.jsdelivr.net/gh/xability/dotpad-sdk-guide@<commit>/`. `fetch_dotpad_sdk.py` lets an offline page carry its own copy.
 - When the browser offers the WebMCP API (`navigator.modelContext`) on a secure origin, maidr.js registers five tools (`maidr_list_charts`, `maidr_get_layer_data`, `maidr_navigate`, `maidr_list_commands`, `maidr_run_command`) for an AI agent running in the reader's browser. maidr.js itself sends nothing. An agent that calls the tools, such as ChatGPT in its desktop app's built-in browser, receives the chart's data, where the reader is in the chart and their reading modes (text, sound, braille and the like), and can move them or run one of their commands, as their own keys would. It never receives their settings or API keys. That agent's provider handles what it receives like anything else the agent reads. `<meta name="maidr-webmcp" content="off">` turns the tools off.
-- It keeps the reader's settings in the browser's `localStorage` under `maidr-settings`.
+- Outside ChatGPT Work, it keeps the reader's settings in the browser's `localStorage` under `maidr-settings`. Work packages keep settings only for the current session.
 
 ### AI chat, only when the reader opens it
 
-The chat stays off until the reader enters their own API key, or an Ollama server address, in Settings. When the reader then asks a question, the page sends the chart image, the chart's MAIDR JSON (title, labels, values), the text for the current point, and the question straight from the reader's browser to the provider the reader chose:
+Outside ChatGPT Work, the chat stays off until the reader enters their own API key, or an Ollama server address, in Settings. Work packages cannot use AI chat because their CSP allows no network connections. When the reader then asks a question, the page sends the chart image, the chart's MAIDR JSON (title, labels, values), the text for the current point, and the question straight from the reader's browser to the provider the reader chose:
 
 | Provider | Host |
 |---|---|
@@ -215,7 +215,7 @@ skills/maidr/
   scripts/detect_env.sh        environment probe (bash): runtimes, project signals, CDN reachability, verdict
   scripts/detect_env.ps1       the same probe for PowerShell
   scripts/check_maidr_html.py  static validator for MAIDR-enabled HTML (optional headless browser check)
-  scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/) or a ChatGPT Work visualize fragment
+  scripts/to_artifact.py       reshape py-maidr or any maidr page for chat artifacts (one pinned CDN script, no lib/) or a self-contained ChatGPT Work visualize fragment
   scripts/fetch_dotpad_sdk.py  download the DotPad tactile-display SDK maidr.js is pinned to, for offline pages (not vendored: 14 MB)
   scripts/fetch_locale_packs.py put maidr.js's non-English locale packs beside a local maidr.js (not vendored)
   assets/template.html         hand-authored bar chart with the jsDelivr -> cdnjs -> local loader chain
@@ -243,7 +243,7 @@ python skills/maidr/scripts/check_maidr_html.py chart.html            # static c
 python skills/maidr/scripts/check_maidr_html.py chart.html --browser  # plus a headless load (needs `pip install playwright`)
 ```
 
-Then open the file, press Tab to reach the chart, and use the arrow keys. **B** toggles braille, **T** text, **S** sound, **R** review mode. Four global shortcuts open maidr's own interfaces:
+Then open the file, press Tab to reach the chart, and use the arrow keys. For ChatGPT Work, a modern browser with `DecompressionStream` is required; an accessible failure notice appears when it is unavailable. Run `python scripts/to_artifact.py chart.html --visualize -o /workspace/title.html` and verify in the actual Work frame: Tab must reach MAIDR's focus target, enter `role="application"`, and an arrow key must announce a point. The static checker is not proof that the Work runtime initialized, and readers should not be told to Tab into an uninitialized image. Work settings are session-local, and its runtime UI is initially English while chart labels and data keep their text. **B** toggles braille, **T** text, **S** sound, **R** review mode. Four global shortcuts open maidr's own interfaces:
 
 | Action | Windows / Linux | macOS |
 |---|---|---|
