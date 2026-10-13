@@ -10,7 +10,10 @@ The default and --fragment paths retain pinned CDN scripts for Claude artifacts.
 DecompressionStream and run as an inline script. It requires no browser network or
 blob URLs, uses English and private in-memory settings, and includes math layout CSS
 without large embedded fonts. Other external dependencies are rejected: prefer a
-matplotlib/seaborn SVG. The fragment must remain strictly under 1,000,000 UTF-8 bytes.
+matplotlib/seaborn SVG. Source resize/redraw handlers are rejected: materialize SVG marks
+with intrinsic width/height and a viewBox, then let CSS scale the whole chart without
+changing mark geometry after MAIDR initializes. The fragment must remain strictly under
+1,000,000 UTF-8 bytes.
 
 Only the standard library is used. Run scripts/check_maidr_html.py on the result afterwards.
 """
@@ -26,6 +29,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 import html as _html
 import json
+import math
 import os
 import re
 import sys
@@ -64,6 +68,41 @@ STYLE_BLOCK = re.compile(r"<style\b[^>]*>(.*?)</style>", re.S | re.I)
 STYLE_ATTR = re.compile(r"""(?<![\w:-])style\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
 CSS_URL = re.compile(r"""url\(\s*['"]?([^'")\s]+)|@import\s+['"]([^'"]+)""", re.I)
 REQUEST_API = re.compile(r"\b(fetch(?=\s*\()|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\b")
+# Conservative source guard, not a JavaScript parser. MAIDR's hidden mark clones retain
+# author classes, and their geometry is cached. Redrawing on resize can either mutate
+# those clones or leave them stale even when a selector excludes data-maidr-owned.
+SOURCE_RESIZE = re.compile(
+    r"\bResizeObserver\b|\baddEventListener\s*\(\s*['\"`]resize['\"`]\s*,"
+    r"|\bonresize\s*=|\[\s*['\"]onresize['\"]\s*\]\s*="
+)
+STATIC_SVG_GUIDANCE = (
+    "source resize/redraw code is unsafe in visualize: MAIDR keeps hidden mark clones "
+    "and cached highlight geometry, so redraws can corrupt or misalign highlights even "
+    "when owned clones are filtered out. Materialize a static SVG with intrinsic width/height "
+    "and viewBox; scale the whole SVG with CSS without changing mark geometry after "
+    "MAIDR initializes, or regenerate it with matplotlib/seaborn."
+)
+
+
+def source_resize_problems(html: str) -> list[str]:
+    """Only executable author code is checked, never encoded runtime/JSON data islands."""
+    for attrs, code in SCRIPT.findall(html):
+        kind = SCRIPT_TYPE.search(attrs)
+        if re.search(r"\bsrc\s*=", attrs, re.I) or (kind and kind.group(1).lower() not in JS_TYPES):
+            continue
+        if SOURCE_RESIZE.search(code):
+            return [STATIC_SVG_GUIDANCE]
+    # onresize="..." on body/window is an executable handler, too. Script bodies have
+    # been emptied so a quoted HTML example inside a script is not mistaken for markup.
+    class ResizeAttributes(HTMLParser):
+        found = False
+        def handle_starttag(self, name, attrs):
+            if any(attr == "onresize" and value for attr, value in attrs):
+                self.found = True
+        handle_startendtag = handle_starttag
+    attributes = ResizeAttributes()
+    attributes.feed(BODY.sub(r"\1\3", html))
+    return [STATIC_SVG_GUIDANCE] if attributes.found else []
 
 
 def cdn_url(host: str, version: str) -> str:
@@ -232,8 +271,48 @@ def validate_bundle(payload_text: str, bootstrap_text: str) -> dict:
         raise ValueError(f"invalid MAIDR gzip bundle: {exc}") from exc
 
 
+def normalize_svg_size(html: str) -> str:
+    """Give chart SVGs missing intrinsic dimensions the positive viewBox dimensions.
+
+    MAIDR wraps the chart with fit-content; a percentage-only SVG without intrinsic
+    dimensions can otherwise shrink to the browser's 300px default. Existing authored
+    dimensions and all other markup remain byte-for-byte unchanged.
+    """
+    offsets = [0] + [m.end() for m in re.finditer("\n", html)]
+    insertions = []
+    class IntrinsicSize(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            if tag != "svg" or not any(key in a for key in ("maidr", "maidr-data")):
+                return
+            parts = re.split(r"[\s,]+", (a.get("viewbox") or "").strip())
+            number = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+            if len(parts) != 4 or not all(re.fullmatch(number, value) for value in parts):
+                return
+            try:
+                numbers = [float(value) for value in parts]
+            except ValueError:
+                return
+            if not all(math.isfinite(value) for value in numbers) or min(numbers[2:]) <= 0:
+                return
+            additions = "".join(f' {key}="{parts[index]}"'
+                                for key, index in (("width", 2), ("height", 3)) if key not in a)
+            if additions:
+                raw = self.get_starttag_text()
+                line, column = self.getpos()
+                pos = offsets[line - 1] + column + len(raw) - (2 if raw.endswith("/>") else 1)
+                insertions.append((pos, additions))
+        handle_startendtag = handle_starttag
+    parser = IntrinsicSize()
+    parser.feed(html)
+    for pos, additions in reversed(insertions):
+        html = html[:pos] + additions + html[pos:]
+    return html
+
+
 def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
     """Self-contained Work fragment. Claude's converter/fragment paths are unchanged."""
+    html = normalize_svg_size(html)
     # Check before extracting the body: fragment() intentionally drops head <link>s.
     html = CORE_SRC.sub("", html)
     html = re.sub(r'<link\b[^>]*href=["\'][^"\']*maidr-math\.css["\'][^>]*>', '', html, flags=re.I)
@@ -259,7 +338,7 @@ def visualize(html: str, root_id: str) -> tuple[str, list[str]]:
 def visualize_problems(fragment_html: str) -> list[str]:
     """What in a fragment the visualize surface would not load: other hosts, local files, requests."""
     urls = []
-    problems = set()
+    problems = set(source_resize_problems(fragment_html))
     markup = BODY.sub(r"\1\3", fragment_html)
     class Resources(HTMLParser):
         def __init__(self):
@@ -325,6 +404,14 @@ def main(argv: list[str]) -> int:
     except (OSError, UnicodeError) as exc:
         print(f"error: cannot read source {a.source}: {exc}", file=sys.stderr)
         return 1
+    # Inspect the source before convert() removes its bare CDN loader. Otherwise a
+    # resize callback colocated in that loader could disappear before validation.
+    if a.visualize:
+        source_problems = source_resize_problems(html)
+        if source_problems:
+            for problem in source_problems:
+                print(f"error: {problem}", file=sys.stderr)
+            return 1
     out, version = convert(html, a.cdn, a.title)
     dest = a.output or re.sub(r"\.html?$", "", a.source) + "-artifact.html"
     problems: list[str] = []

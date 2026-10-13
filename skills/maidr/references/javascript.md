@@ -106,6 +106,10 @@ One attribute per chart. Several charts on one page means several attributes; an
 
 Checklist: JSON `id` equals the SVG `id`; `axes.x`/`axes.y` are objects with `label`; `data` is in drawn order; `selectors` matches exactly one mark per data point (marks, not groups); `type` is a stable trace type. Data shapes per type and multi-panel layouts: `schema.md`. Validate with `scripts/check_maidr_html.py page.html`.
 
+### ChatGPT Work: materialize SVG before MAIDR
+
+For Work `visualize` output, fully draw the SVG before MAIDR initializes. Give it explicit intrinsic `width` and `height` with a matching `viewBox`, then use CSS such as `max-width: 100%; height: auto` for responsive scaling. The Work converter fills missing dimensions from a valid numeric `viewBox`, but explicit dimensions are best practice. Do not redraw mark geometry after initialization with `ResizeObserver`, `window` resize handlers, or queries that assume every `rect.bar` is an original mark. MAIDR creates hidden and active highlight clones that can inherit the same class; repeated source redraw can therefore mutate clones, desynchronize the cached highlight geometry, and put the outline or source marks in the wrong place. This is not duplicate initialization and does not mean the core library is broken. Filtering clones is not a complete fix because cached highlight geometries remain stale. Use a pre-materialized hand-authored SVG or SVG-backed matplotlib/seaborn output instead. The Work converter rejects `ResizeObserver` and common resize-handler redraw patterns with an actionable error. These restrictions are Work-specific; ordinary web pages and Claude artifacts keep their normal dynamic-chart options.
+
 ## Chart-library adapters
 
 Adapters read the library's own data model and write `maidr-data` for you. Load `maidr.js` first unless the row says the adapter bundle is self-contained. Exact option names live in the per-library guide at `https://maidr.ai/docs/<library>.html`; fetch it before writing unfamiliar options rather than guessing.

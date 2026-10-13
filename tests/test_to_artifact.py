@@ -88,6 +88,53 @@ class VisualizeTest(unittest.TestCase):
                               capture_output=True, text=True)
         return proc, dest, Path(dest).read_text(encoding="utf-8") if Path(dest).exists() else ""
 
+    def test_source_resize_redraw_is_rejected_only_in_work(self):
+        snippets = [
+            "new ResizeObserver(draw).observe(svg);",
+            "window.addEventListener('resize', draw);",
+            'addEventListener("resize", draw);',
+            "window.onresize = draw;",
+            "window['onresize'] = draw;",
+        ]
+        for code in snippets:
+            with self.subTest(code=code):
+                script = f'<script>function draw() {{ svg.querySelectorAll("rect.bar").forEach((bar, i) => bar.setAttribute("y", i * 49)); }} {code}</script>'
+                source = fixture("box.html").replace("</body>", script + "</body>")
+                proc, dest, _ = self.run_script(source)
+                self.assertEqual(proc.returncode, 1, proc.stderr)
+                self.assertIn("hidden mark clones", proc.stderr)
+                self.assertIn("static SVG", proc.stderr)
+                self.assertIn("viewBox", proc.stderr)
+                self.assertIn("matplotlib/seaborn", proc.stderr)
+                self.assertFalse(Path(dest).exists())
+                self.assertNotIn("visualize{", proc.stdout)
+                converted, _ = to_artifact.convert(source, "jsdelivr", None)
+                self.assertIn(code, converted)
+                self.assertIn(code, to_artifact.fragment(converted))
+
+    def test_resize_source_is_checked_before_bare_loader_removal(self):
+        # convert() historically replaces a bare CDN loader wholesale. Work must not
+        # lose the unsafe-source diagnosis when the loader also registers a redraw.
+        script = ('<script>new ResizeObserver(draw).observe(svg); '
+                  'const url = "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js";</script>')
+        proc, _, _ = self.run_script(fixture("box.html").replace("</body>", script + "</body>"))
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("hidden mark clones", proc.stderr)
+
+    def test_onresize_html_attribute_is_rejected(self):
+        proc, _, _ = self.run_script(fixture("box.html").replace("<body>", '<body onresize="draw()">'))
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("static SVG", proc.stderr)
+
+    def test_static_source_and_resize_words_in_json_are_safe(self):
+        source = fixture("box.html").replace(
+            "</body>", '<script type="application/json">{"note":"ResizeObserver and onresize"}</script></body>')
+        proc, _, out = self.run_script(source)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(to_artifact.visualize_problems(out), [])
+        # The compressed vendored runtime legitimately contains its own observers.
+        self.assertIn(to_artifact.BUNDLE_MARKER, out)
+
     def test_the_fragment_has_no_shell_and_one_root(self):
         proc, _, out = self.run_script(fixture("box.html"))
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -175,6 +222,36 @@ class VisualizeTest(unittest.TestCase):
         _, dest, _ = self.run_script(fixture("box.html"))
         proc = subprocess.run([sys.executable, CHECKER, dest], capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+
+class IntrinsicSizeTest(unittest.TestCase):
+    def test_missing_chart_dimensions_are_derived_from_viewbox(self):
+        source = '<svg id="c" viewBox="0 0 760 390" maidr="{}" style="width:100%;height:auto"></svg>'
+        expected = source.replace('></svg>', ' width="760" height="390"></svg>')
+        self.assertEqual(to_artifact.normalize_svg_size(source), expected)
+        out, problems = to_artifact.visualize(source, "maidr-test")
+        self.assertEqual(problems, [])
+        self.assertIn(expected, out)
+        # The Claude conversion paths must not acquire this Work-only normalization.
+        default, _ = to_artifact.convert(source, "jsdelivr", None)
+        self.assertIn(source, default)
+        self.assertIn(source, to_artifact.fragment(default))
+
+    def test_authored_dimensions_are_preserved_and_normalization_is_idempotent(self):
+        for dims in ('width="500" height="250"', 'width="80%" height="auto"'):
+            source = f'<svg maidr-data="{{}}" viewBox="0,0,760,390" {dims}/>'
+            self.assertEqual(to_artifact.normalize_svg_size(source), source)
+        partial = '<svg maidr="{}" viewBox="0 0 760 390" width="640"/>'
+        normalized = to_artifact.normalize_svg_size(partial)
+        self.assertEqual(normalized, partial.replace('/>', ' height="390"/>'))
+        self.assertEqual(to_artifact.normalize_svg_size(normalized), normalized)
+
+    def test_invalid_viewboxes_and_unrelated_svgs_are_untouched(self):
+        for viewbox in ('0 0 0 390', '0 0 -20 390', '0 0 NaN 390', '0 0 inf 390', '0 0 760', '0 0 nope 390', '0 0 7_60 390'):
+            source = f'<svg maidr="{{}}" viewBox="{viewbox}"></svg>'
+            self.assertEqual(to_artifact.normalize_svg_size(source), source)
+        source = '<svg viewBox="0 0 760 390"></svg>'
+        self.assertEqual(to_artifact.normalize_svg_size(source), source)
 
 
 class BundleTest(unittest.TestCase):
