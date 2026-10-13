@@ -39,7 +39,7 @@ pins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pins)
 
 # The pin check in .github/workflows/validate.yml, verbatim.
-VALIDATE_PINS = re.compile(r"npm/maidr@(\d+\.\d+\.\d+)/|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"")
+VALIDATE_PINS = re.compile(r"npm/maidr@(\d+\.\d+\.\d+)/|(?:unpkg\.com|esm\.sh)/maidr@(\d+\.\d+\.\d+)|/libs/maidr/(\d+\.\d+\.\d+)/|MAIDR_(?:JS_)?VERSION\s*=\s*\"(\d+\.\d+\.\d+)\"|maidr-js-version:\s*\"(\d+\.\d+\.\d+)\"")
 ANY_VERSION = re.compile(r"(?<![0-9.])\d+\.\d+\.\d+(?![0-9])(?!\.[0-9])")
 
 
@@ -230,6 +230,24 @@ class UnitTest(unittest.TestCase):
         self.assertIn("needs `maidr@4.15.0` or later", out)
         self.assertIn("npm/maidr@4.16.0/dist", out)
         self.assertEqual([m.group(1) for m in VALIDATE_PINS.finditer(out)], ["4.16.0"])
+
+    def test_unpkg_and_esm_sh_urls_are_pins(self):
+        # A page may load maidr.js from unpkg or esm.sh (ChatGPT Work's CSP admits both), so such a
+        # URL is moved by a refresh, and an older version left in one is a stale pin to validate.yml,
+        # as it was before the jsDelivr form became "npm/maidr@{v}/".
+        text = ('<script src="https://unpkg.com/maidr@4.15.0/dist/maidr.js"></script>\n'
+                'import "https://esm.sh/maidr@4.15.0";\n')
+        self.assertEqual(pins.unclassified(text, "4.15.0", "x.md", history=()), [])
+
+        def found(t):
+            return [next(g for g in m.groups() if g) for m in VALIDATE_PINS.finditer(t)]
+
+        self.assertEqual(found(pins.rewrite_text(text, "4.15.0", "4.16.0")), ["4.16.0", "4.16.0"])
+        self.assertEqual(found(text.replace("4.15.0", "4.14.0")), ["4.14.0", "4.14.0"])
+
+    def test_the_validate_pins_copy_is_the_workflows(self):
+        workflow = read(os.path.join(ROOT, ".github", "workflows", "validate.yml"))
+        self.assertIn(f're.finditer(r"{VALIDATE_PINS.pattern}", text)', workflow)
 
     def test_a_declared_phrase_that_is_gone_or_holds_a_pin_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:

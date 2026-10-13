@@ -48,6 +48,8 @@ SKIP_DIRS = {"__pycache__"}
 PINS = (
     "npm/maidr@{v}/",                   # jsDelivr URLs (SKILL.md, references, assets); not a bare
                                         # "maidr@{v}", which a sentence about a release can use too
+    "unpkg.com/maidr@{v}",              # unpkg and esm.sh URLs: none in the tree yet, but ChatGPT
+    "esm.sh/maidr@{v}",                 # Work's CSP admits both (references/python.md)
     "/libs/maidr/{v}/",                 # cdnjs URLs
     'maidr-js-version: "{v}"',          # SKILL.md frontmatter
     'MAIDR_VERSION = "{v}"',            # scripts/check_maidr_html.py
