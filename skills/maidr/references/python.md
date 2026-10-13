@@ -97,7 +97,7 @@ The declaration serves readers who are online; a file that must speak one known 
 
 Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.15.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 
-py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`, or use `use_cdn=False`.
+py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`, or use `use_cdn=False`. cdnjs mirrors a release some time after npm publishes it, so that URL can 404 for a while: check it before relying on it, or use the newest version `https://api.cdnjs.com/libraries/maidr?fields=version` names.
 
 ### A DotPad tactile display offline
 
