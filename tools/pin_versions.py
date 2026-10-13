@@ -20,8 +20,10 @@ written while 4.15.0 is vendored, names no pin and passes the rule above, but on
 vendored it is an undeclared mention of the pin: the tests fail on main, the weekly release that
 waits on them stops, and the next refresh refuses to run. So it is reported now, while the person
 who wrote it can declare it. `check VERSION NEXT`, which update-bundle.sh runs before it fetches
-NEXT, also reports every NEXT that is neither a pin form nor declared, whichever way the version
-moves.
+NEXT, also reports every NEXT that is neither a pin form nor declared. That covers a move to a
+newer release. A rollback (NEXT older than VERSION) leaves more: every version between the two
+that the tree names becomes newer than the vendored release, and `check VERSION NEXT` does not
+report those; `check NEXT`, which the tests run on the tree once NEXT is vendored, does.
 
 `check` runs the same classification without writing; tests/test_pin_versions.py runs it on the
 tree and fails when anything is left over.
