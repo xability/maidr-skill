@@ -71,7 +71,7 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 - The adapter was loaded from cdnjs; adapters exist only on jsDelivr and npm.
 - `maidr.js` was not loaded before a thin adapter (D3, Highcharts, ECharts, Vega-Lite, Google Charts, Frappe, Observable, Tableau, AnyChart need it; Chart.js and amCharts bundles are self-contained).
 - The bind call ran before the chart finished rendering; call it after the library's render or ready callback.
-- The page has require.js (Quarto's Jupyter output does) and the adapter is 4.14.0 or older. Up to 4.14.0 an adapter's UMD wrapper called `define()` instead of setting its global when the page had an AMD loader, so by a script tag on such a page it never set its global, so the bind call fails with `maidrD3 is not defined` (or `maidrHighcharts`, ...) and the console shows `Mismatched anonymous define() module`. Raise the pin to the current release, for `maidr.js` too.
+- The page has require.js (Quarto's Jupyter output does) and the adapter is 4.14.0 or older. Up to 4.14.0 an adapter's UMD wrapper called `define()` instead of setting its global when the page had an AMD loader, so an adapter loaded by a script tag on such a page never set its global: the bind call fails with `maidrD3 is not defined` (or `maidrHighcharts`, ...) and the console shows `Mismatched anonymous define() module`. Raise the pin to the current release, for `maidr.js` too.
 
 ## Claude artifacts and other sandboxed pages
 
