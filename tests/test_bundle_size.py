@@ -3,9 +3,12 @@
 references/javascript.md (Inline row) says the skill's assets/maidr.js is "well over 1 MB", which
 matters where a host caps a page at 1 MB (ChatGPT Work's visualize, troubleshooting.md).
 references/python.md (the inline save_html recipe) says the same of py-maidr's bundled copy, which
-this test cannot read. That copy is a maidr.js release as assets/maidr.js is (py-maidr 1.26.0's is
-byte-for-byte the vendored 4.15.0), so python.md measures it against assets/maidr.js, and this
-holds python.md to saying so. They said "1.5 MB" until 4.15.0's 1,958,529 bytes made it wrong with nothing failing.
+this test cannot read. That copy is a maidr.js release too, and can trail the vendored one: the
+PyPI wheels of py-maidr 1.25.0 and 1.26.0 carry 4.10.0 (1,776,095 bytes) and 4.11.0 (1,850,102
+bytes), by their maidr/static/VERSION, each byte-for-byte that release on npm. Every release from
+4.8.0 to 4.15.0 is larger than the one before it (1,745,805 to 1,958,529 bytes), so the words hold
+for whichever of them py-maidr bundles, and this measures them against assets/maidr.js, the one
+release it can read. Both files said "1.5 MB" until 4.15.0 made that wrong with nothing failing.
 This fails if a release makes the words wrong, and checks that the size maidr-bundle.json records,
 which javascript.md points to for the exact figure, is the file's.
 
