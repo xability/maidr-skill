@@ -77,13 +77,16 @@ Only HTML formats get interactive widgets. Confirm `maidr_on()` runs in a setup 
 
 Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`; local files and inline data URIs for scripts are blocked. Use a CDN URL (either host), keep the JSON inline in the attribute, and expect the AI chat to be unavailable unless the sandbox also permits the provider's API host. This is the way to embed an explorable chart directly in a claude.ai or Claude Code conversation instead of handing over a file; py-maidr output can be embedded the same way, since its loader points at jsDelivr. Other chat products that preview HTML have their own script policies: try the cdnjs tag first and fall back to a downloadable single file if the sandbox blocks it.
 
-**ChatGPT Work shows nothing, or a picture with no maidr.**
+**ChatGPT Work shows nothing, or a picture with no MAIDR.**
 
-- **The chart went to the chart widget.** Work's `genui{"charts_widget_v2": ...}` draws its own picture and binds nothing. The maidr fragment goes through `visualize` instead.
+- **The chart went to the chart widget.** Work's `genui{"charts_widget_v2": ...}` draws its own picture and binds nothing. The MAIDR fragment goes through `visualize` instead.
 - **The reply does not name the file.** It needs `visualize{"path":"/workspace/<title>.html"}` on a line of its own, with the absolute path of a file directly in `/workspace`.
-- **The file is a full page.** It has to be a fragment, with no `<!doctype>`, `<html>`, `<head>` or `<body>`, under 1 MB, loading only from jsDelivr, cdnjs, unpkg or esm.sh. `scripts/to_artifact.py --visualize` produces that, and exits non-zero when a page breaks one of those rules.
-- **The chart is from Plotly or Bokeh.** Run the page through that script, which moves their library off cdn.plot.ly and cdn.bokeh.org.
-- **The chart is from Altair.** Vega compiles its expressions to code at run time, which the frame may refuse. Draw it with matplotlib or seaborn there.
+- **A CDN script was used.** Work's production `visualize` CSP blocks all external CDN scripts and has `connect-src 'none'`. Do not switch CDNs or handcraft a CDN-only fragment. Always run `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html`; it bundles the roughly 752 KB base64 gzip of `assets/maidr.js`, restores it with modern `DecompressionStream`, and assigns it to an inline script's `textContent` inside a scoped IIFE, with no `eval`, blob, or network runtime.
+- **The file is a full page or too large.** It must be a fragment with no `<!doctype>`, `<html>`, `<head>`, or `<body>`, one root element with an id, and stay below 1 MB. The converter enforces these rules.
+- **The source uses Plotly, Bokeh, or Altair/Vega.** Their external runtimes cannot simply be moved to a different CDN in Work. The converter may reject them with an actionable fallback; use matplotlib, seaborn, or plain SVG rather than ship a broken fragment.
+- **The image appears but MAIDR does not initialize.** Verify in the actual Work host, not only with `check_maidr_html.py`: Tab must land on MAIDR's focus target, it must become `role="application"`, and an arrow key must announce a data point. Do not instruct a reader to Tab into a static or uninitialized image.
+- **The runtime reports that the browser is unsupported.** Work packages require the modern `DecompressionStream` API to unpack the runtime; the converter emits an accessible failure notice when it is absent. Use a current supported browser rather than substituting a CDN script.
+- **Runtime messages are English, settings reset, or `?` cannot answer.** Initial Work packages use English runtime UI messages, but chart labels and data retain the user's text. Settings are session-local rather than persisted, and the CSP prevents AI-chat network access. Math layout CSS is included, but embedded math font faces are omitted to stay within the 1 MB budget.
 
 **ChatGPT desktop app: Site tools does not list maidr's tools.**
 

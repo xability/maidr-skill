@@ -142,7 +142,7 @@ class Collector(HTMLParser):
         if tag == "svg":
             self.svg_count += 1
         if tag == "script":
-            self._script = {"src": a.get("src"), "type": a.get("type"), "text": ""}
+            self._script = {"src": a.get("src"), "type": a.get("type"), "attrs": a, "text": ""}
             self.scripts.append(self._script)
         for key in ("maidr", "maidr-data"):
             val = a.get(key)
@@ -189,7 +189,30 @@ def classify_src(src: str) -> str:
 def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
     found = {"core": [], "adapters": set(), "loader": False, "inlined": False, "plotly": False,
              "global_var": False, "locale_source": False, "local_packs": False}
+    marked = [s for s in col.scripts if "data-maidr-payload" in s.get("attrs", {})
+              or "data-maidr-bootstrap" in s.get("attrs", {})]
+    if marked:
+        # Path import also works when the checker is imported from another directory.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_maidr_artifact", os.path.join(os.path.dirname(__file__), "to_artifact.py"))
+        artifact = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(artifact)
+        payloads = [s for s in marked if s["attrs"].get("data-maidr-payload") == artifact.BUNDLE_MARKER]
+        boots = [s for s in marked if s["attrs"].get("data-maidr-bootstrap") == artifact.BUNDLE_MARKER]
+        try:
+            if len(payloads) != 1 or len(boots) != 1 or len(marked) != 2:
+                raise ValueError("expected exactly one MAIDR gzip payload and bootstrap")
+            if payloads[0]["type"] != "application/json" or boots[0]["type"] not in (None, "text/javascript") or any(s["src"] for s in marked):
+                raise ValueError("invalid MAIDR gzip script types or sources")
+            payload = artifact.validate_bundle(payloads[0]["text"], boots[0]["text"])
+            found["inlined"] = True
+            found["locale_source"] = True
+            rep.info(f"verified bundled maidr.js {payload['version']} (gzip/base64, offline English)")
+        except ValueError as exc:
+            rep.error(str(exc))
     for sc in col.scripts:
+        if sc in marked:
+            continue
         src, text = sc["src"], sc["text"]
         if src:
             base = os.path.basename(src.split("?")[0]).lower()
