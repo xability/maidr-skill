@@ -36,7 +36,7 @@ class BundleSizeTest(unittest.TestCase):
     def test_well_over_1_mb_is_still_true(self):
         size = os.path.getsize(os.path.join(ASSETS, "maidr.js"))
         for name, claim in (("javascript.md", "`assets/maidr.js` into a `<script>` block (well over 1 MB;"),
-                            ("python.md", "a release like the skill's assets/maidr.js: well over 1 MB")):
+                            ("python.md", "py-maidr's bundled maidr.js inline (well over 1 MB)")):
             with open(os.path.join(REFERENCES, name), encoding="utf-8") as fh:
                 self.assertIn(claim, fh.read(), name)
         self.assertGreater(size, 1_500_000, "maidr.js is no longer well over 1 MB: reword javascript.md and python.md")
