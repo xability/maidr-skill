@@ -11,8 +11,8 @@ Whenever a user asks for a chart, plot, or visualization, the agent:
 1. Detects the environment and picks the binding:
    - **R project or ggplot2 / base graphics request** -> the [`maidr` R package](https://r.maidr.ai) (CRAN).
    - **JavaScript page or app** (D3, Chart.js, Highcharts, ECharts, Vega-Lite, Plotly.js, React chart libraries, hand-drawn SVG) -> [`maidr.js`](https://maidr.ai) with that library's adapter.
-   - **Otherwise, Python available** -> [`py-maidr`](https://py.maidr.ai) (`pip install maidr`).
-   - **No Python, no R** (browser-only sandboxes, artifacts, static HTML) -> `maidr.js` with hand-authored MAIDR JSON.
+   - **Otherwise, Python available**, including a chat product's own code sandbox (claude.ai, ChatGPT Work) -> [`py-maidr`](https://py.maidr.ai) (`pip install maidr`).
+   - **Python genuinely cannot run** (no interpreter and no sandbox, or a static HTML page that must open anywhere) -> `maidr.js` with hand-authored MAIDR JSON.
 2. Loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable.
 3. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
 
@@ -128,15 +128,18 @@ With the skill installed, ask for a chart the way you normally would; you do not
 | Declarative specs | "Turn this Vega-Lite spec into a page with an accessible scatter plot." | maidr.js, Vega-Lite adapter, `point` |
 | Hand-drawn SVG | "I drew this SVG step chart by hand; wire it up so screen-reader users can explore it." | maidr.js, hand-written MAIDR JSON, `step` |
 
-### Charts in a chat, with no Python or R
+### Charts in a chat
+
+claude.ai and ChatGPT Work run Python in their code sandboxes, so a chart asked for in the conversation takes the py-maidr route and is shown as an artifact or `visualize` fragment. Hand-authored maidr.js is the fallback only where the sandbox cannot run Python or reach PyPI.
 
 | Scenario | Prompt | Route and type |
 | --- | --- | --- |
-| Quick look | "Show me a bar chart of these numbers right here in the chat: apples 12, pears 7, plums 15." | maidr.js in an artifact, `bar` |
-| Explaining a concept | "Draw a normal distribution and a right-skewed one so I can hear the difference." | maidr.js, `line` |
-| Planning | "Make a timeline of this project's four phases from the dates below." | maidr.js, `gantt` (*experimental*) |
-| Funnel metrics | "Show our signup funnel: visited 10,000, signed up 2,400, activated 900, paid 210." | maidr.js, `funnel` (*experimental*) |
-| Hierarchies | "Show this department budget as a treemap." | maidr.js, `treemap` (*experimental*) |
+| Quick look | "Show me a bar chart of these numbers right here in the chat: apples 12, pears 7, plums 15." | py-maidr in the sandbox, shown as an artifact, `bar` |
+| Explaining a concept | "Draw a normal distribution and a right-skewed one so I can hear the difference." | py-maidr, `line` |
+| Planning | "Make a timeline of this project's four phases from the dates below." | py-maidr, `gantt` (*experimental*) |
+| Markets | "Show me a candlestick chart of these daily prices." | py-maidr with mplfinance, `candlestick` |
+| Funnel metrics | "Show our signup funnel: visited 10,000, signed up 2,400, activated 900, paid 210." | py-maidr, `funnel` (*experimental*) |
+| Hierarchies | "Show this department budget as a treemap." | py-maidr, `treemap` (*experimental*) |
 
 ### Checking and fixing
 
