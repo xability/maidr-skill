@@ -1,0 +1,131 @@
+name: main-skill
+
+# A standalone skill ZIP, independent of semantic-release's v* tags, versioned
+# plugin ZIP and release branch. This prerelease is never the latest stable.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skills/maidr/**'
+      - 'tools/package-skill.py'
+      - 'tests/test_package_skill.py'
+      - '.github/workflows/main-skill.yml'
+  workflow_dispatch:
+  # update-bundle pushes with GITHUB_TOKEN then dispatches validate; those pushes
+  # cannot trigger this workflow. Never consume upstream artifacts or PR code.
+  workflow_run:
+    workflows: [validate]
+    branches: [main]
+    types: [completed]
+  schedule:
+    # Backstop for token-authored / [skip ci] pushes (including semantic-release).
+    - cron: '43 * * * *'
+
+permissions:
+  contents: read
+
+# Queue, do not cancel mid-upload. Even an older event checks out actual main
+# when it gets the lock, rather than publishing its potentially stale event SHA.
+concurrency:
+  group: main-skill
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test standalone packaging
+        run: python -m unittest discover -s tests -p 'test_package_skill.py' -v
+
+      - name: Validate and package the skill
+        # The packager verifies vendored bundle sizes and SHA-256, archive CRCs,
+        # byte-for-byte contents, clean skill inputs, and records the main SHA.
+        run: |
+          set -euo pipefail
+          python tools/package-skill.py dist/maidr-skill.zip
+          (cd dist && sha256sum --check maidr-skill.zip.sha256)
+          python skills/maidr/scripts/check_maidr_html.py skills/maidr/assets/template.html
+
+      - name: Publish the fixed main-skill prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [ "$sha" != "$current" ]; then
+            echo 'Main advanced during validation; skip stale upload. Next run checks out main.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # List releases so an API/auth error is not mistaken for a missing tag.
+          existing=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == "main-skill") | [.prerelease, (.immutable // false)] | @tsv')
+          if [ -n "$existing" ] && [ "$existing" != $'true\tfalse' ]; then
+            echo 'Refusing to modify a stable or immutable main-skill release.' >&2
+            exit 1
+          fi
+          tagged=$(gh api "repos/$GH_REPO/git/matching-refs/tags/main-skill" \
+            --jq '.[] | select(.ref == "refs/tags/main-skill") | .object.sha')
+          # Only this fixed tag moves. Never write v* tags or the release branch.
+          if [ -z "$tagged" ]; then
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f ref='refs/tags/main-skill' -f sha="$sha"
+          elif [ "$tagged" != "$sha" ]; then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/main-skill" \
+              -f sha="$sha" -F force=true
+          fi
+          digest=$(cut -d ' ' -f 1 dist/maidr-skill.zip.sha256)
+          cat > "$RUNNER_TEMP/main-skill-notes.md" <<EOF
+          Rolling standalone Agent Skill from main, not a stable versioned plugin release.
+
+          Source commit: [$sha](https://github.com/$GH_REPO/commit/$sha)
+          Source directory: skills/maidr (installed ZIP root: maidr/SKILL.md)
+          ZIP SHA-256: $digest
+
+          Download: https://github.com/$GH_REPO/releases/download/main-skill/maidr-skill.zip
+          The checksum and provenance JSON are attached alongside the ZIP.
+          Updated by run: https://github.com/$GH_REPO/actions/runs/$GITHUB_RUN_ID
+          EOF
+          if [ -z "$existing" ]; then
+            gh release create main-skill dist/maidr-skill.zip \
+              dist/maidr-skill.zip.sha256 dist/maidr-skill.provenance.json \
+              --verify-tag --prerelease --latest=false --title 'MAIDR skill: latest main' \
+              --notes-file "$RUNNER_TEMP/main-skill-notes.md"
+          else
+            gh release upload main-skill dist/maidr-skill.zip \
+              dist/maidr-skill.zip.sha256 dist/maidr-skill.provenance.json --clobber
+            gh release edit main-skill --prerelease --latest=false --draft=false \
+              --title 'MAIDR skill: latest main' --notes-file "$RUNNER_TEMP/main-skill-notes.md"
+          fi
+          # Verify the novice-facing direct URL, not just the upload command.
+          url="https://github.com/$GH_REPO/releases/download/main-skill/maidr-skill.zip"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors \
+            --retry-delay 2 "$url" --output "$RUNNER_TEMP/downloaded-maidr-skill.zip"
+          cmp dist/maidr-skill.zip "$RUNNER_TEMP/downloaded-maidr-skill.zip"
+          gh release download main-skill --pattern 'maidr-skill.provenance.json' \
+            --pattern 'maidr-skill.zip.sha256' --dir "$RUNNER_TEMP/verified-main-skill"
+          cmp dist/maidr-skill.provenance.json "$RUNNER_TEMP/verified-main-skill/maidr-skill.provenance.json"
+          cmp dist/maidr-skill.zip.sha256 "$RUNNER_TEMP/verified-main-skill/maidr-skill.zip.sha256"
+          {
+            echo "Published standalone skill from main commit $sha"
+            echo "$url"
+            echo "ZIP SHA-256: $digest"
+          } >> "$GITHUB_STEP_SUMMARY"

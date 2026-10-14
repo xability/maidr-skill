@@ -44,7 +44,41 @@ In the ChatGPT desktop app, the reader can also open the chart page in the app's
 
 ## Install
 
-### Any agent (recommended)
+### ChatGPT.com and Claude.ai: download and upload, no coding required
+
+**[Download maidr-skill.zip from the latest packaged `main`](https://github.com/xability/maidr-skill/releases/download/main-skill/maidr-skill.zip)**. Keep it zipped: you do not need to clone this repository, install Python, or make your own ZIP. This is a **single-skill upload**, not the whole-repository ZIP or the `maidr-plugin-*.zip` developer-submission package.
+
+The [Main skill ZIP build](https://github.com/xability/maidr-skill/actions/workflows/main-skill.yml) refreshes this rolling prerelease from `main`. Allow the workflow to finish after a new commit; the [download's release notes](https://github.com/xability/maidr-skill/releases/tag/main-skill) and [provenance JSON](https://github.com/xability/maidr-skill/releases/download/main-skill/maidr-skill.provenance.json) identify the exact source commit. A [SHA-256 checksum](https://github.com/xability/maidr-skill/releases/download/main-skill/maidr-skill.zip.sha256) is included. Stable plugin releases remain separate.
+
+#### Upload to ChatGPT.com
+
+1. Download **maidr-skill.zip** using the link above.
+2. Open [ChatGPT's Skills page](https://chatgpt.com/skills), or choose **Plugins → Skills** in the sidebar.
+3. Select **Add** (called **Create** in the help article), then **Upload from your computer**. Choose the ZIP, not an ordinary chat attachment.
+4. Let ChatGPT scan the skill. Review any **Needs review** details; a **Blocked** skill cannot be used. Install/enable the skill if prompted, then start a new **Work** conversation and ask for a chart.
+
+[OpenAI's official Skills guide](https://help.openai.com/en/articles/20001066-skills-in-chatgpt) documents this upload path for eligible **Business, Enterprise, Healthcare, and Edu** users, subject to workspace settings and product availability. It does not promise this feature for every personal plan. If the Skills page or upload option is missing, ask your workspace administrator about skill permissions. The upload dialog observed on October 14, 2026 accepts `.zip`, `.skill`, or `SKILL.md`, up to 25 MB per file; UI labels and limits may change.
+
+#### Upload to Claude.ai
+
+1. Download **the same maidr-skill.zip**; do not unzip it.
+2. Open Claude **Customize → Skills**, choose **Add / + → Create skill → Upload a skill** (labels vary by rollout), and select the ZIP.
+3. Confirm the upload and turn **maidr** on. For an existing personal installation, open its **More options → Replace**, upload the new ZIP, and reload the contents page to confirm the new revision.
+4. Ensure **Code execution and file creation** is enabled, then start a new chat and ask for a chart.
+
+[Anthropic's official usage guide](https://support.claude.com/en/articles/12512180-using-skills-in-claude) lists **Free, Pro, Max, Team, and Enterprise**, with code execution enabled and applicable organization permissions. Its [custom-skill packaging guide](https://support.claude.com/en/articles/12512198-creating-custom-skills) requires one skill folder at the ZIP root. Our download already contains `maidr/SKILL.md` and its supporting files in that layout. Personal uploads are not automatically installed for colleagues.
+
+#### Public plugin directory status
+
+**Do not assume that MAIDR is already available as an approved public-directory plugin.** ZIP upload above works independently of directory publication, where your account permits custom skills.
+
+- **Claude directory, checked October 14, 2026:** the signed-in developer portal shows **In review**, **Nothing published yet**, and **Not listed anywhere**. The content-policy hold is “Ships code the scan can't read.” Approval/public publication is still pending; see [tracking issue #14](https://github.com/xability/maidr-skill/issues/14).
+- **OpenAI directory:** the [last reported status on October 2, 2026](https://github.com/xability/maidr-skill/issues/15#issuecomment-5955255784) is **In review, not published**. Current approval has **not** been independently confirmed; see [tracking issue #15](https://github.com/xability/maidr-skill/issues/15). Until there is a verified live listing, use the ZIP route rather than searching for an approved MAIDR directory plugin.
+
+The Claude Code and Codex commands below add this repository as a **third-party marketplace**. They are not evidence of approval in either company's public plugin directory, and they do not install a personal skill into the two web apps.
+
+### Any coding agent
+
 
 ```bash
 npx skills add xability/maidr-skill
@@ -68,13 +102,13 @@ codex plugin marketplace add xability/maidr-skill --ref release
 codex plugin add maidr@maidr-skill
 ```
 
-In the ChatGPT desktop app, the same marketplace then appears as a source in the Plugins Directory. `codex plugin marketplace upgrade maidr-skill` pulls the latest weekly release; leave out `--ref release` to follow `main` instead.
+Where the ChatGPT desktop app exposes Codex marketplace sources, this third-party marketplace can appear as a source in its Plugins Directory; that is separate from public-directory approval and ChatGPT.com skill upload. `codex plugin marketplace upgrade maidr-skill` pulls the latest weekly release; leave out `--ref release` to follow `main` instead.
 
 To install the bare skill instead, ask Codex: `$skill-installer install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`, or run `npx skills add xability/maidr-skill --agent codex`. Manual: copy `skills/maidr` to `~/.codex/skills/maidr` (user) or `.agents/skills/maidr` (repository).
 
 ### ChatGPT Work
 
-Ask ChatGPT Work: `install the skill at https://github.com/xability/maidr-skill/tree/main/skills/maidr`. Its built-in skill installer copies the skill into `$CODEX_HOME/skills`, and the skill is available from the next turn. Charts then appear in the conversation itself, through Work's `visualize` surface, rather than as files to download.
+For ChatGPT.com, use the **ZIP upload steps above** and verify that the skill is installed before starting a new Work conversation. Do not assume that asking a chat to copy a GitHub folder into `$CODEX_HOME/skills` installs a persistent web-account skill. Local/desktop/Codex installation and syncing can differ by product. In a supported Work conversation, charts appear through Work's `visualize` surface rather than only as downloads.
 
 ### Cursor, GitHub Copilot, Gemini CLI, and others
 
@@ -97,7 +131,7 @@ cp -r maidr-skill/skills/maidr <your-agent's skills directory>/maidr
 | Code, a file, a notebook, a web page or a report; any other chart type, several panels, or a styled chart | this skill |
 | Any chart in a terminal, or another host that shows no MCP Apps, where `show_chart` shows nothing | this skill |
 
-So in a chat product, connect maidr-mcp for charts in the conversation; in a coding agent, the skill is the one that matters. MCP servers added in the ChatGPT desktop app are shared with the Codex CLI and IDE extension, so Codex can see both there, and the same split applies. With maidr-mcp connected, the first two prompts under "Charts in a chat" below go to `show_chart`.
+A separate maidr-mcp connection is optional for a chat product: the skill can publish its binding HTML through supported native inline renderers. When maidr-mcp is connected, its supported conversational charts retain the priority described above. In a coding agent, the skill also handles code and file deliverables. MCP servers added in the ChatGPT desktop app are shared with the Codex CLI and IDE extension, so Codex can see both there, and the same split applies. With maidr-mcp connected, the first two prompts under "Charts in a chat" below go to `show_chart`.
 
 ## Example prompts
 
