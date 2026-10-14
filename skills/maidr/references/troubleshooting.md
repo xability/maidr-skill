@@ -20,6 +20,12 @@ Symptom first, then the usual cause and the fix. Run `python scripts/check_maidr
 
 `data` order and DOM order disagree. Emit the JSON in the same order the marks are drawn (left to right, or the library's series order).
 
+## Navigation and text work, but every value sounds like an alert
+
+Check the numeric axis before blaming audio permissions. With `"orientation": "horz"`, bars need numeric `x` and categorical `y`, with `axes.x` naming the quantity and `axes.y` naming the category. For example, `{ "x": 120, "y": "Q1" }` is horizontal; `{ "x": "Q1", "y": 120 }` is vertical/default. Keeping the vertical fields on a horizontal chart lets text and highlighting appear correct, but passes a nonfinite magnitude to sound and produces a multi-tone missing-value alert. Ordinary chart boundaries can use the same cue, so hearing it at interior numeric points is not proof that data sonification works. Correct the fields and labels, including every series of a segmented bar; do not label a horizontal drawing as vertical to force sound. The checker validates the orientation-dependent quantitative field.
+
+With sound on (`S` toggles it), test several unequal non-missing values inside the bounds, not just an edge. Listen or inspect real Web Audio oscillator frequencies in the chart's execution world and confirm they reflect the data. A tool's isolated-world prototype hooks may observe nothing even while the chart plays sound. If audio is unverified, say so; a moving outline and announced values are not proof of sonification.
+
 ## Announcements stay in English for a reader whose browser or Settings name another language
 
 maidr.js 4.8.0 and later carry only English; ko, ja, zh, es, de, fr, it, and hi are locale packs (`locale-<code>.js`) fetched from beside maidr.js. The console says which way it failed:

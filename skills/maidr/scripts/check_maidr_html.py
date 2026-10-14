@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import glob
 import json
+import math
 import os
 import re
 import sys
@@ -97,6 +98,9 @@ STRING_ONLY = {"point", "pie", "sunflower", "volcano", "manhattan"}
 LINE_FAMILY = {"line", "step", "smooth", "area", "stacked_area", "stacked_normalized_area", "roc",
                "pr_curve", "bump", "radar", "polar_area", "parallel_coordinates", "contour", "survival"}
 SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "diverging_bar"}
+# AbstractBarPlot swaps the magnitude axis for these types (grammar.ts
+# MaidrLayer.orientation); selector families alone are not a numeric contract.
+BAR_MAGNITUDE_TYPES = BAR_FAMILY | SEGMENTED
 CONCATENATED = {"boxen", "ridgeline", "dumbbell", "error_bar", "forest", "gantt", "hexbin",
                 "waterfall", "word_cloud", "gauge", "alluvial", "chord", "sankey", "network",
                 "choropleth", "treemap", "sunburst", "icicle", "tree", "pack", "directed_graph"}
@@ -267,7 +271,7 @@ def check_scripts(col: Collector, html_dir: str, rep: Report) -> dict:
     return found
 
 
-def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
+def check_data_shape(layer_type: str, data, where: str, rep: Report, orientation=None) -> int:
     """Validate the data container and point fields for a layer. Returns the number of points."""
     if layer_type in OBJECT:
         if not isinstance(data, dict):
@@ -321,6 +325,8 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
             return 0
         points = [p for series in data for p in series]
         fields = POINT_FIELDS.get(layer_type, {"x", "y"})
+        if layer_type in BAR_MAGNITUDE_TYPES:
+            fields = fields - {"x" if orientation == "horz" else "y"}
         for p in points[:50]:
             if not isinstance(p, dict) or not fields <= set(p):
                 rep.error(f"{where}: every point needs {', '.join(sorted(fields))} (got {json.dumps(p)[:80]})")
@@ -333,15 +339,17 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report) -> int:
     if all(isinstance(series, list) for series in data):
         rep.error(f"{where}: type '{layer_type}' expects a flat array of points, but data is nested")
         return 0
-    return _check_points(layer_type, data, where, rep)
+    return _check_points(layer_type, data, where, rep, orientation)
 
 
-def _check_points(layer_type: str, data: list, where: str, rep: Report) -> int:
+def _check_points(layer_type: str, data: list, where: str, rep: Report, orientation=None) -> int:
     """Field checks for a flat list of points. Returns the number of points."""
     if not all(isinstance(p, dict) for p in data):
         rep.error(f"{where}: data points must be objects")
         return 0
     required = POINT_FIELDS.get(layer_type, set())
+    if layer_type in BAR_MAGNITUDE_TYPES:
+        required = required - {"x" if orientation == "horz" else "y"}
     if layer_type == "rug":
         # a vertical rug marks x, a horizontal one (orientation "horz") marks y (maidr src/model/rug.ts)
         bad = [p for p in data if "x" not in p and "y" not in p]
@@ -364,6 +372,51 @@ def _check_points(layer_type: str, data: list, where: str, rep: Report) -> int:
         if bad:
             rep.warn(f"{where}: scatter coordinates should be numeric; use xLabel/yLabel for category names (got {json.dumps(bad[0])[:80]})")
     return len(data)
+
+
+def check_bar_magnitudes(layer_type: str, data, orientation, where: str, rep: Report) -> None:
+    """Check the axis AbstractBarPlot reads, without changing the producer's data.
+
+    bar.ts toBarValue accepts numeric strings and treats absent/null/blank values
+    as gaps. Booleans/containers are not BarPoint magnitudes, even if JS Number()
+    coerces some of them. Nonfinite values cannot produce a data pitch.
+    """
+    if layer_type not in BAR_MAGNITUDE_TYPES or not isinstance(data, list):
+        return
+    horizontal = orientation == "horz"
+    axis, category = ("x", "y") if horizontal else ("y", "x")
+    points = (p for row in data if isinstance(row, list) for p in row) if layer_type in NESTED else iter(data)
+    for index, point in enumerate(points):
+        if not isinstance(point, dict):
+            continue  # Shape errors are reported separately.
+        value = point.get(axis)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue  # A missing measurement is not a reversed axis.
+        valid = False
+        if not isinstance(value, bool) and isinstance(value, (int, float, str)):
+            try:
+                if isinstance(value, str):
+                    raw = value.strip()
+                    # Number() also accepts unsigned hex/octal/binary strings.
+                    if re.fullmatch(r"0(?:[xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)", raw):
+                        number = float(int(raw, 0))
+                    elif re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", raw):
+                        number = float(raw)
+                    else:
+                        number = math.nan
+                else:
+                    number = float(value)
+                valid = math.isfinite(number)
+            except (ValueError, OverflowError):
+                pass
+        if not valid:
+            direction = "horizontal" if horizontal else "vertical (the default)"
+            rep.error(f"{where}: {direction} {layer_type} requires {axis}=numeric magnitude, "
+                      f"{category}=category; point[{index}].{axis} is {json.dumps(value)[:80]}. "
+                      "Use a finite number or numeric string (null/absent/blank means missing). "
+                      "A nonnumeric magnitude produces MAIDR's empty tone, not a data pitch; "
+                      "fix the payload axes, not just the labels.")
+            return
 
 
 NUMBER = re.compile(r"-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?", re.I)
@@ -680,7 +733,8 @@ def check_layer(layer, where: str, soup, rep: Report) -> None:
     if "data" not in layer:
         rep.error(f"{where}: layer has no data")
         return
-    n = check_data_shape(t, layer["data"], where, rep)
+    n = check_data_shape(t, layer["data"], where, rep, layer.get("orientation"))
+    check_bar_magnitudes(t, layer["data"], layer.get("orientation"), where, rep)
     if n:
         check_selectors(layer.get("selectors"), n, t, where, soup, rep, layer["data"], dom_mapping=layer.get("domMapping"))
 
