@@ -2,6 +2,10 @@
 
 PyPI package `maidr` (import name `maidr`), version 1.23.x. Docs: https://py.maidr.ai. Source: https://github.com/xability/py-maidr. Python >= 3.9. matplotlib (>= 3.8) and seaborn (>= 0.13) are hard dependencies and are imported by `import maidr`.
 
+## Routing precondition
+
+For generic chart/HTML/artifact requests, follow the early routing gate in `SKILL.md`: actually run `import maidr` in the available sandbox/runtime; if it fails, attempt installation there and retry the import. Do not infer package availability or network restrictions from the chat host. Preserve existing or explicitly requested R/JavaScript work. Python authors the chart; the reader needs no Python to open the HTML. Hand-author only after an observed blocker, recording the failing command/tool and concrete error, or for explicit/existing JavaScript/SVG work.
+
 ## Install
 
 ```bash
@@ -141,7 +145,7 @@ plt.rcParams["svg.fonttype"] = "none"
 maidr.save_html(fig, "chart.html", use_cdn=True)
 ```
 
-Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own, such as the Claude Code Artifact tool. In claude.ai, paste the full document as an HTML artifact. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
+Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own, such as the Claude Code Artifact tool. In claude.ai, read and publish the exact full document from `save_html` (or the converter output) as an HTML artifact; do not redraw its SVG or reconstruct its MAIDR JSON. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
 
 Plotly and Bokeh pages carry their maidr.js loader inside the script that also draws the chart, so `to_artifact.py` keeps that script and puts the pinned tag ahead of it, where that loader finds it. They also load their library from cdn.plot.ly or cdn.bokeh.org, which the sandboxes block; the script switches it to the same file, byte for byte, on jsDelivr.
 
