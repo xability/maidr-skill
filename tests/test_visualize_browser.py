@@ -5,6 +5,7 @@ Synthetic public values only. No network access or CSP relaxation.
 """
 import html
 import json
+import math
 import unittest
 
 from test_to_artifact import to_artifact
@@ -37,6 +38,28 @@ ORIGINAL_MARKS = '#public-bars rect.bar:not([data-maidr-owned])'
 ACTIVE_HIGHLIGHT = '#public-bars [id^="maidr-highlight-"]'
 
 
+# Observe the real Web Audio nodes at start(), without replacing the context,
+# oscillator, frequency assignment, or scheduling. init_script runs in the page's
+# main world before MAIDR initializes, including under the unchanged Work CSP.
+AUDIO_PROBE = """(() => {
+    window.scheduledTones = [];
+    const original = AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator = function(...args) {
+        const oscillator = original.apply(this, args);
+        const context = this;
+        const start = oscillator.start;
+        oscillator.start = function(...times) {
+            const result = start.apply(this, times);
+            window.scheduledTones.push({frequency: this.frequency.value,
+                type: this.type, time: times[0] ?? context.currentTime, state: context.state});
+            return result;
+        };
+        return oscillator;
+    };
+})();"""
+EMPTY_TONE = [500, 1000, 1500, 2100, 2700]
+
+
 @unittest.skipUnless(sync_playwright, "optional playwright package not installed")
 class VisualizeBrowserTest(unittest.TestCase):
     @classmethod
@@ -53,9 +76,11 @@ class VisualizeBrowserTest(unittest.TestCase):
         cls.browser.close()
         cls.pw.stop()
 
-    def load(self, content, before=""):
+    def load(self, content, before="", init_script=None):
         context = self.browser.new_context(locale="ko-KR")
         self.addCleanup(context.close)
+        if init_script:
+            context.add_init_script(init_script)
         page = context.new_page()
         requests = []
         page.on("request", lambda req: requests.append(req.url) if not req.is_navigation_request() else None)
@@ -132,6 +157,63 @@ class VisualizeBrowserTest(unittest.TestCase):
                 self.assertTrue(page.evaluate('window.localStorage === window.previousStorage'))
                 self.assertIn('"ko"', page.evaluate('localStorage.getItem("maidr-settings")'))
                 self.assertEqual(page.locator('script[src], link[href]').count(), 0)
+
+    def test_horizontal_audio_pitches_and_reversed_schema_empty_tone(self):
+        # The same drawn bars still announce and highlight with reversed JSON;
+        # only actual oscillator scheduling distinguishes the regression.
+        reversed_spec = json.loads(json.dumps(SPEC))
+        points = reversed_spec["subplots"][0][0]["layers"][0]["data"]
+        for point in points:
+            point["x"], point["y"] = point["y"], point["x"]
+        reversed_chart = CHART.replace(html.escape(json.dumps(SPEC), quote=True),
+                                       html.escape(json.dumps(reversed_spec), quote=True))
+        for reversed_axes, source in ((False, CHART), (True, reversed_chart)):
+            with self.subTest(reversed_axes=reversed_axes):
+                original, _ = to_artifact.convert(source, "jsdelivr", None)
+                output, problems = to_artifact.visualize(original, "maidr-public")
+                self.assertEqual(problems, [])
+                page, requests = self.load(output, init_script=AUDIO_PROBE)
+                page.wait_for_selector('#maidr-public[data-maidr-state="ready"]')
+                page.locator('#before').focus()
+                page.keyboard.press('Tab')
+                page.wait_for_function('document.activeElement.getAttribute("role") === "application"')
+                pitches = []
+                for index in range(6):
+                    page.evaluate('window.scheduledTones = []')
+                    page.keyboard.press('ArrowRight')
+                    self.assert_bar_geometry(page, index)
+                    page.wait_for_function('window.scheduledTones.length > 0')
+                    tones = page.evaluate('window.scheduledTones')
+                    self.assertTrue(all(t['state'] == 'running' for t in tones), tones)
+                    frequencies = [t['frequency'] for t in tones]
+                    self.assertTrue(all(math.isfinite(f) and f > 0 for f in frequencies), tones)
+                    if reversed_axes:
+                        self.assertEqual(frequencies, EMPTY_TONE)
+                        self.assertTrue(all(t['type'] == 'sine' for t in tones))
+                    else:
+                        self.assertNotEqual(frequencies, EMPTY_TONE)
+                        pitches.append(frequencies[0])  # primary before timbre harmonics
+                if not reversed_axes:
+                    # All six magnitudes strictly decrease; no constant default beep passes.
+                    self.assertTrue(all(a > b for a, b in zip(pitches, pitches[1:])), pitches)
+                    page.evaluate('window.scheduledTones = []')
+                    page.keyboard.press('ArrowRight')  # Beyond the sixth bar: boundary warning.
+                    page.wait_for_function('window.scheduledTones.length >= 5')
+                    boundary = page.evaluate('window.scheduledTones')
+                    # AbstractTrace.outOfBoundsState has no warning flag, so an
+                    # ordinary arrow boundary intentionally uses the empty cue too.
+                    # It differs from all six healthy data pitches, not from the
+                    # reversed-schema cue; warning=true uses a separate two-beep cue.
+                    self.assertEqual([t['frequency'] for t in boundary], EMPTY_TONE)
+                    self.assertTrue(all(t['state'] == 'running' for t in boundary))
+                    page.evaluate('window.scheduledTones = []')
+                    page.keyboard.press('ArrowLeft')
+                    self.assert_bar_geometry(page, 4)
+                    page.wait_for_function('window.scheduledTones.length > 0')
+                    recovered = page.evaluate('window.scheduledTones')
+                    self.assertNotEqual([t['frequency'] for t in recovered], EMPTY_TONE)
+                    self.assertAlmostEqual(recovered[0]['frequency'], pitches[4])
+                self.assertEqual(requests, [], 'audio regression attempted a network request')
 
     def test_missing_decompression_renders_accessible_error(self):
         original, _ = to_artifact.convert(CHART, "jsdelivr", None)

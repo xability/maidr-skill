@@ -119,6 +119,63 @@ def load_checker():
     return module
 
 
+class BarMagnitudeTest(CheckerCase):
+    """AbstractBarPlot orientation/toBarValue contract, not all oriented traces."""
+
+    def check_bar(self, type_, points, orientation=None):
+        checker = load_checker()
+        report = checker.Report()
+        extra = {} if orientation is None else {"orientation": orientation}
+        payload = layer(type_, points, **extra)
+        before = json.dumps(payload)
+        checker.check_layer(payload, "sample", None, report)
+        self.assertEqual(json.dumps(payload), before, "checker must not swap axes")
+        return [i["message"] for i in report.items if i["level"] == "ERROR"]
+
+    def test_all_bar_families_accept_numeric_axis_and_missing_measurements(self):
+        checker = load_checker()
+        for type_ in sorted(checker.BAR_MAGNITUDE_TYPES):
+            for orientation in (None, "vert", "horz"):
+                axis, category = ("x", "y") if orientation == "horz" else ("y", "x")
+                for value in (0, -4, 2.5, "12", " -2.5e2 ", "0x10", "0o10", "0b10", None, "", "  "):
+                    with self.subTest(type=type_, orientation=orientation, value=value):
+                        point = {axis: value, category: "Public category", "fill": "Series", "xMin": 0, "xMax": 1}
+                        data = [[point]] if type_ in checker.NESTED else [point]
+                        self.assertEqual(self.check_bar(type_, data, orientation), [])
+                with self.subTest(type=type_, orientation=orientation, missing=True):
+                    point = {category: "Public category", "fill": "Series", "xMin": 0, "xMax": 1}
+                    data = [[point]] if type_ in checker.NESTED else [point]
+                    self.assertEqual(self.check_bar(type_, data, orientation), [])
+
+    def test_bar_families_reject_bad_magnitudes_in_every_series(self):
+        checker = load_checker()
+        for type_ in sorted(checker.BAR_MAGNITUDE_TYPES):
+            for orientation in (None, "vert", "horz"):
+                axis, category = ("x", "y") if orientation == "horz" else ("y", "x")
+                for value in ("Public category", "NaN", "Infinity", "1e999", "1_000", True, False,
+                              float("nan"), float("inf"), -float("inf"), [], {}):
+                    with self.subTest(type=type_, orientation=orientation, value=value):
+                        valid = {axis: 1, category: "A", "fill": "Series", "xMin": 0, "xMax": 1}
+                        invalid = {**valid, axis: value}
+                        # The 51st point and a later series must not escape a sample-only check.
+                        data = [[valid] * 50, [invalid]] if type_ in checker.NESTED else [valid] * 50 + [invalid]
+                        errors = self.check_bar(type_, data, orientation)
+                        self.assertTrue(any(f"{axis}=numeric magnitude, {category}=category" in e for e in errors), errors)
+
+    def test_reversed_horizontal_cli_explains_axes(self):
+        result = self.check_doc(figure([{"layers": [layer("bar", [{"x": "Public category", "y": 518}], orientation="horz")]}]))
+        self.assertErrorMentions(result, "horizontal bar requires x=numeric magnitude, y=category")
+        self.assertErrorMentions(result, "empty tone")
+
+    def test_unrelated_horizontal_types_keep_their_contract(self):
+        for type_, data in (("error_bar", [{"x": "Category", "y": 2}]),
+                            ("forest", [{"x": "Study", "y": 2}]),
+                            ("line", [[{"x": "Category", "y": 2}]]),
+                            ("pie", [{"x": "Category", "y": 2}])):
+            with self.subTest(type=type_):
+                self.assertEqual(self.check_bar(type_, data, "horz"), [])
+
+
 class TraceTypeTest(CheckerCase):
     def test_known_types_match_the_vendored_bundle(self):
         # The checker's list drifted once already (roc and rug, read since 4.9.0, were rejected

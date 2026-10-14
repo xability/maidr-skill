@@ -51,7 +51,15 @@ Never declare `candlestick_delta`; it is derived at runtime from a `candlestick`
 "data": [ { "x": "A", "y": 5.98 }, { "x": "B", "y": 9.31 } ]
 ```
 
-Horizontal bars: add `"orientation": "horz"` on the layer and keep `x` as the category, `y` as the value.
+The example above is vertical (`"orientation": "vert"`, the default): `x` is the category and `y` is the numeric value. For horizontal bars, set `"orientation": "horz"` and put the **numeric value in `x`, category in `y`**, with matching axis labels:
+
+```json
+"orientation": "horz",
+"axes": { "x": { "label": "Revenue (USD thousands)" }, "y": { "label": "Category" } },
+"data": [ { "x": 5.98, "y": "A" }, { "x": 9.31, "y": "B" } ]
+```
+
+Keep quantitative values as numbers; use `null` for genuinely missing values, not formatted strings. Categorical `x` on a horizontal bar can still produce plausible text and correct highlighting, but the numeric magnitude is invalid and sonification plays a missing-value alert instead of the data pitch. Fix the fields and labels, not the declared orientation: a horizontal drawing must remain `"horz"`.
 
 ### `line` and `step` (nested: one inner array per series)
 
@@ -104,6 +112,8 @@ Layer-level `"orientation": "vert"` or `"horz"`. Empty outlier arrays are fine.
   [ { "x": "Adelie", "fill": "Above", "y": 90 }, { "x": "Gentoo", "fill": "Above", "y": 60 } ]
 ]
 ```
+
+The example is vertical. Horizontal segmented bars also use `"orientation": "horz"`, numeric `x`, categorical `y`, and matching axis labels in every series; `fill` and the nesting remain unchanged.
 
 Readers move Left/Right across categories and Up/Down across fills; maidr adds summary and combined pseudo-layers itself.
 
