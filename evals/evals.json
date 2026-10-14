@@ -19,17 +19,18 @@
     },
     {
       "id": 2,
-      "name": "standalone-html-line-chart-no-python",
+      "name": "standalone-html-line-chart-no-reader-python",
       "prompt": "Create a single self-contained HTML page showing average global temperature anomaly from 1990 to 2020 as a line chart (use these values: 1990 0.45, 1995 0.47, 2000 0.42, 2005 0.68, 2010 0.72, 2015 0.90, 2020 1.02 degrees C). I cannot run Python or Node here; it must be plain HTML I can open in a browser.",
-      "expected_output": "An HTML file with an SVG line chart and a maidr attribute holding a line layer with nested data (one series of 7 points), axes labels as objects, a selectors entry pointing at the path, and maidr.js loaded from jsDelivr with a cdnjs fallback.",
+      "expected_output": "The agent actually imports maidr in its own sandbox, draws the seven-point line chart with py-maidr, and saves HTML. For the requested single self-contained file, it inlines the bundle using the documented Python recipe rather than hand-authoring the chart. The reader opens the output in a browser without Python or Node.",
       "files": [],
       "assertions": [
-        "maidr.js is loaded from jsDelivr or cdnjs, pinned to a version",
-        "The SVG carries a maidr attribute whose JSON parses",
-        "The layer type is 'line' and data is nested (array of arrays) with 7 points",
-        "axes.x and axes.y are objects with label fields",
+        "The execution trace shows an actual import maidr attempt in the agent sandbox, with installation and import retry if needed",
+        "The chart is created through py-maidr and maidr.save_html, not a manual SVG replacement",
+        "The single self-contained HTML contains the MAIDR runtime inline and needs neither Python nor Node on the reader machine",
+        "The SVG carries valid MAIDR JSON with a line layer and all seven supplied values",
         "The HTML passes scripts/check_maidr_html.py with 0 errors"
-      ]
+      ],
+      "setup": "Run with an agent-side Python sandbox and maidr available; no maidr-mcp. The reader has no Python or Node. This is a delivery constraint, not an authoring-language request."
     },
     {
       "id": 3,
@@ -129,6 +130,80 @@
         "The figure has four panels, one per region, each with a title and labelled axes",
         "The page passes scripts/check_maidr_html.py with 0 errors",
         "The response tells the reader how to move between panels (arrows, Enter, Escape)"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "claude-neutral-chart-python-attempt",
+      "setup": "Run in claude.ai with a Python execution sandbox, maidr initially absent, working PyPI access, and no maidr-mcp. Inspect tool calls, not just the final answer.",
+      "prompt": "/maidr visualize UIUC iSchool PhD enrollment over time using only this synthetic test data: 2020: 40, 2021: 48, 2022: 43, 2023: 61, 2024: 55. Label the data as synthetic, not official enrollment.",
+      "expected_output": "The agent runs an import attempt, observes the missing package, actually installs maidr and retries the import. It draws the synthetic five-point chart with py-maidr, saves HTML, and publishes that exact output or the exact to_artifact.py output as the Claude artifact.",
+      "files": [],
+      "assertions": [
+        "Tool trace shows Python execution and import maidr before any hand-authored SVG/template work",
+        "After the observed missing-package error, an actual installation command and successful import retry precede chart generation",
+        "Uses maidr.save_html and publishes the exact generated HTML or exact converter output without manually rebuilding SVG/JSON",
+        "Does not select JavaScript because this is a chat environment or assume blocked PyPI access",
+        "All five supplied values are preserved and the chart is labelled synthetic; no enrollment lookup or invented official data",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "claude-html-artifact-no-reader-python",
+      "setup": "Run in Claude with a working Python sandbox and maidr installed; no maidr-mcp.",
+      "prompt": "Make an interactive HTML chart artifact I can preview here and share with colleagues who do not have Python. Use these synthetic quarterly counts: Q1 4, Q2 9, Q3 6, Q4 12.",
+      "expected_output": "An actual sandbox import succeeds, then py-maidr draws and saves the chart with use_cdn=True. The agent publishes the exact saved/converted HTML in the artifact, explaining that readers need only a browser (and network for the CDN), not Python.",
+      "files": [],
+      "assertions": [
+        "Tool trace shows import maidr and maidr.save_html in the Python sandbox",
+        "HTML/artifact and no-reader-Python requirements do not select hand-authored SVG or JavaScript development",
+        "The published artifact is the exact save_html or to_artifact.py output, not a manually reconstructed chart",
+        "The chart preserves all four supplied counts and has labelled axes",
+        "The response does not ask the reader to install Python"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "claude-explicit-javascript-preserved",
+      "setup": "Run in Claude with a working Python sandbox; no maidr-mcp. Python availability must not override an explicit JavaScript task.",
+      "prompt": "Create a JavaScript D3 bar chart in an HTML page, with MAIDR accessibility. Keep the plotting code in JavaScript so I can integrate it into my D3 dashboard. Use these synthetic counts: A 3, B 7, C 5.",
+      "expected_output": "The chart remains D3/JavaScript, using the documented MAIDR adapter. No Python import/install detour is required.",
+      "files": [],
+      "assertions": [
+        "Uses D3 in JavaScript and its MAIDR adapter with the supplied three values",
+        "Does not rewrite the chart in Python or R",
+        "Does not require a failed Python import/install to honor the explicit JavaScript request",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "claude-explicit-r-preserved",
+      "setup": "Run with R and Python available; no maidr-mcp.",
+      "prompt": "Use R and ggplot2 to make an accessible line chart and save HTML for my report. Here is synthetic data: year 2021, 2022, 2023; count 10, 14, 12. Keep the source in R.",
+      "expected_output": "R source uses ggplot2 and the maidr R package, with title and labelled axes and save_html output. The HTML deliverable does not switch authoring to JavaScript or Python.",
+      "files": [],
+      "assertions": [
+        "Uses library(maidr), ggplot2 and the documented R save_html API",
+        "Does not force Python or introduce a Python import/install prerequisite",
+        "Keeps all three supplied values and labels the axes",
+        "The HTML output retains MAIDR accessibility"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "claude-observed-install-failure-fallback",
+      "setup": "Run in an isolated Python sandbox where importing maidr actually fails because it is absent and a real install attempt fails under a controlled network restriction. Keep bash/file tools and the vendored skill assets available. Do not place a claimed error in the user prompt; the model must observe actual tool output. Record the concrete error returned by the failing command.",
+      "prompt": "Show me an accessible HTML chart artifact of these synthetic counts: A 2, B 8, C 5.",
+      "expected_output": "The agent first attempts Python and import maidr, then actually attempts installation after the import fails. Only after observing the install failure does it report the failing command and concrete error and use hand-authored SVG with valid MAIDR JSON. It must not claim py-maidr generated the fallback.",
+      "files": [],
+      "assertions": [
+        "Tool trace contains an actual import failure followed by an actual installation failure before reading assets/template.html or hand-authoring SVG",
+        "The fallback explanation records the failing command/tool and concrete observed error, not presumed missing packages or a generic chat-environment limitation",
+        "Uses hand-authored SVG only after the observed blocker; does not claim save_html succeeded",
+        "All three supplied values and axis labels are present in valid MAIDR JSON",
+        "The HTML passes scripts/check_maidr_html.py with 0 errors"
       ]
     }
   ]

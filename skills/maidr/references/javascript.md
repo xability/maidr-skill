@@ -2,6 +2,10 @@
 
 npm package `maidr` 4.15.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: https://maidr.ai/docs/SCHEMA.html. Controls: https://maidr.ai/docs/CONTROLS.html. Per-library guides: `https://maidr.ai/docs/<library>.html` (plotly, d3, chartjs, highcharts, echarts, vegalite, recharts, victory, amcharts, anychart, frappe, google-charts, observable, tableau, react). Source: https://github.com/xability/maidr.
 
+## Routing precondition
+
+Use this reference for existing or explicitly requested JavaScript/SVG development, preserving the user's library or SVG. Rendering HTML is not JavaScript development: a generic Claude chart, HTML artifact or self-contained file follows the Python import/install attempt in `SKILL.md`, and the reader needs no Python. Hand-authored fallback requires an observed blocker and the failing command/tool with its concrete error; do not assume missing packages or blocked network. Do not open `assets/template.html` before that gate selects JavaScript or the fallback. Existing/explicit R work stays in R.
+
 ## Loading maidr.js
 
 | Source | Tag |

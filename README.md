@@ -8,11 +8,13 @@ Works with Claude Code, OpenAI Codex, ChatGPT Work, Cursor, GitHub Copilot, Gemi
 
 Whenever a user asks for a chart, plot, or visualization, the agent:
 
-1. Detects the environment and picks the binding:
-   - **R project or ggplot2 / base graphics request** -> the [`maidr` R package](https://r.maidr.ai) (CRAN).
-   - **JavaScript page or app** (D3, Chart.js, Highcharts, ECharts, Vega-Lite, Plotly.js, React chart libraries, hand-drawn SVG) -> [`maidr.js`](https://maidr.ai) with that library's adapter.
-   - **Otherwise, Python available**, including a chat product's own code sandbox (claude.ai, ChatGPT Work) -> [`py-maidr`](https://py.maidr.ai) (`pip install maidr`).
-   - **Python genuinely cannot run** (no interpreter and no sandbox, or a static HTML page that must open anywhere) -> `maidr.js` with hand-authored MAIDR JSON.
+1. Applies the early routing gate in `SKILL.md` (the maidr-mcp split below is unchanged):
+   - **Existing or explicitly requested R work** -> the [`maidr` R package](https://r.maidr.ai) (CRAN).
+   - **Existing or explicitly requested JavaScript/SVG development** (D3, Chart.js, React, hand-authored SVG, etc.) -> [`maidr.js`](https://maidr.ai), preserving that library or SVG.
+   - **Otherwise, including a generic Claude chart or HTML artifact** -> [`py-maidr`](https://py.maidr.ai) in the available Python sandbox/runtime. Actually runs `import maidr`; on failure, attempts installation in the same runtime and retries the import.
+   - **Hand-authored fallback** -> only after an observed Python/runtime/import/install blocker, with the failing command/tool and concrete error reported, or for the explicit/existing JavaScript/SVG task above. Never assumes a missing package or blocked network.
+
+   Rendering HTML is not JavaScript development. The reader needs no Python: it is used only to author the chart. A self-contained HTML request does not change the binding. The agent calls `maidr.save_html` and publishes the exact generated HTML (or exact `scripts/to_artifact.py` output), not a manually redrawn replacement. Existing/explicit R and JavaScript work stays in its language.
 2. For non-Work pages, loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable. For ChatGPT Work, always uses `scripts/to_artifact.py --visualize` to package the vendored runtime without an external script.
 3. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
 
@@ -20,7 +22,7 @@ Whenever a user asks for a chart, plot, or visualization, the agent:
 
 Two public artifacts show what the skill produces when the chart is embedded in a conversation instead of shipped as a file. Open one, press Tab (or click the chart), then use the arrow keys; **B**, **T**, **S**, and **R** toggle braille, text, sound, and review mode.
 
-- [Hand-authored SVG with MAIDR JSON](https://claude.ai/code/artifact/05de1e51-7fd4-4aa1-83e8-c1b4525e6393): the `assets/template.html` approach, maidr.js loaded from cdnjs.
+- [Hand-authored SVG with MAIDR JSON](https://claude.ai/code/artifact/05de1e51-7fd4-4aa1-83e8-c1b4525e6393): the `assets/template.html` approach for explicit SVG work or an evidence-backed fallback, not the default for chat.
 - [matplotlib chart saved by py-maidr](https://claude.ai/code/artifact/056a2136-3cef-40b2-8d00-2d89cc6c4c6c): `maidr.save_html(fig, use_cdn=True)` reshaped by `scripts/to_artifact.py`.
 
 Inside the artifact sandbox everything works except the AI chat (`?`), which cannot reach a model provider from there; sound starts after the first click or Tab into the chart.
