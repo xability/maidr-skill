@@ -4,7 +4,17 @@ npm package `maidr` 4.15.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: ht
 
 ## Routing precondition
 
-Use this reference for existing or explicitly requested JavaScript/SVG development, preserving the user's library or SVG. Rendering HTML is not JavaScript development: a generic Claude chart, HTML artifact or self-contained file follows the Python import/install attempt in `SKILL.md`, and the reader needs no Python. Hand-authored fallback requires an observed blocker and the failing command/tool with its concrete error; do not assume missing packages or blocked network. Do not open `assets/template.html` before that gate selects JavaScript or the fallback. Existing/explicit R work stays in R.
+Use this reference for existing or explicitly requested JavaScript/SVG development, preserving the user's library or SVG. Rendering HTML is not JavaScript development: a generic Claude chart, HTML artifact or self-contained file follows the Python import/install attempt in `SKILL.md`, and the reader needs no Python. Claude's native `mcp__visualize__show_widget`, when available after the applicable maidr-mcp `show_chart` split, is a delivery surface for exact binding HTML, not a reason to hand-author JavaScript. Hand-authored fallback requires an observed blocker and the failing command/tool with its concrete error; do not assume missing packages or blocked network. Do not open `assets/template.html` before that gate selects JavaScript or the fallback. Existing/explicit R work stays in R.
+
+## Claude native inline HTML delivery
+
+For a chart the user wants in the conversation, use maidr-mcp `show_chart` first when its documented split applies. Otherwise, if Claude's native `mcp__visualize__show_widget` is available, package the exact page this binding produced, including an explicit JavaScript/SVG page, then supply that HTML to the native renderer:
+
+```bash
+python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html
+```
+
+The fragment stays CDN-backed. Read the native tool's usage documentation before supplying it. The renderer renders supplied HTML; do not pass chart data to a product widget and call the unbound result accessible. No separately configured MAIDR MCP server/connector is required. If the tool is unavailable or an actual initialization, keyboard, or sonification failure is observed, use the HTML artifact preview fallback and report the concrete limitation. Without browser inspection, keep the native result and mark unperformed checks as unverified rather than assuming failure or making a duplicate artifact. Do not call a static or uninitialized image accessible. `--visualize` is for ChatGPT Work only, even though both host surfaces use “visualize” in their names. Explicit artifact/file requests still receive an artifact/file.
 
 ## Loading maidr.js
 

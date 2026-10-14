@@ -15,19 +15,30 @@ Whenever a user asks for a chart, plot, or visualization, the agent:
    - **Hand-authored fallback** -> only after an observed Python/runtime/import/install blocker, with the failing command/tool and concrete error reported, or for the explicit/existing JavaScript/SVG task above. Never assumes a missing package or blocked network.
 
    Rendering HTML is not JavaScript development. The reader needs no Python: it is used only to author the chart. A self-contained HTML request does not change the binding. The agent calls `maidr.save_html` and publishes the exact generated HTML (or exact `scripts/to_artifact.py` output), not a manually redrawn replacement. Existing/explicit R and JavaScript work stays in its language.
-2. For non-Work pages, loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable. For ChatGPT Work, always uses `scripts/to_artifact.py --visualize` to package the vendored runtime without an external script.
-3. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
+2. For a chart requested in a Claude conversation, gives applicable maidr-mcp `show_chart` priority. Otherwise, when Claude's native `mcp__visualize__show_widget` is available, converts the exact binding output with `scripts/to_artifact.py --fragment` and supplies that CDN-backed HTML to the native renderer. Explicit artifact/file requests still get an artifact/file. If the native tool is absent or an actual MAIDR runtime/accessibility failure is observed, it uses the HTML artifact preview fallback and says why.
+3. For non-Work pages, loads `maidr.js` from jsDelivr, falls back to cdnjs when a firewall or content-security policy allows only that host, and falls back to the vendored bundle shipped in this repository when no CDN is reachable. For ChatGPT Work, always uses `scripts/to_artifact.py --visualize` to package the vendored runtime without an external script.
+4. Draws the chart the user asked for, routes it through the binding, and verifies the output with the bundled checker before handing it over with a short keyboard cheat sheet.
 
 ## See it in a chat
 
-Two public artifacts show what the skill produces when the chart is embedded in a conversation instead of shipped as a file. Open one, press Tab (or click the chart), then use the arrow keys; **B**, **T**, **S**, and **R** toggle braille, text, sound, and review mode.
+For a chart requested in a Claude conversation, applicable [maidr-mcp](https://github.com/xability/maidr-mcp) `show_chart` remains first. Otherwise, when Claude exposes native `mcp__visualize__show_widget`, the default is the binding's exact CDN-backed fragment:
 
-- [Hand-authored SVG with MAIDR JSON](https://claude.ai/code/artifact/05de1e51-7fd4-4aa1-83e8-c1b4525e6393): the `assets/template.html` approach for explicit SVG work or an evidence-backed fallback, not the default for chat.
+```bash
+python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html
+```
+
+The native renderer receives the exact contents of `chart-fragment.html`. It renders supplied HTML, so it can run MAIDR instead of redrawing a chart from numbers. No separate MAIDR MCP server/connector is required, although Claude implements this native tool internally as MCP; that does not mean no MCP protocol is involved. Do not route chart data to a data-to-chart widget and describe its unbound picture as accessible.
+
+If the native renderer is unavailable or an actual initialization, keyboard, or data-dependent sonification failure is observed, the agent uses the existing HTML artifact preview fallback and reports the concrete limitation. Lack of browser inspection alone is not a rendering failure: unperformed checks are marked unverified without making a duplicate artifact. A static or uninitialized image is not an accessible result. Explicit artifact or file requests still receive that artifact or file. A live five-point matplotlib line-chart test covered runtime initialization, keyboard announcements, text mode, braille text display, and data-dependent Web Audio tones; physical screen-reader and braille hardware were not tested. These observations cover that flow, not every chart type or host.
+
+Two public artifacts show the HTML that the fallback can render. Open one, press Tab (or click the chart), then use the arrow keys; **B**, **T**, **S**, and **R** toggle braille, text, sound, and review mode.
+
+- [Hand-authored SVG with MAIDR JSON](https://claude.ai/code/artifact/05de1e51-7fd4-4aa1-83e8-c1b4525e6393): the `assets/template.html` approach for explicit SVG work or an evidence-backed fallback, not the default for generic chat charts.
 - [matplotlib chart saved by py-maidr](https://claude.ai/code/artifact/056a2136-3cef-40b2-8d00-2d89cc6c4c6c): `maidr.save_html(fig, use_cdn=True)` reshaped by `scripts/to_artifact.py`.
 
 Inside the artifact sandbox everything works except the AI chat (`?`), which cannot reach a model provider from there; sound starts after the first click or Tab into the chart.
 
-In ChatGPT Work the chart appears in the conversation through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into a self-contained fragment that restores the MAIDR runtime with `DecompressionStream` and inline script text, so it works under Work's no-external-script CSP without eval, blob, or network runtime.
+In ChatGPT Work the chart appears in the conversation through Work's `visualize` surface: `scripts/to_artifact.py --visualize` turns py-maidr output into a self-contained fragment that restores the MAIDR runtime with `DecompressionStream` and inline script text, so it works under Work's no-external-script CSP without eval, blob, or network runtime. This is distinct from Claude native `show_widget`: despite the shared word `visualize`, Claude uses CDN-backed `--fragment`, while Work uses bundled `--visualize`.
 
 In the ChatGPT desktop app, the reader can also open the chart page in the app's built-in browser. maidr's own tools then reach ChatGPT Work and Codex as site tools, so the model can answer from the chart and move the reader through it. This has not been tried in the app yet.
 
@@ -132,11 +143,11 @@ With the skill installed, ask for a chart the way you normally would; you do not
 
 ### Charts in a chat
 
-claude.ai and ChatGPT Work run Python in their code sandboxes, so a chart asked for in the conversation takes the py-maidr route and is shown as an artifact or `visualize` fragment. Hand-authored maidr.js is the fallback only where the sandbox cannot run Python or reach PyPI.
+claude.ai and ChatGPT Work run Python in their code sandboxes, so generic chat charts take the py-maidr route after the real import/install gate. In claude.ai, applicable maidr-mcp `show_chart` remains first; otherwise native `mcp__visualize__show_widget` receives the exact `--fragment` output when available, with HTML artifact preview as the evidence-backed fallback. Work uses `--visualize`. Hand-authored maidr.js is the fallback only after an observed blocker.
 
 | Scenario | Prompt | Route and type |
 | --- | --- | --- |
-| Quick look | "Show me a bar chart of these numbers right here in the chat: apples 12, pears 7, plums 15." | py-maidr in the sandbox, shown as an artifact, `bar` |
+| Quick look | "Show me a bar chart of these numbers right here in the chat: apples 12, pears 7, plums 15." | maidr-mcp `show_chart` if applicable; otherwise py-maidr through native `--fragment` when available, `bar` |
 | Explaining a concept | "Draw a normal distribution and a right-skewed one so I can hear the difference." | py-maidr, `line` |
 | Planning | "Make a timeline of this project's four phases from the dates below." | py-maidr, `gantt` (*experimental*) |
 | Markets | "Show me a candlestick chart of these daily prices." | py-maidr with mplfinance, `candlestick` |

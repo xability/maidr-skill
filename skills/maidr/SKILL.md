@@ -25,7 +25,7 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 | Otherwise: a generic chart, visualization, HTML file or chat artifact, including claude.ai | **py-maidr** in the available Python sandbox/runtime; actually attempt it below | `references/python.md` |
 | Only after observed failure prevents Python execution or importing/installing maidr | **maidr.js** with hand-authored JSON; record the concrete error | `references/javascript.md`, `references/schema.md` |
 
-**Rendering HTML is not JavaScript development.** A chat environment, an HTML artifact, a self-contained file, or a reader with no Python does not select the JavaScript row. Python is only an authoring tool: the reader needs no Python to open its HTML output. Keep existing or explicitly requested R/JavaScript work in that language; do not force Python onto it.
+**Rendering HTML is not JavaScript development.** A chat environment, an HTML artifact, a self-contained file, or a reader with no Python does not select the JavaScript row. Python is only an authoring tool: the reader needs no Python to open its HTML output. Keep existing or explicitly requested R/JavaScript work in that language; do not force Python onto it. After this authoring choice, a Claude native HTML renderer can be the delivery surface for a chart the user wants in the conversation; it does not change the binding.
 
 **For the generic/Python route, use tools, not assumptions:**
 1. Use the available code sandbox or execution tool (including bash) to run Python and `import maidr`, for example `python -c "import maidr"` (use `python3` or the project's `uv run python` when appropriate). `scripts/detect_env.sh` / `detect_env.ps1` can help locate runtimes, but their verdict is not an import/install attempt.
@@ -42,24 +42,33 @@ A chart delivered as pixels, or as an SVG with no data behind it, is invisible t
 5. **Explain how to use it** (see "What to tell the user").
 
 - **The drawing and the declared type must be the same chart.** Never relabel bars as candlesticks or another unsupported type. Use a supported library in the chosen binding; hand-authored SVG remains subject to the routing gate.
-- **In a chat, the chart is an artifact, not a file.** Publish the binding's HTML in the host's live preview when available, not only a download link.
+- **In a chat, publish live binding HTML, not only a download link.** Prefer the host's supported inline HTML renderer; honor explicit artifact/file requests and use the artifact preview fallback below when needed.
 
 ### Where the chart goes
 
 | The user is in | Deliver | Not |
 |---|---|---|
-| claude.ai | The HTML page the binding produced. It surfaces as a card with Preview and Code tabs that renders the page live, and maidr is fully usable inside that preview | The product's own chart or visualize widget |
-| Claude Code | An **HTML artifact** whose content is the page itself | An `.html` file whose path is all the user gets |
-| ChatGPT Work | A **`visualize{"path": ...}` line** in the reply, naming a maidr fragment in `/workspace` (recipe below); the conversation renders that fragment live, with maidr running in it | Its chart widget, `genui{"charts_widget_v2": ...}`, which draws its own chart from your numbers |
-| The ChatGPT desktop app, when the reader wants you to answer from the chart or take them to a point in it | The **page itself, opened by the reader in the app's built-in browser**, where maidr's own tools reach you as site tools (recipe below) | A chart only inside the conversation, where you cannot reach maidr |
-| A terminal, IDE, or repository | An HTML file at a path you name, plus its `lib/` folder if one was written | A chart that exists only in a chat panel the user cannot save |
-| A notebook, Quarto document, Shiny or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
+| Claude with maidr-mcp connected and applicable | **maidr-mcp `show_chart`**, under the split below | A second copy through a page, artifact, or native renderer |
+| claude.ai with an explicit artifact request | The chosen binding's full HTML in the live artifact preview | An inline-only result instead of the requested artifact |
+| claude.ai, for an in-conversation chart when its native HTML renderer is available and `show_chart` does not apply | The chosen binding's exact output converted with `scripts/to_artifact.py --fragment`, supplied to the native HTML renderer | A data-to-chart widget that redraws from numbers, or a manually reconstructed SVG/JSON |
+| claude.ai without that renderer, or with an observed native runtime/accessibility failure | The exact HTML artifact preview output, and the concrete reason for the fallback | A static or uninitialized image described as accessible |
+| Claude Code or another non-Work chat host | An HTML artifact whose content is the binding output | An `.html` path as the only result |
+| ChatGPT Work | A `visualize{"path": ...}` line naming a MAIDR fragment in `/workspace` | Its data-to-chart widget, `genui{"charts_widget_v2": ...}` |
+| The ChatGPT desktop app, when the reader wants you to answer from the chart or take them to a point in it | The page itself, opened by the reader in the app's built-in browser, where maidr's own tools reach you as site tools (recipe below) | A chart only inside the conversation, where you cannot reach maidr |
+| A terminal, IDE, repository, or explicit file request | The HTML file at a named path, plus `lib/` if one was written | An inline-only result when a file was requested |
+| A notebook, Quarto document, Shiny, or Streamlit app | The inline render the binding produces there | A separate file the document does not show |
 
-In Claude artifacts and other non-Work chat hosts, deliver the chosen binding's output as a single HTML document with no local-file dependencies: keep the MAIDR JSON in the `maidr` attribute and load `maidr.js` from a CDN. This is packaging, not a reason to switch to JavaScript authoring. ChatGPT Work is the exception: always convert it with `--visualize`, which bundles the runtime for its no-external-script CSP.
+**Claude native inline HTML.** This route is only for a chart the user wants in the conversation, after the authoring gate and after the applicable maidr-mcp `show_chart` split. When the native `mcp__visualize__show_widget` tool is available, it renders supplied HTML, so first publish the binding's exact output as a CDN-backed fragment:
 
-On claude.ai that card carries a Download button, which makes it look like a plain file, but its Preview tab is a live page: measured on a two-layer candlestick, the chart focuses, arrows move, and the reading is announced. So hand the card over and tell the reader to open the preview. Do not spend a second pass re-emitting the same HTML to make it look more embedded, which produced an identical card after nine minutes.
+```bash
+python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html
+```
 
-**Never hand the chart to the product's own visualization widget instead.** A built-in chart, visualize, or analysis widget draws its own picture from your numbers and binds no maidr, so the reader gets an image with a one-line label and nothing to navigate. It is the easiest wrong turn to take in a chat, because the widget looks like the native way to show a chart. The maidr page is the chart; the widget is not a place to put it. The test is whether the surface draws the chart from your numbers or renders HTML you wrote. ChatGPT Work's `visualize` surface renders a fragment you wrote, so despite its name it is where the maidr fragment goes. Its `charts_widget_v2` is the widget to avoid. maidr's own `show_chart` (next section) draws from your numbers too, but what it draws is a maidr chart, so it is not a widget to avoid.
+Read the native renderer's usage documentation, then pass the exact contents of `chart-fragment.html` to it. No separately configured MAIDR MCP server/connector is required; Claude implements this built-in tool internally as MCP. The native tool renders HTML you supply; do not send a data-to-chart widget a table or series and call the resulting unbound chart accessible. If the tool is absent or an actual runtime, keyboard, or sonification failure is observed, use the existing HTML artifact preview fallback and report the concrete limitation. Lack of browser inspection is not a rendering failure: keep the native result and label unperformed checks as unverified rather than inventing success or making a duplicate artifact. Never call a static or uninitialized image an accessible result.
+
+**Artifacts and Work.** In an artifact fallback and other non-Work chat hosts, publish the chosen binding's HTML with no local-file dependencies: keep the MAIDR JSON in the `maidr` attribute and load `maidr.js` from a CDN. This is packaging, not a reason to switch to JavaScript authoring. ChatGPT Work is different: use `--visualize`, which embeds the runtime for Work's no-external-script CSP. Although both host tools use the word `visualize`, Claude's native renderer takes the CDN-backed `--fragment` output; Work's `visualize` surface requires the bundled `--visualize` output.
+
+**Do not substitute a product chart widget.** A built-in chart or analysis widget that draws from numbers has no MAIDR binding. The test is whether the surface renders the exact HTML you supplied. Work's `visualize` surface renders a fragment, while `charts_widget_v2` is the data widget to avoid. maidr's own `show_chart` draws from numbers too, but it draws a MAIDR chart and remains the priority when its split applies.
 
 #### maidr's MCP server: `show_chart`
 
@@ -91,7 +100,7 @@ ax.set(title="Chart title", xlabel="Year", ylabel="Value (units)")
 maidr.save_html(fig, "chart.html", use_cdn=True)   # pass fig directly; one CDN-backed file
 ```
 
-Then read `chart.html` and publish its exact contents as the HTML artifact, without redrawing the SVG or rewriting the JSON. Where `scripts/to_artifact.py` is available, run it first and publish that exact output instead. `plt.rcParams["svg.fonttype"] = "none"` keeps the SVG small. If Python/import/install fails, apply the evidence requirement in the routing gate, not a presumed network restriction.
+Then, for an in-conversation chart rather than an explicit artifact/file request, if the native `mcp__visualize__show_widget` renderer is available and maidr-mcp `show_chart` does not apply, run `python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html` and supply the exact fragment to it. Otherwise publish the exact HTML artifact preview output. Do not redraw the SVG or rewrite the JSON. `plt.rcParams["svg.fonttype"] = "none"` keeps the SVG small. If Python/import/install fails, apply the evidence requirement in the routing gate, not a presumed network restriction.
 
 #### ChatGPT Work
 
@@ -169,7 +178,7 @@ maidr.save_html(fig, "revenue.html")       # standalone file; or maidr.show(fig)
 - `maidr.show(obj)` always renders accessibly. `plt.show()` does too after `import maidr`, unless `MPLBACKEND` names a non-inline backend. `maidr.render(obj)` returns an `htmltools` tag for Flask and similar servers. If a stacked bar chart drawn with `bottom=` is not recognized as stacked, register it with `maidr.stacked(ax)`.
 - Subplots from `plt.subplots(rows, cols)`, twin axes, seaborn `FacetGrid`/`PairGrid`/`JointGrid`, and overlaid layers are supported; pass the figure or the grid.
 - `save_html()` writes a `lib/maidr-<version>/` folder beside the HTML both with the default `use_cdn="auto"` (jsDelivr first, that folder as the in-browser fallback) and with `use_cdn=False` (folder only, for air-gapped readers). Ship the HTML alone for online readers, or HTML plus `lib/` otherwise. `use_cdn=True` gives one file that needs internet; for one file that also works offline, inline the bundle as shown in `references/python.md`.
-- Chat artifact (claude.ai, Claude Code): set `plt.rcParams["svg.fonttype"] = "none"` so the SVG stays small (about 12 KB instead of 27 KB), save with `use_cdn=True`, then run `python scripts/to_artifact.py chart.html -o artifact.html` to leave one pinned CDN script tag and no `lib/` reference; add `--fragment` when the host supplies its own document shell (the Claude Code Artifact tool). Paste the result as the artifact, and the reader explores the chart in the conversation. ChatGPT Work takes `--visualize` instead (see "ChatGPT Work" above).
+- Chat delivery: set `plt.rcParams["svg.fonttype"] = "none"`, save with `use_cdn=True`, then run `python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html` for Claude's native HTML renderer when it is available and maidr-mcp `show_chart` does not apply. Supply that exact CDN-backed fragment. Use the full artifact preview if the native tool is absent or an actual runtime/accessibility failure is observed, and `--visualize` only for ChatGPT Work. An explicit artifact/file request still receives that artifact/file.
 - Notebooks: `import maidr`, then draw. Quarto: `format: html` and `maidr.show(fig)` in the chunk. Shiny: `output_maidr()` with `@render_maidr`. Streamlit: `render_maidr(fig)`, always passing the figure. Details and gotchas: `references/python.md`.
 
 ## R: maidr package
