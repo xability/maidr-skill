@@ -77,6 +77,56 @@ class LoaderTest(unittest.TestCase):
         self.assertRegex(bokeh, r'src="https://cdn\.jsdelivr\.net/npm/@bokeh/bokehjs@\d+\.\d+\.\d+/build/js/bokeh\.min\.js"')
 
 
+class ClaudeFragmentTest(unittest.TestCase):
+    """Packaging checks only; the native Claude frame still needs a live test."""
+
+    def test_fragment_cli_preserves_generated_svg_and_uses_cdn_not_work_bundle(self):
+        source = fixture("box.html")
+        original_svg = re.search(r"<svg\b.*?</svg>", source, re.S).group(0)
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "chart.html"
+            output_path = Path(tmp) / "claude-inline.html"
+            input_path.write_text(source, encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, TO_ARTIFACT, str(input_path), "--fragment", "-o", str(output_path)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            out = output_path.read_text(encoding="utf-8")
+            for shell in ("<!doctype", "<html", "<head", "<body"):
+                self.assertNotIn(shell, out.lower())
+            # Exact SVG equality covers geometry, identifiers, selectors and the MAIDR JSON.
+            self.assertEqual(re.search(r"<svg\b.*?</svg>", out, re.S).group(0), original_svg)
+            self.assertEqual(len(CORE_TAG.findall(out)), 1)
+            self.assertNotIn("lib/maidr", out)
+            self.assertNotIn(to_artifact.BUNDLE_MARKER, out)
+            self.assertNotIn("DecompressionStream", out)
+            self.assertNotIn("visualize{", proc.stdout)
+            check = subprocess.run([sys.executable, CHECKER, str(output_path)],
+                                   capture_output=True, text=True)
+            self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_fragment_retains_dependency_order_for_chart_carrying_loaders(self):
+        for name, chart in (("plotly_bar.html", "maidrSchema"), ("bokeh_bar.html", "embed_item")):
+            with self.subTest(fixture=name):
+                converted, _ = to_artifact.convert(fixture(name), "jsdelivr", None)
+                out = to_artifact.fragment(converted)
+                self.assertEqual(len(CORE_TAG.findall(out)), 1)
+                self.assertLess(CORE_TAG.search(out).start(), out.index(chart))
+                self.assertNotIn(to_artifact.BUNDLE_MARKER, out)
+                self.assertIn(chart, out)
+
+    def test_fragment_preserves_head_styles_and_initializers(self):
+        source = fixture("box.html").replace(
+            "</head>", '<style>.test-note { color: navy; }</style>'
+            '<script>window.testChartPackaging = true;</script></head>')
+        converted, _ = to_artifact.convert(source, "jsdelivr", None)
+        out = to_artifact.fragment(converted)
+        self.assertIn('<style>.test-note { color: navy; }</style>', out)
+        self.assertIn('<script>window.testChartPackaging = true;</script>', out)
+        self.assertLess(out.index("window.testChartPackaging"), out.index("<svg"))
+
+
 class VisualizeTest(unittest.TestCase):
     def run_script(self, page: str, out_name: str = "revenue-by-quarter.html"):
         tmp = tempfile.mkdtemp()

@@ -145,11 +145,19 @@ plt.rcParams["svg.fonttype"] = "none"
 maidr.save_html(fig, "chart.html", use_cdn=True)
 ```
 
-Then `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own, such as the Claude Code Artifact tool. In claude.ai, read and publish the exact full document from `save_html` (or the converter output) as an HTML artifact; do not redraw its SVG or reconstruct its MAIDR JSON. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
+For Claude's native inline HTML renderer, when it is available and maidr-mcp `show_chart` does not apply, use the exact CDN-backed fragment:
+
+```bash
+python scripts/to_artifact.py chart.html --fragment -o chart-fragment.html
+```
+
+Read the native tool's usage documentation and supply the exact contents to `mcp__visualize__show_widget`. It renders supplied HTML, not a chart built from numbers, and requires no separately configured MAIDR MCP server/connector. If an actual initialization, keyboard, or data-dependent sonification failure is observed, or the tool is unavailable, publish the existing full HTML artifact preview instead and state the concrete limitation. Without browser inspection, keep the native result and mark unperformed checks as unverified; do not assume a rendering failure or make a duplicate artifact. Do not call a static or uninitialized image accessible. An explicit artifact/file request still gets the artifact/file.
+
+Without native inline rendering, `python scripts/to_artifact.py chart.html -o artifact.html` replaces the loader with one pinned `<script src>` (`--cdn cdnjs` to prefer cdnjs) and drops any `lib/` reference; `--fragment` strips the `<html>`/`<head>`/`<body>` shell for hosts that add their own. In claude.ai, publish the exact full document from `save_html` (or converter output) as an HTML artifact; do not redraw its SVG or reconstruct its MAIDR JSON. Inside the sandbox the AI chat (`?`) cannot reach a provider and sound starts after the reader clicks or tabs into the chart; everything else works.
 
 Plotly and Bokeh pages carry their maidr.js loader inside the script that also draws the chart, so `to_artifact.py` keeps that script and puts the pinned tag ahead of it, where that loader finds it. They also load their library from cdn.plot.ly or cdn.bokeh.org, which the sandboxes block; the script switches it to the same file, byte for byte, on jsDelivr.
 
-**ChatGPT Work.** Its `visualize` skill renders an HTML fragment from `/workspace` in the conversation when the reply names it in a `visualize{...}` line. Production CSP blocks all external CDN scripts and has `connect-src 'none'`; the fragment remains capped below 1 MB. Always use `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html`, even for a simple hand-authored chart. Do not handcraft a CDN-only fragment.
+**ChatGPT Work.** Its `visualize` skill renders an HTML fragment from `/workspace` in the conversation when the reply names it in a `visualize{...}` line. This is not Claude's native `mcp__visualize__show_widget` route: despite the shared word `visualize`, Work requires `--visualize` and Claude native uses the CDN-backed `--fragment` output. Production CSP blocks all external CDN scripts and has `connect-src 'none'`; the fragment remains capped below 1 MB. Always use `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html`, even for a simple hand-authored chart. Do not handcraft a CDN-only fragment.
 
 - It drops the document shell and the `<title>` and wraps everything in one root element with an id.
 - It bundles the roughly 752 KB base64 gzip of `assets/maidr.js`, uses modern `DecompressionStream` to restore it, and assigns it to an inline script's `textContent` inside a scoped IIFE. It uses no `eval`, blob, or network runtime; browsers without `DecompressionStream` get an accessible failure notice.

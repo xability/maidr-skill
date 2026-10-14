@@ -86,6 +86,42 @@ class RoutingContractTest(unittest.TestCase):
         self.assertTrue({"maidr-mcp-connected-chart-in-chat", "maidr-mcp-connected-code-request",
                          "maidr-mcp-connected-panels-in-chat"}.issubset(names))
 
+    def test_claude_native_html_delivery_is_distinct_from_work_and_unbound_widgets(self):
+        obsolete = (
+            "In a chat, the chart is an artifact, not a file.",
+            "Never hand the chart to the product's own visualization widget instead.",
+            "keyboard navigation/sonification cannot be tested,",
+        )
+        for name, doc in self.docs.items():
+            with self.subTest(doc=name):
+                self.assertIn("show_widget", doc)
+                self.assertIn("--fragment", doc)
+                self.assertIn("--visualize", doc)
+                self.assertIn("artifact", doc.lower())
+                self.assertIn("unverified", doc.lower())
+                for phrase in obsolete:
+                    self.assertNotIn(phrase, doc)
+        self.assertIn("explicit artifact request", self.skill)
+        self.assertIn("observed native runtime/accessibility failure", self.skill)
+        self.assertIn("Lack of browser inspection is not a rendering failure", self.skill)
+        self.assertIn("chosen binding's exact output", self.skill)
+
+    def test_native_eval_coverage_requires_real_browser_evidence_and_fallbacks(self):
+        cases = {case["name"]: case for case in self.evals}
+        native = cases["claude-native-inline-no-maidr-mcp"]
+        assertions = "\n".join(native["assertions"])
+        for requirement in ("role=application", "audio frequencies", "--fragment",
+                            "unverified", "Original SVG geometry", "show_chart"):
+            self.assertIn(requirement, assertions)
+        for name in ("claude-native-unavailable-artifact-fallback",
+                     "claude-native-runtime-blocked-artifact-fallback"):
+            self.assertTrue(cases[name]["setup"])
+            self.assertIn("artifact", cases[name]["expected_output"])
+        artifact = cases["claude-html-artifact-no-reader-python"]
+        self.assertIn("native inline renderer is also available", artifact["setup"])
+        neutral = cases["claude-neutral-chart-python-attempt"]
+        self.assertIn("native inline HTML renderer", neutral["expected_output"])
+
     def test_eval_coverage_includes_execution_evidence_and_preserved_languages(self):
         self.assertEqual(len(self.evals), len({case["id"] for case in self.evals}))
         self.assertEqual(len(self.evals), len({case["name"] for case in self.evals}))

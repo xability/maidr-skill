@@ -3,17 +3,19 @@
 
 Usage:
     python to_artifact.py chart.html [-o artifact.html] [--cdn jsdelivr|cdnjs] [--fragment] [--title NAME]
+    python to_artifact.py chart.html --fragment -o chart-fragment.html          # Claude native show_widget
     python to_artifact.py chart.html --visualize -o /workspace/<title>.html     # ChatGPT Work
 
-The default and --fragment paths retain pinned CDN scripts for Claude artifacts.
---visualize instead embeds the verified vendored runtime as gzip/base64, decoded with
-DecompressionStream and run as an inline script. It requires no browser network or
-blob URLs, uses English and private in-memory settings, and includes math layout CSS
-without large embedded fonts. Other external dependencies are rejected: prefer a
-matplotlib/seaborn SVG. Source resize/redraw handlers are rejected: materialize SVG marks
-with intrinsic width/height and a viewBox, then let CSS scale the whole chart without
-changing mark geometry after MAIDR initializes. The fragment must remain strictly under
-1,000,000 UTF-8 bytes.
+The default and --fragment paths retain pinned CDN scripts. Use --fragment for Claude's
+native HTML renderer (show_widget), which receives supplied HTML; it is not Work's
+visualize surface. --visualize is only for ChatGPT Work and instead embeds the verified
+vendored runtime as gzip/base64, decoded with DecompressionStream and run as an inline
+script. It requires no browser network or blob URLs, uses English and private in-memory
+settings, and includes math layout CSS without large embedded fonts. Other external
+dependencies are rejected: prefer a matplotlib/seaborn SVG. Source resize/redraw handlers
+are rejected: materialize SVG marks with intrinsic width/height and a viewBox, then let
+CSS scale the whole chart without changing mark geometry after MAIDR initializes. The
+Work fragment must remain strictly under 1,000,000 UTF-8 bytes.
 
 Only the standard library is used. Run scripts/check_maidr_html.py on the result afterwards.
 """
@@ -393,9 +395,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("source")
     ap.add_argument("-o", "--output", help="output path (default: <source>-artifact.html)")
     ap.add_argument("--cdn", choices=["jsdelivr", "cdnjs"], default="jsdelivr")
-    ap.add_argument("--fragment", action="store_true", help="emit title/style/script/body content only")
+    ap.add_argument("--fragment", action="store_true", help="emit title/style/script/body content only (Claude native show_widget: CDN-backed supplied HTML)")
     ap.add_argument("--visualize", action="store_true",
-                    help="ChatGPT Work: a fragment for its visualize surface; write it to /workspace/<title>.html")
+                    help="ChatGPT Work only: bundled fragment for its visualize surface; write it to /workspace/<title>.html")
     ap.add_argument("--title", help="artifact name; default: the page's <title>, else the chart title from the MAIDR JSON")
     a = ap.parse_args(argv)
     try:

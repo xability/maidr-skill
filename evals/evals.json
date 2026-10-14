@@ -135,9 +135,9 @@
     {
       "id": 10,
       "name": "claude-neutral-chart-python-attempt",
-      "setup": "Run in claude.ai with a Python execution sandbox, maidr initially absent, working PyPI access, and no maidr-mcp. Inspect tool calls, not just the final answer.",
+      "setup": "Run in claude.ai with a Python execution sandbox, maidr initially absent, working PyPI access, and no maidr-mcp. Inspect tool calls, not just the final answer. The native inline HTML renderer (show_widget) is available.",
       "prompt": "/maidr visualize UIUC iSchool PhD enrollment over time using only this synthetic test data: 2020: 40, 2021: 48, 2022: 43, 2023: 61, 2024: 55. Label the data as synthetic, not official enrollment.",
-      "expected_output": "The agent runs an import attempt, observes the missing package, actually installs maidr and retries the import. It draws the synthetic five-point chart with py-maidr, saves HTML, and publishes that exact output or the exact to_artifact.py output as the Claude artifact.",
+      "expected_output": "The agent runs an import attempt, observes the missing package, actually installs maidr and retries the import. It draws the synthetic five-point chart with py-maidr, saves HTML, converts it with to_artifact.py --fragment, and publishes the exact fragment through Claude's native inline HTML renderer, not an artifact or a data-to-chart widget.",
       "files": [],
       "assertions": [
         "Tool trace shows Python execution and import maidr before any hand-authored SVG/template work",
@@ -145,13 +145,14 @@
         "Uses maidr.save_html and publishes the exact generated HTML or exact converter output without manually rebuilding SVG/JSON",
         "Does not select JavaScript because this is a chat environment or assume blocked PyPI access",
         "All five supplied values are preserved and the chart is labelled synthetic; no enrollment lookup or invented official data",
-        "The HTML passes scripts/check_maidr_html.py with 0 errors"
+        "The HTML passes scripts/check_maidr_html.py with 0 errors",
+        "Uses native show_widget with the exact --fragment output; no separate MAIDR MCP server or connector is installed or used"
       ]
     },
     {
       "id": 11,
       "name": "claude-html-artifact-no-reader-python",
-      "setup": "Run in Claude with a working Python sandbox and maidr installed; no maidr-mcp.",
+      "setup": "Run in Claude with a working Python sandbox and maidr installed; no maidr-mcp. The native inline renderer is also available, but the explicit artifact request must be honored.",
       "prompt": "Make an interactive HTML chart artifact I can preview here and share with colleagues who do not have Python. Use these synthetic quarterly counts: Q1 4, Q2 9, Q3 6, Q4 12.",
       "expected_output": "An actual sandbox import succeeds, then py-maidr draws and saves the chart with use_cdn=True. The agent publishes the exact saved/converted HTML in the artifact, explaining that readers need only a browser (and network for the CDN), not Python.",
       "files": [],
@@ -204,6 +205,51 @@
         "Uses hand-authored SVG only after the observed blocker; does not claim save_html succeeded",
         "All three supplied values and axis labels are present in valid MAIDR JSON",
         "The HTML passes scripts/check_maidr_html.py with 0 errors"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "claude-native-inline-no-maidr-mcp",
+      "setup": "Run in claude.ai with the updated skill, a Python sandbox, native show_widget available, and no separate maidr-mcp connector. Inspect tool traces and test the actual browser frame; do not infer runtime success from a static HTML check.",
+      "prompt": "Show a line chart here in our conversation using these synthetic values: 2020: 40, 2021: 48, 2022: 43, 2023: 61, 2024: 55 students. Label it synthetic. Do not connect any external MCP server.",
+      "expected_output": "py-maidr saves the chart, to_artifact.py --fragment preserves its exact SVG and MAIDR JSON with a pinned CDN runtime, and native show_widget renders that fragment inline. Tab activates MAIDR, arrows announce all five values, and unequal values produce corresponding data-dependent audio tones after user activation. No artifact is created unless an observed runtime failure requires fallback.",
+      "files": [],
+      "assertions": [
+        "The execution trace includes a real import/install gate and maidr.save_html, not hand-authored replacement SVG",
+        "Uses --fragment for Claude, not Work's --visualize bundling or visualize path syntax",
+        "Uses native show_widget without a separate maidr-mcp connector or show_chart call",
+        "Original SVG geometry, identifiers, selectors and all five data values are preserved",
+        "In the actual inline frame Tab enters role=application and each arrow announces the matching value in a live region",
+        "With sound enabled, actual audio frequencies vary with the unequal values; mere alert sounds or an uninitialized SVG do not count as success",
+        "Keyboard, audio or screen-reader testing that cannot be performed is explicitly marked unverified rather than claimed"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "claude-native-unavailable-artifact-fallback",
+      "setup": "Run in Claude with py-maidr available but no native inline HTML renderer exposed. No maidr-mcp connector. The harness genuinely withholds the native tool; do not merely assert that it is missing in the user prompt.",
+      "prompt": "Show an accessible line chart here for these synthetic counts: A 2, B 8, C 5.",
+      "expected_output": "The agent uses py-maidr and the existing exact HTML artifact preview path, explaining the observed missing native-renderer capability instead of pretending the chart is inline or installing an external server.",
+      "files": [],
+      "assertions": [
+        "The observed absence of the native renderer is stated honestly",
+        "The fallback is an HTML artifact preview containing the actual binding output, not a PNG, data-to-chart widget, or download-only link",
+        "No separate MCP server is installed or connected",
+        "Explicit R/JavaScript requests and the Python import/install gate remain unchanged"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "claude-native-runtime-blocked-artifact-fallback",
+      "setup": "Expose native show_widget and a working Python sandbox, but cause the real inline frame to block the MAIDR runtime in a controlled CSP test. Keep a working HTML artifact preview available. The harness must provide actual browser evidence of failure, not a claimed user error.",
+      "prompt": "Show this accessible chart in the conversation: A 2, B 8, C 5. These are synthetic counts.",
+      "expected_output": "The agent attempts the real binding HTML in the native renderer, observes that MAIDR cannot initialize or navigate, and falls back to the exact HTML artifact preview with the concrete runtime limitation. It does not report accessibility success for the static picture.",
+      "files": [],
+      "assertions": [
+        "An actual native runtime failure is observed before fallback",
+        "A static or uninitialized SVG is not called an accessible success",
+        "The fallback preserves the original binding HTML and data",
+        "The final explanation distinguishes native rendering failure from Python generation failure"
       ]
     }
   ]
