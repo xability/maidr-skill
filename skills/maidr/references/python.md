@@ -32,7 +32,7 @@ Development build: `pip install -U git+https://github.com/xability/py-maidr.git`
 | `maidr.close(plot=None)` | Drop the registration for a figure (long-running apps). |
 | `maidr.set_backend(use_maidr=True)` | Whether `plt.show()` goes through maidr. |
 | `maidr.set_use_cdn(value)`, `maidr.get_use_cdn()` | Process-wide default for `use_cdn`: `True`, `False`, or `"auto"`. |
-| `maidr.set_cdn_version("4.15.0" \| "bundled" \| "latest" \| None)` | Pin the maidr.js version used in CDN URLs. |
+| `maidr.set_cdn_version("4.16.0" \| "bundled" \| "latest" \| None)` | Pin the maidr.js version used in CDN URLs. |
 | `maidr.bundle_status()` | Compare the bundled maidr.js with the published release. |
 | `maidr.read_bundled_js()`, `maidr.bundled_js_path()`, `maidr.bundled_math_css_path()` | The maidr.js source (and file paths) shipped inside the installed package, for inlining into a single file. |
 | `from maidr.widget.shiny import output_maidr, render_maidr` | `output_maidr(id, width="100%", height="auto")` in the UI; `@render_maidr` (accepts `use_cdn=`) decorates the server function that returns the plot. |
@@ -90,18 +90,18 @@ path = pathlib.Path("chart.html")
 maidr.save_html(fig, str(path), use_cdn=True)
 html = path.read_text(encoding="utf-8")
 # an inline bundle has no URL to find its locale packs beside; name their directory so non-English readers are served online
-locales = '<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/";</script>'
+locales = '<script>window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.16.0/dist/";</script>'
 inline = locales + "<script>" + maidr.read_bundled_js().replace("</script>", "<\\/script>") + "</script>"
 loader = re.compile(r"<script\b[^>]*>(?:(?!</script>).)*?cdn\.jsdelivr\.net/npm/maidr@(?:(?!</script>).)*?</script>", re.S)
 html = loader.sub(lambda m: inline, html, count=1)
 path.write_text(html, encoding="utf-8")   # py-maidr's bundled maidr.js inline (well over 1 MB): no lib/ folder, no network needed
 ```
 
-The declaration serves readers who are online; a file that must speak one known language offline also carries that language's pack (`locale-<code>.js`, see `javascript.md`) pasted in a second inline `<script>` after the bundle. The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr-math.css";</script>` to `inline`.
+The declaration serves readers who are online; a file that must speak one known language offline also carries that language's pack (`locale-<code>.js`, see `javascript.md`) pasted in a second inline `<script>` after the bundle. The inlined bundle cannot locate `maidr-math.css`, so math inside AI-chat replies renders unstyled; if that matters, prepend `<script>window.maidrMathStylesheetUrl = "https://cdn.jsdelivr.net/npm/maidr@4.16.0/dist/maidr-math.css";</script>` to `inline`.
 
-Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.15.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
+Environment variables: `MAIDR_USE_CDN=auto|1|0`; `MAIDR_CDN_VERSION=4.16.0|bundled|latest` (`bundled` avoids all network requests); `MAIDR_CDN_TIMEOUT=3`; `MAIDR_BUNDLE_STALE_WARNING=0` silences the stale-bundle warning.
 
-py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.15.0/maidr.min.js`, or use `use_cdn=False`. cdnjs mirrors a release some time after npm publishes it, so that URL can 404 for a while: check it before relying on it. While it 404s, use `use_cdn=False` rather than the older release cdnjs does have (`https://api.cdnjs.com/libraries/maidr?fields=version` names it): the UMD releases never start on a page with require.js, which Quarto adds to Jupyter output (see the require.js bullet in `troubleshooting.md`).
+py-maidr never emits cdnjs URLs. If a page must load from `cdnjs.cloudflare.com`, save with `use_cdn=True` and rewrite the script `src` to `https://cdnjs.cloudflare.com/ajax/libs/maidr/4.16.0/maidr.min.js`, or use `use_cdn=False`. cdnjs mirrors a release some time after npm publishes it, so that URL can 404 for a while: check it before relying on it. While it 404s, use `use_cdn=False` rather than the older release cdnjs does have (`https://api.cdnjs.com/libraries/maidr?fields=version` names it): the UMD releases never start on a page with require.js, which Quarto adds to Jupyter output (see the require.js bullet in `troubleshooting.md`).
 
 ### A DotPad tactile display offline
 
