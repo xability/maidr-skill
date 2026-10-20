@@ -4,7 +4,7 @@ py-maidr's Plotly and Bokeh pages put their maidr.js loader inside the script th
 replacing every loader with a <script src> tag deleted those charts; only a bare loader may go. Those pages
 also load their library from cdn.plot.ly or cdn.bokeh.org, which chat sandboxes block, so the script moves it
 to the same file on jsDelivr. And --visualize must produce what ChatGPT Work's visualize surface takes: a
-fragment with no document shell, one root element with an id, a bundled runtime with no external dependencies, under 1 MB, plus the visualize{...} line the reply carries.
+fragment with no document shell, one root element with an id, a bundled runtime with no external dependencies, under 1 MB, plus the marked native content reference the reply carries.
 
 Run from the repository root:
 
@@ -21,6 +21,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -89,7 +90,7 @@ class ClaudeFragmentTest(unittest.TestCase):
             input_path.write_text(source, encoding="utf-8")
             proc = subprocess.run(
                 [sys.executable, TO_ARTIFACT, str(input_path), "--fragment", "-o", str(output_path)],
-                capture_output=True, text=True,
+                capture_output=True, text=True, encoding="utf-8",
             )
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
             out = output_path.read_text(encoding="utf-8")
@@ -103,7 +104,7 @@ class ClaudeFragmentTest(unittest.TestCase):
             self.assertNotIn("DecompressionStream", out)
             self.assertNotIn("visualize{", proc.stdout)
             check = subprocess.run([sys.executable, CHECKER, str(output_path)],
-                                   capture_output=True, text=True)
+                                   capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
     def test_fragment_retains_dependency_order_for_chart_carrying_loaders(self):
@@ -128,15 +129,22 @@ class ClaudeFragmentTest(unittest.TestCase):
 
 
 class VisualizeTest(unittest.TestCase):
-    def run_script(self, page: str, out_name: str = "revenue-by-quarter.html"):
+    def run_script(self, page: str, out_name: str = "revenue-by-quarter.html", env=None):
         tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
         source = os.path.join(tmp, "chart.html")
         with open(source, "w", encoding="utf-8") as fh:
             fh.write(page)
         dest = os.path.join(tmp, out_name)
         proc = subprocess.run([sys.executable, TO_ARTIFACT, source, "--visualize", "-o", dest],
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, encoding="utf-8", env=env)
+        if proc.returncode:
+            self.assert_no_dispatch(proc.stdout)
         return proc, dest, Path(dest).read_text(encoding="utf-8") if Path(dest).exists() else ""
+
+    def assert_no_dispatch(self, output):
+        for token in ("visualize{", "", "", "", r"\uE200", r"\ue200"):
+            self.assertNotIn(token, output)
 
     def test_source_resize_redraw_is_rejected_only_in_work(self):
         snippets = [
@@ -199,9 +207,44 @@ class VisualizeTest(unittest.TestCase):
 
     def test_it_prints_the_line_the_reply_carries(self):
         proc, dest, _ = self.run_script(fixture("box.html"))
-        lines = [line for line in proc.stdout.splitlines() if line.startswith("visualize{")]
-        self.assertEqual(len(lines), 1)
-        self.assertEqual(json.loads(lines[0][len("visualize"):]), {"path": os.path.abspath(dest)})
+        self.assert_native_reference(proc.stdout, dest)
+
+    def assert_native_reference(self, output, dest):
+        prefix, suffix = "visualize", ""
+        expected = prefix + json.dumps({"path": os.path.abspath(dest)},
+                                       ensure_ascii=False, separators=(",", ":")) + suffix
+        lines = output.splitlines()
+        self.assertEqual(lines[-1], expected)
+        self.assertEqual(lines.count(expected), 1)
+        self.assertEqual([ord(c) for c in expected if 0xE200 <= ord(c) <= 0xE202],
+                         [0xE200, 0xE202, 0xE201])
+        for marker in ("", "", ""):
+            self.assertEqual(output.count(marker), 1)
+            self.assertNotIn(f"\\u{ord(marker):04x}", output.lower())
+        self.assertNotIn("visualize{", output)
+        self.assertEqual(json.loads(lines[-1][len(prefix):-len(suffix)]),
+                         {"path": os.path.abspath(dest)})
+
+    def test_redirected_stdout_is_utf8_even_with_ascii_environment(self):
+        env = {**os.environ, "PYTHONIOENCODING": "ascii", "PYTHONUTF8": "0"}
+        proc, dest, _ = self.run_script(fixture("box.html"), "chart-é-한.html", env=env)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assert_native_reference(proc.stdout, dest)
+
+    def test_non_work_modes_and_missing_source_do_not_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "chart.html"
+            source.write_text(fixture("box.html"), encoding="utf-8")
+            for flags in ([], ["--fragment"]):
+                proc = subprocess.run([sys.executable, TO_ARTIFACT, str(source), *flags,
+                                       "-o", str(Path(tmp) / "out.html")],
+                                      capture_output=True, text=True, encoding="utf-8")
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assert_no_dispatch(proc.stdout)
+            proc = subprocess.run([sys.executable, TO_ARTIFACT, str(source) + ".missing", "--visualize"],
+                                  capture_output=True, text=True, encoding="utf-8")
+            self.assertNotEqual(proc.returncode, 0)
+            self.assert_no_dispatch(proc.stdout)
 
     def test_plotly_and_bokeh_fail_actionably(self):
         for name, chart in (("plotly_bar.html", "maidrSchema"), ("bokeh_bar.html", "embed_item")):
@@ -270,7 +313,7 @@ class VisualizeTest(unittest.TestCase):
 
     def test_the_checker_passes_the_fragment(self):
         _, dest, _ = self.run_script(fixture("box.html"))
-        proc = subprocess.run([sys.executable, CHECKER, dest], capture_output=True, text=True)
+        proc = subprocess.run([sys.executable, CHECKER, dest], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
 
@@ -338,7 +381,7 @@ class BundleTest(unittest.TestCase):
                 to_artifact.bundled_payload()
 
     def test_missing_input_is_not_a_traceback(self):
-        proc = subprocess.run([sys.executable, TO_ARTIFACT, "missing-source-12345.html", "--visualize"], capture_output=True, text=True)
+        proc = subprocess.run([sys.executable, TO_ARTIFACT, "missing-source-12345.html", "--visualize"], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(proc.returncode, 1)
         self.assertIn("cannot read source", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
@@ -350,7 +393,7 @@ class BundleTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 dest = Path(tmp) / "chart.html"
                 dest.write_text(page, encoding="utf-8")
-                proc = subprocess.run([sys.executable, CHECKER, str(dest)], capture_output=True, text=True)
+                proc = subprocess.run([sys.executable, CHECKER, str(dest)], capture_output=True, text=True, encoding="utf-8")
                 self.assertEqual(proc.returncode, 1, proc.stdout)
                 self.assertIn(needle, proc.stdout)
 

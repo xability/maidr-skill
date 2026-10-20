@@ -86,7 +86,11 @@ Artifacts allow scripts from `cdnjs.cloudflare.com` and `cdn.jsdelivr.net/npm/`;
 **ChatGPT Work shows nothing, or a picture with no MAIDR.**
 
 - **The chart went to the chart widget.** Work's `genui{"charts_widget_v2": ...}` draws its own picture and binds nothing. The MAIDR fragment goes through `visualize` instead.
-- **The reply does not name the file.** It needs `visualize{"path":"/workspace/<title>.html"}` on a line of its own, with the absolute path of a file directly in `/workspace`.
+- **The reference is printed literally or the reply only attaches a file.** Read the built-in Work `visualize` skill first; it is authoritative. Copy the converter's exact marked native content reference once on its own final response line, without code fences or backticks. Use actual U+E200, `visualize`, U+E202, compact JSON with the absolute `path` directly in `/workspace`, then U+E201, not literal backslash-u escapes. Example:
+
+visualize{"path":"/workspace/revenue-by-quarter.html"}
+
+A rendered control proves native reference dispatch only; actual MAIDR inline initialization, keyboard navigation and sonification need separate Work-frame verification.
 - **A CDN script was used.** Work's production `visualize` CSP blocks all external CDN scripts and has `connect-src 'none'`. Do not switch CDNs or handcraft a CDN-only fragment. Always run `python scripts/to_artifact.py chart.html --visualize -o /workspace/<title>.html`; it bundles the roughly 752 KB base64 gzip of `assets/maidr.js`, restores it with modern `DecompressionStream`, and assigns it to an inline script's `textContent` inside a scoped IIFE, with no `eval`, blob, or network runtime.
 - **The file is a full page or too large.** It must be a fragment with no `<!doctype>`, `<html>`, `<head>`, or `<body>`, one root element with an id, and stay below 1 MB. The converter enforces these rules.
 - **The source uses Plotly, Bokeh, or Altair/Vega.** Their external runtimes cannot simply be moved to a different CDN in Work. The converter may reject them with an actionable fallback; use matplotlib, seaborn, or plain SVG rather than ship a broken fragment.
