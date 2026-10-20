@@ -194,6 +194,44 @@ class TraceTypeTest(CheckerCase):
         data = [[{"x": 0, "y": 0}, {"x": 0.5, "y": 0.8}, {"x": 1, "y": 1}]]
         self.assertClean(self.check_doc(figure([{"layers": [layer("roc", data)]}])))
 
+    def test_sequence(self):
+        # sequence.ts reads one object: participants (optional; a participant only a message names
+        # is added) and messages, one {from, to} per arrow or note
+        data = {"participants": [{"id": "B", "label": "Browser"}, {"id": "S"}],
+                "messages": [{"from": "B", "to": "S", "text": "GET /"}, {"from": "S", "to": "B"}]}
+        self.assertClean(self.check_doc(figure([{"layers": [layer("sequence", data)]}])))
+        self.assertClean(self.check_doc(figure([{"layers": [layer("sequence", {"messages": data["messages"]})]}])))
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [layer("sequence", data["messages"])]}])),
+                                 "one object")
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [layer("sequence", {"participants": []})]}])),
+                                 "missing ['messages']")
+        self.assertErrorMentions(
+            self.check_doc(figure([{"layers": [layer("sequence", {"messages": [{"from": "B"}]})]}])),
+            "missing ['to']")
+
+    def test_venn(self):
+        # venn.ts reads a flat array of regions, each naming the sets it is the overlap of
+        data = [{"sets": ["A"], "size": 10}, {"sets": ["B"], "size": 8},
+                {"sets": ["A", "B"], "size": 3, "label": "Both"}]
+        self.assertClean(self.check_doc(figure([{"layers": [layer("venn", data)]}])))
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [layer("venn", [{"size": 1}])]}])),
+                                 "missing ['sets']")
+
+    @unittest.skipUnless(HAVE_BS4, "selector checks need beautifulsoup4")
+    def test_sequence_and_venn_need_one_element_per_item(self):
+        # docs/SCHEMA.md, Selectors by layer type: one element per message (sequence) or per
+        # declared region (venn), concatenated over a list; another count drops the highlight
+        arrows = "".join(f'<path class="m" d="M{i} 0h1"/>' for i in range(2))
+        messages = [{"from": "B", "to": "S"}, {"from": "S", "to": "B"}]
+        seq = layer("sequence", {"messages": messages}, selectors="path.m")
+        self.assertClean(self.check_doc(figure([{"layers": [seq]}]), arrows))
+        short = layer("sequence", {"messages": messages + [{"from": "B", "to": "B"}]}, selectors="path.m")
+        self.assertErrorMentions(self.check_doc(figure([{"layers": [short]}]), arrows),
+                                 "match 2 element(s) in all but the layer declares 3")
+        regions = "".join(f'<circle class="r" r="{i + 1}"/>' for i in range(2))
+        venn = layer("venn", [{"sets": ["A"]}, {"sets": ["B"]}], selectors=["circle.r"])
+        self.assertClean(self.check_doc(figure([{"layers": [venn]}]), regions))
+
     def test_rug(self):
         self.assertClean(self.check_doc(figure([{"layers": [layer("rug", [{"x": 1.5}, {"x": 2.5}])]}])))
         horizontal = layer("rug", [{"y": 1.5}], orientation="horz")
