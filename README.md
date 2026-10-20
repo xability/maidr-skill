@@ -44,6 +44,8 @@ In ChatGPT Work the chart appears in the conversation through Work's `visualize`
 
 A rendered control proves native reference dispatch only, not actual MAIDR inline initialization or accessibility; verify those separately in the Work frame. This is distinct from Claude native `show_widget`: despite the shared word `visualize`, Claude uses CDN-backed `--fragment`, while Work uses bundled `--visualize`.
 
+Signed-in rendering does not prove anonymous sharing works. Anonymous shared views may disable inline code execution; verify the intended reader's shared view separately and provide standalone HTML or a hosted chart link as a public fallback.
+
 In the ChatGPT desktop app, the reader can also open the chart page in the app's built-in browser. maidr's own tools then reach ChatGPT Work and Codex as site tools, so the model can answer from the chart and move the reader through it. This has not been tried in the app yet.
 
 ## Install
