@@ -43,8 +43,8 @@ EXPERIMENTAL = {
     "diverging_bar", "dot", "dumbbell", "error_bar", "forest", "funnel", "gantt", "gauge", "hexbin",
     "icicle", "lollipop", "manhattan", "mosaic", "network", "pack", "parallel_coordinates",
     "percentile_band", "polar_area", "pr_curve", "radar", "ridgeline", "roc", "rug", "sankey",
-    "stacked_area", "stacked_normalized_area", "sunburst", "sunflower", "survival", "tree",
-    "treemap", "volcano", "waterfall", "word_cloud",
+    "sequence", "stacked_area", "stacked_normalized_area", "sunburst", "sunflower", "survival",
+    "tree", "treemap", "venn", "volcano", "waterfall", "word_cloud",
 }
 KNOWN = STABLE | EXPERIMENTAL
 # data container shape by trace type, as each maidr.js 4.x trace class casts `layer.data`
@@ -63,6 +63,7 @@ RECORD = {  # type -> keys the object must carry
     "gauge": {"value", "min", "max"},  # GaugePoint: one measure on a range
     "dumbbell": {"points"},            # DumbbellData: points is a flat array of {x, start, end}
     "gantt": {"points"},               # GanttData: points is one array of {x, start, end} per lane
+    "sequence": {"messages"},          # SequenceData: messages, one {from, to} each; participants is optional
 }
 # point fields each shape needs; a type absent here is only checked for being an object
 POINT_FIELDS = {
@@ -72,6 +73,7 @@ POINT_FIELDS = {
     "error_bar": {"x"}, "forest": {"x", "y"}, "dumbbell": {"x", "start", "end"},
     "gantt": {"x", "start", "end"}, "hexbin": {"x", "y", "count"},
     "directed_graph": {"id"}, "percentile_band": {"x", "quantiles"},
+    "sequence": {"from", "to"}, "venn": {"sets"},
 }
 # how maidr.js 4.x reads `selectors`, by trace type. A shape a type does not read loses the
 # highlight silently -- navigation and speech keep working -- which is the failure this file exists
@@ -103,7 +105,8 @@ SEGMENTED = {"dodged_bar", "stacked_bar", "stacked_normalized_bar", "mosaic", "d
 BAR_MAGNITUDE_TYPES = BAR_FAMILY | SEGMENTED
 CONCATENATED = {"boxen", "ridgeline", "dumbbell", "error_bar", "forest", "gantt", "hexbin",
                 "waterfall", "word_cloud", "gauge", "alluvial", "chord", "sankey", "network",
-                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack", "directed_graph"}
+                "choropleth", "treemap", "sunburst", "icicle", "tree", "pack", "directed_graph",
+                "sequence", "venn"}
 # adapters whose bundle already contains the maidr core (their docs load no separate maidr.js)
 SELF_CONTAINED_ADAPTERS = {"chartjs", "amcharts", "recharts", "victory", "react"}
 ADAPTERS = {"d3", "chartjs", "highcharts", "echarts", "vegalite", "recharts", "victory", "amcharts",
@@ -302,6 +305,14 @@ def check_data_shape(layer_type: str, data, where: str, rep: Report, orientation
             if bad:  # gauge.ts coerces with Number(), so a numeric string still reads
                 rep.warn(f"{where}: gauge {bad} should be numbers")
             return 1
+        if layer_type == "sequence":
+            # sequence.ts reads participants and messages, filling in a participant only a message
+            # names; each message is one step, and one highlighted element
+            msgs = data["messages"]
+            if not (isinstance(msgs, list) and msgs):
+                rep.error(f"{where}: sequence data.messages must be a non-empty array of {{from, to}}")
+                return 0
+            return _check_points(layer_type, msgs, where, rep)
         pts = data["points"]
         if layer_type == "gantt":
             if not (isinstance(pts, list) and pts and all(isinstance(lane, list) for lane in pts)):
