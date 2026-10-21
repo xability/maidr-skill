@@ -94,8 +94,12 @@ class VisualizeBrowserTest(unittest.TestCase):
 
     def assert_bar_geometry(self, page, index):
         expected = BAR_GEOMETRIES[index]
+        # The announcement is the element in maidr's live region; releases
+        # before it had one put each in a role="alert" element instead.
         page.wait_for_function('''({row, value}) => {
-            const text = document.querySelector('[role="alert"]')?.textContent || '';
+            const said = document.querySelector('[id^="maidr-announcement-"] > *')
+                || document.querySelector('[role="alert"]');
+            const text = said?.textContent || '';
             return text.includes(row) && text.includes(String(value));
         }''', arg={"row": f"Public row {index + 1}", "value": expected["width"]})
         highlight = page.locator(ACTIVE_HIGHLIGHT)
