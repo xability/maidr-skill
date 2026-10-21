@@ -7,6 +7,7 @@ The prompts in evals/evals.json still need real model runs and tool-trace review
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import unittest
 
@@ -25,6 +26,30 @@ class RoutingContractTest(unittest.TestCase):
                for name in ("python.md", "javascript.md")},
         }
         cls.evals = json.loads((ROOT / "evals" / "evals.json").read_text(encoding="utf-8"))["evals"]
+
+    def test_work_publication_uses_marked_native_reference_not_bare_text(self):
+        docs = {name: self.docs[name] for name in ("SKILL.md", "README.md", "python.md")}
+        docs["troubleshooting.md"] = (SKILL / "references" / "troubleshooting.md").read_text(encoding="utf-8")
+        for name, doc in docs.items():
+            with self.subTest(doc=name):
+                self.assertIn("built-in Work `visualize` skill first", doc)
+                for phrase in ("authoritative", "once on its own final response line",
+                               "without code fences or backticks", "not literal backslash-u escapes",
+                               "rendered control proves native reference dispatch"):
+                    self.assertIn(phrase, doc)
+                refs = re.findall(r'^visualize(\{[^\n]+\})$', doc, re.M)
+                self.assertEqual(len(refs), 1)
+                self.assertEqual(json.loads(refs[0]), {"path": "/workspace/revenue-by-quarter.html"})
+                self.assertEqual(refs[0], json.dumps(json.loads(refs[0]), separators=(",", ":")))
+        for name, text in {**docs, "evals": json.dumps(self.evals, ensure_ascii=False)}.items():
+            with self.subTest(source=name):
+                self.assertNotRegex(text, r"visualize\s*\{")
+                self.assertNotRegex(text, r"\\u[eE]20[012]")
+        case = next(c for c in self.evals if c["prompt"].startswith("I'm in ChatGPT Work."))
+        assertions = "\n".join(case["assertions"])
+        for token in ("U+E200 + visualize + U+E202", "U+E201", "exactly one",
+                      "built-in Work visualize skill", "reported unverified"):
+            self.assertIn(token, assertions)
 
     def test_gate_is_early_and_skill_stays_small(self):
         gate = self.skill.index("## Routing gate:")

@@ -400,6 +400,9 @@ def main(argv: list[str]) -> int:
                     help="ChatGPT Work only: bundled fragment for its visualize surface; write it to /workspace/<title>.html")
     ap.add_argument("--title", help="artifact name; default: the page's <title>, else the chart title from the MAIDR JSON")
     a = ap.parse_args(argv)
+    # Native reference markers and Unicode paths must survive Windows pipes/redirection.
+    if a.visualize and hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     try:
         with open(a.source, encoding="utf-8") as fh:
             html = fh.read()
@@ -444,8 +447,9 @@ def main(argv: list[str]) -> int:
         print(f"error: {problem}", file=sys.stderr)
     if problems:
         return 1
-    print("put this line, on its own, where the chart belongs in the reply:")
-    print("visualize" + json.dumps({"path": os.path.abspath(dest)}, separators=(",", ":")))
+    print("read the built-in Work visualize skill; copy this native reference once on its own final response line (no fences/backticks):")
+    print("\uE200visualize\uE202" + json.dumps(
+        {"path": os.path.abspath(dest)}, ensure_ascii=False, separators=(",", ":")) + "\uE201")
     return 0
 
 
