@@ -4,7 +4,7 @@ description: "Make every chart or data visualization accessible to blind and low
 license: GPL-3.0-or-later
 metadata:
   author: xability
-  version: "0.2.3"
+  version: "0.2.4"
   maidr-js-version: "4.16.0"
   homepage: https://maidr.ai
   source: https://github.com/xability/maidr-skill

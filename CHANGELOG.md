@@ -1,3 +1,17 @@
+## [0.2.4](https://github.com/xability/maidr-skill/compare/v0.2.3...v0.2.4) (2026-10-26)
+
+
+### Bug Fixes
+
+* **bundle:** vendor maidr.js 4.16.0 ([bc21685](https://github.com/xability/maidr-skill/commit/bc216856f01d34165b8f79a0dadab8a03137aa03))
+* **skill:** embed MAIDR runtime for ChatGPT Work CSP ([#33](https://github.com/xability/maidr-skill/issues/33)) ([dd4049b](https://github.com/xability/maidr-skill/commit/dd4049b7677241c3ca992c915bb8d15d51437352))
+* **skill:** emit marked native references for Work charts ([#41](https://github.com/xability/maidr-skill/issues/41)) ([21e34ad](https://github.com/xability/maidr-skill/commit/21e34ad0eb6db40b03cc575b1a546178dca0317d))
+* **skill:** preserve Work chart mark geometry and intrinsic size ([#35](https://github.com/xability/maidr-skill/issues/35)) ([8fd238e](https://github.com/xability/maidr-skill/commit/8fd238efd7e3be62b19422b92a7b65b89f2106a5))
+* **skill:** read maidr's live region and know its sequence and venn types ([#42](https://github.com/xability/maidr-skill/issues/42)) ([cdc6069](https://github.com/xability/maidr-skill/commit/cdc6069e4c1a46a1844d3370257d1e7a35abc740)), closes [xability/maidr#1435](https://github.com/xability/maidr/issues/1435)
+* **skill:** render MAIDR in Claude native inline HTML ([#39](https://github.com/xability/maidr-skill/issues/39)) ([9f370b3](https://github.com/xability/maidr-skill/commit/9f370b31dcb44074212157827938ba560a01b696))
+* **skill:** require Python execution before hand-authored chat charts ([#38](https://github.com/xability/maidr-skill/issues/38)) ([751f13e](https://github.com/xability/maidr-skill/commit/751f13e85e059d10dba256e808eb662fc65c2587))
+* **skill:** validate bar magnitude axis for data sonification ([#37](https://github.com/xability/maidr-skill/issues/37)) ([6120463](https://github.com/xability/maidr-skill/commit/612046350306fa6c65d064b7c5525d1ffaf691ce))
+
 ## [0.2.3](https://github.com/xability/maidr-skill/compare/v0.2.2...v0.2.3) (2026-10-12)
 
 
