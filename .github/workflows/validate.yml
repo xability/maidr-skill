@@ -10,11 +10,6 @@ on:
   # release.yml runs these checks on the commit it is about to release.
   workflow_call:
 
-# Cancel obsolete validation for the same PR without dropping independent runs.
-concurrency:
-  group: maidr-skill-validate-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   validate:
     runs-on: ubuntu-latest
