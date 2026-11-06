@@ -1,7 +1,7 @@
 {
   "name": "maidr",
   "version": "4.16.0",
-  "license": "GPL-3.0-or-later",
+  "license": "MIT",
   "source": "https://cdn.jsdelivr.net/npm/maidr@4.16.0/dist/",
   "registry": "https://registry.npmjs.org/maidr/4.16.0",
   "retrieved": "2026-10-19",

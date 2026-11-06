@@ -1,6 +1,6 @@
 # maidr.js reference
 
-npm package `maidr` 4.16.0, GPL-3.0-or-later. Site: https://maidr.ai. Schema: https://maidr.ai/docs/SCHEMA.html. Controls: https://maidr.ai/docs/CONTROLS.html. Per-library guides: `https://maidr.ai/docs/<library>.html` (plotly, d3, chartjs, highcharts, echarts, vegalite, recharts, victory, amcharts, anychart, frappe, google-charts, observable, tableau, react). Source: https://github.com/xability/maidr.
+npm package `maidr` 4.16.0, MIT. Site: https://maidr.ai. Schema: https://maidr.ai/docs/SCHEMA.html. Controls: https://maidr.ai/docs/CONTROLS.html. Per-library guides: `https://maidr.ai/docs/<library>.html` (plotly, d3, chartjs, highcharts, echarts, vegalite, recharts, victory, amcharts, anychart, frappe, google-charts, observable, tableau, react). Source: https://github.com/xability/maidr.
 
 ## Routing precondition
 
