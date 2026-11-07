@@ -10,7 +10,7 @@
       "author": { "name": "xability", "url": "https://github.com/xability" },
       "homepage": "https://maidr.ai",
       "repository": "https://github.com/xability/maidr-skill",
-      "license": "GPL-3.0-or-later",
+      "license": "MIT",
       "category": "accessibility",
       "keywords": ["accessibility", "charts", "data-visualization", "maidr", "sonification", "braille"]
     }

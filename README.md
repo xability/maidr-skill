@@ -326,4 +326,4 @@ Pages do not wait for that refresh either. `scripts/detect_env.sh` (and `.ps1`) 
 
 ## License
 
-GPL-3.0-or-later, the same license as maidr, py-maidr, and r-maidr. The vendored `assets/maidr.js` is an unmodified copy of the npm release and keeps its GPL-3.0-or-later license.
+MIT, the same license as maidr, py-maidr, and r-maidr. The vendored `assets/maidr.js` is an unmodified copy of the maidr npm release.
