@@ -1,3 +1,15 @@
+## [0.2.5](https://github.com/xability/maidr-skill/compare/v0.2.4...v0.2.5) (2026-11-09)
+
+
+### Bug Fixes
+
+* **bundle:** vendor maidr.js 4.17.0 ([be3b7d4](https://github.com/xability/maidr-skill/commit/be3b7d4007db5ccdd7465e8f1dd93c623c2d9563))
+
+
+### Reverts
+
+* move CI concurrency change into a reviewed PR ([6b654ab](https://github.com/xability/maidr-skill/commit/6b654ab96106574b3a5ee4f49b8f894da7b0b618)), closes [#44](https://github.com/xability/maidr-skill/issues/44)
+
 ## [0.2.4](https://github.com/xability/maidr-skill/compare/v0.2.3...v0.2.4) (2026-10-26)
 
 
