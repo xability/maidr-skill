@@ -32,7 +32,7 @@ import re
 import sys
 from html.parser import HTMLParser
 
-MAIDR_VERSION = "4.16.0"
+MAIDR_VERSION = "4.17.0"
 
 STABLE = {
     "bar", "box", "candlestick", "dodged_bar", "heat", "hist", "line", "pie", "point", "smooth",
