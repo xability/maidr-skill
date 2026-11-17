@@ -143,18 +143,18 @@ class VisualizeBrowserTest(unittest.TestCase):
                 page.locator('#before').focus()
                 page.keyboard.press('Tab')
                 page.wait_for_function('document.activeElement.getAttribute("role") === "application"')
-                page.keyboard.press('ArrowRight')
+                page.keyboard.press('ArrowDown')
                 rendered_widths = []
                 for width in (1024, 390, 778):
                     page.set_viewport_size({"width": width, "height": 700})
                     rendered_widths.append(svg.bounding_box()['width'])
                     for index in range(6):
                         if index:
-                            page.keyboard.press('ArrowRight')
+                            page.keyboard.press('ArrowDown')
                         self.assert_bar_geometry(page, index)
                     # Return to datum one before the next actual viewport resize.
                     for _ in range(5):
-                        page.keyboard.press('ArrowLeft')
+                        page.keyboard.press('ArrowUp')
                 self.assertLess(rendered_widths[1], rendered_widths[0])
                 self.assertGreater(rendered_widths[2], rendered_widths[1])
                 self.assertEqual(requests, [], 'fragment attempted a browser network request')
@@ -184,7 +184,7 @@ class VisualizeBrowserTest(unittest.TestCase):
                 pitches = []
                 for index in range(6):
                     page.evaluate('window.scheduledTones = []')
-                    page.keyboard.press('ArrowRight')
+                    page.keyboard.press('ArrowDown')
                     self.assert_bar_geometry(page, index)
                     page.wait_for_function('window.scheduledTones.length > 0')
                     tones = page.evaluate('window.scheduledTones')
@@ -201,7 +201,7 @@ class VisualizeBrowserTest(unittest.TestCase):
                     # All six magnitudes strictly decrease; no constant default beep passes.
                     self.assertTrue(all(a > b for a, b in zip(pitches, pitches[1:])), pitches)
                     page.evaluate('window.scheduledTones = []')
-                    page.keyboard.press('ArrowRight')  # Beyond the sixth bar: boundary warning.
+                    page.keyboard.press('ArrowDown')  # Beyond the sixth bar: boundary warning.
                     page.wait_for_function('window.scheduledTones.length >= 5')
                     boundary = page.evaluate('window.scheduledTones')
                     # AbstractTrace.outOfBoundsState has no warning flag, so an
@@ -211,7 +211,7 @@ class VisualizeBrowserTest(unittest.TestCase):
                     self.assertEqual([t['frequency'] for t in boundary], EMPTY_TONE)
                     self.assertTrue(all(t['state'] == 'running' for t in boundary))
                     page.evaluate('window.scheduledTones = []')
-                    page.keyboard.press('ArrowLeft')
+                    page.keyboard.press('ArrowUp')
                     self.assert_bar_geometry(page, 4)
                     page.wait_for_function('window.scheduledTones.length > 0')
                     recovered = page.evaluate('window.scheduledTones')
