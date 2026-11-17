@@ -64,9 +64,14 @@ until curl -fsS -o /dev/null "$REGISTRY/$VER"; do
   sleep "$RETRY_DELAY"
 done
 
+# jsDelivr answers a release's first requests with a 502 or 503 now and then: 4.18.0's dispatch
+# and its daily run both stopped here on one, with the files served a few minutes later. So each
+# download is retried, any failure included, for up to five minutes before the run gives up.
+JSDELIVR_RETRY=(--retry 10 --retry-delay 30 --retry-all-errors --max-time 120)
+
 TMP=$(mktemp -d)
 for f in maidr.js maidr-math.css; do
-  curl -fsSL "https://cdn.jsdelivr.net/npm/maidr@$VER/dist/$f" -o "$TMP/$f"
+  curl -fsSL "${JSDELIVR_RETRY[@]}" "https://cdn.jsdelivr.net/npm/maidr@$VER/dist/$f" -o "$TMP/$f"
 done
 cp "$TMP/maidr.js" "$ASSETS/maidr.js"
 cp "$TMP/maidr-math.css" "$ASSETS/maidr-math.css"
@@ -78,7 +83,7 @@ fi
 # The DotPad SDK pin: maidr.js ships the manifest it imports the SDK from as dist/dotpad-sdk.json,
 # so the skill copies that rather than maintaining its own. `curl -f` fails on a 404 (a release
 # that predates the manifest), and the JSON check guards against an error page served as 200.
-if curl -fsSL "https://cdn.jsdelivr.net/npm/maidr@$VER/dist/dotpad-sdk.json" -o "$TMP/dotpad-sdk.json" 2>/dev/null \
+if curl -fsSL "${JSDELIVR_RETRY[@]}" "https://cdn.jsdelivr.net/npm/maidr@$VER/dist/dotpad-sdk.json" -o "$TMP/dotpad-sdk.json" 2>/dev/null \
    && DOTPAD_VER=$("$PY" -c 'import json,sys;m=json.load(open(sys.argv[1]));v=m.get("version");print(v) if isinstance(v,str) and v else sys.exit(1)' "$TMP/dotpad-sdk.json" 2>/dev/null); then
   cp "$TMP/dotpad-sdk.json" "$DOTPAD"
   echo "dotpad sdk pin: $DOTPAD_VER (from maidr@$VER dist/dotpad-sdk.json)"

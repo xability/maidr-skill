@@ -79,14 +79,27 @@ jobs:
       - name: Vendored bundle matches recorded checksums and the npm release
         run: |
           python - <<'EOF'
-          import hashlib, json, urllib.request
+          import hashlib, json, time, urllib.request
+
+          def fetch(url):
+              # jsDelivr times out or answers 5xx now and then (the 16 Nov release stopped on a
+              # read timeout here), so retry for a few minutes before calling the bundle unverified.
+              for attempt in range(1, 7):
+                  try:
+                      return urllib.request.urlopen(url, timeout=60).read()
+                  except OSError as error:   # URLError, HTTPError and timeouts alike
+                      if attempt == 6:
+                          raise
+                      print(f"{url}: {error}; retrying in 30s ({attempt} of 5)")
+                      time.sleep(30)
+
           meta = json.load(open("skills/maidr/assets/maidr-bundle.json"))
           ver = meta["version"]
           for name, info in meta["files"].items():
               local = open(f"skills/maidr/assets/{name}", "rb").read()
               digest = hashlib.sha256(local).hexdigest()
               assert digest == info["sha256"], f"{name}: recorded sha256 differs from file"
-              remote = urllib.request.urlopen(f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/{name}", timeout=30).read()
+              remote = fetch(f"https://cdn.jsdelivr.net/npm/maidr@{ver}/dist/{name}")
               assert hashlib.sha256(remote).hexdigest() == digest, f"{name}: differs from maidr@{ver} on npm"
           print(f"vendored maidr {ver} verified")
           EOF
