@@ -1,3 +1,11 @@
+## [0.2.6](https://github.com/xability/maidr-skill/compare/v0.2.5...v0.2.6) (2026-11-23)
+
+
+### Bug Fixes
+
+* **bundle:** vendor maidr.js 4.18.0 ([9975245](https://github.com/xability/maidr-skill/commit/9975245f1b0a10eaa02022955edb47789445351b))
+* **bundle:** vendor maidr.js 4.18.1 ([09423ef](https://github.com/xability/maidr-skill/commit/09423ef18db0bed8bfe842aecd011888ecf37a6a))
+
 ## [0.2.5](https://github.com/xability/maidr-skill/compare/v0.2.4...v0.2.5) (2026-11-09)
 
 
